@@ -1,0 +1,40 @@
+# /home/st9797/.openclaw/workspace/agents/coding/kya-service/.dockerignore
+#
+# KYA Service — Docker build exclusions
+#
+# Licensed under AGPL-3.0 — See LICENSE file for details.
+
+# Dependencies
+node_modules/
+npm-debug.log*
+
+# Tests (not needed at runtime)
+tests/
+test/
+
+# Build artifacts
+dist/
+*.tsbuildinfo
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+
+# Docs
+README.md
+LICENSE
+*.md
+
+# Environment
+.env
+.env.*
+
+# OS
+.DS_Store
+Thumbs.db

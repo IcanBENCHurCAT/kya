@@ -1,0 +1,75 @@
+# /home/st9797/.openclaw/workspace/agents/coding/kya-service/docker-compose.yml
+#
+# KYA Service — Local Development Compose
+#
+# Starts the KYA app behind nginx reverse proxy with HTTPS via mkcert.
+#
+# Usage:
+#   docker compose up --build        # Start everything
+#   docker compose up -d             # Start detached
+#   docker compose down              # Stop and clean up
+#
+# Licensed under AGPL-3.0 — See LICENSE file for details.
+
+services:
+  # ─── KYA Application ─────────────────────────────────────────────────────
+  kya:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: kya-app
+    environment:
+      - PORT=3000
+      - NODE_ENV=production
+      - SUPABASE_URL=${SUPABASE_URL:-}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY:-}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY:-}
+      - ALGORAND_NETWORK_URL=${ALGORAND_NETWORK_URL:-}
+      - ALGORAND_API_TOKEN=${ALGORAND_API_TOKEN:-}
+      - SCREENING_FAIL_THRESHOLD=${SCREENING_FAIL_THRESHOLD:-0.85}
+      - SCREENING_FLAG_THRESHOLD=${SCREENING_FLAG_THRESHOLD:-0.50}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    volumes:
+      - watchdata:/app/data
+    # No port exposure — only accessible via nginx proxy
+    networks:
+      - kya-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/v1/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  # ─── Nginx Reverse Proxy ─────────────────────────────────────────────────
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: kya-nginx
+    ports:
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+    depends_on:
+      kya:
+        condition: service_healthy
+    networks:
+      - kya-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "https://localhost/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+# ─── Networks ───────────────────────────────────────────────────────────────
+networks:
+  kya-net:
+    driver: bridge
+
+# ─── Volumes ────────────────────────────────────────────────────────────────
+volumes:
+  watchdata:
+    driver: local

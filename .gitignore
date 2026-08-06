@@ -1,0 +1,36 @@
+# /home/st9797/.openclaw/workspace/agents/coding/kya-service/.gitignore
+#
+# KYA Service — Git ignore patterns
+#
+# Licensed under AGPL-3.0 — See LICENSE file for details.
+
+# Dependencies
+node_modules/
+
+# Build artifacts
+dist/
+*.tsbuildinfo
+
+# Environment secrets (never commit!)
+.env
+.env.*
+!.env.example
+
+# Runtime data
+data/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-*
+
+# OS
+.DS_Store
+Thumbs.db
+*.log
+
+# Test coverage
+coverage/
+.nyc_output/
