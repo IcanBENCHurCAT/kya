@@ -5,7 +5,7 @@
  * They are stored in Supabase (PostgreSQL) and never written to any blockchain.
  */
 
-import { VerificationClaim } from "../types.js";
+import { VerificationClaim } from "./types.js";
 import { createClient } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
 

@@ -14,10 +14,10 @@
 import { randomInt } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { VerificationProvider } from "../types.js";
-import { AttemptStore } from "./attempt-store.js";
-import { ClaimStore } from "./claim-store.js";
-import { InMemoryAttemptStore } from "./in-memory-store.js";
-import { verifyAndSignClaim } from "../utils/crypto.js";
+import { AttemptStore } from "../attempt-store.js";
+import { ClaimStore } from "../claim-store.js";
+import { InMemoryAttemptStore } from "../in-memory-store.js";
+import { verifyAndSignClaim } from "../../utils/crypto.js";
 import { VerificationSuccess, VerificationError } from "../types.js";
 
 export interface EmailProviderOptions {

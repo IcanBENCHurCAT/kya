@@ -130,10 +130,12 @@ export function getAuditLog(
   let entries = [...auditLog];
 
   if (options.after) {
-    entries = entries.filter(e => e.timestamp >= options.after);
+    const after = options.after;
+    entries = entries.filter(e => e.timestamp >= after);
   }
   if (options.before) {
-    entries = entries.filter(e => e.timestamp <= options.before);
+    const before = options.before;
+    entries = entries.filter(e => e.timestamp <= before);
   }
   if (options.result) {
     entries = entries.filter(e => e.result === options.result);

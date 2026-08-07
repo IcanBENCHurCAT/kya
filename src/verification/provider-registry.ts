@@ -8,7 +8,7 @@
  * without modifying the core service logic.
  */
 
-import { VerificationProvider, VerificationMethod } from "../types.js";
+import { VerificationProvider, VerificationMethod } from "./types.js";
 
 export class ProviderRegistry {
   private providers = new Map<VerificationMethod, VerificationProvider>();

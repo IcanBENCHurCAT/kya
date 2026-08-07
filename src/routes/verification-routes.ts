@@ -11,8 +11,8 @@
  */
 
 import { Hono } from "hono";
-import { VerificationService } from "./service.js";
-import { VerificationError } from "./types.js";
+import { VerificationService } from "../verification/service.js";
+import { VerificationError } from "../verification/types.js";
 
 export function createVerificationRoutes(
   verificationService: VerificationService
@@ -55,7 +55,7 @@ export function createVerificationRoutes(
     } catch (error) {
       if ((error as VerificationError).code) {
         const err = error as VerificationError;
-        return c.json({ error: err.message, code: err.code }, err.status);
+        return c.json({ error: err.message, code: err.code }, err.status as 400 | 401 | 403 | 404 | 409 | 429 | 500);
       }
       return c.json({ error: "Internal server error" }, 500);
     }
@@ -100,7 +100,7 @@ export function createVerificationRoutes(
     } catch (error) {
       if ((error as VerificationError).code) {
         const err = error as VerificationError;
-        return c.json({ error: err.message, code: err.code }, err.status);
+        return c.json({ error: err.message, code: err.code }, err.status as 400 | 401 | 403 | 404 | 409 | 429 | 500);
       }
       return c.json({ error: "Internal server error" }, 500);
     }

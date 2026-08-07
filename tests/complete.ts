@@ -2,7 +2,7 @@
  * Comprehensive tests for the Algorand Wallet Analysis data layer
  * Tests:
  * 1. InMemoryCache — TTL, eviction, stats, hit rate
- * 2. AlgorandClient — mocked blockchain queries
+ * 2. AlgorandClient — configuration and type checks (mocked blockchain)
  * 3. TransactionHistoryService — aggregated history, counterparty stats
  * 4. SiblingDiscoveryService — frequent counterparties, creator wallets
  * 5. WalletGraph — nodes, edges, path finding, degree centrality
@@ -11,27 +11,42 @@
  */
 
 import assert from 'node:assert';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+import { setTimeout: sleep } from 'node:timers/promises';
 
 // ============================================================
 // 1. In-Memory Cache Tests
 // ============================================================
 console.log('\n🧪 Testing InMemoryCache...');
 
-class MockAlgorandClient {
-  async getTransactionsByAddress() { return []; }
-  async getNetworkParams() { return { lastRound: 100 }; }
-}
-
-// Need to import dynamically to avoid module resolution issues
 const { InMemoryCache, createAlgorandCache } = await import('../src/cache/inMemoryCache.js');
 const { TransactionHistoryService } = await import('../src/services/transactionHistory.js');
 const { SiblingDiscoveryService } = await import('../src/services/siblingDiscovery.js');
 const { WalletGraph } = await import('../src/graph/walletGraph.js');
 const { AlgorandClient, DEFAULT_CONFIG } = await import('../src/algorand/client.js');
+
+// Simple mock client that returns controlled test data — no network needed
+class MockAlgorandClient {
+  private _mockTxs: any[] = [];
+
+  setMockTransactions(txns: any[]) {
+    this._mockTxs = txns;
+  }
+
+  async getTransactionsByAddress() {
+    return this._mockTxs;
+  }
+
+  async getNetworkParams() {
+    return { lastRound: 100 };
+  }
+}
+
+// Mock Algorand client that exposes internal methods for testing
+class TestAlgorandClient extends MockAlgorandClient {
+  async getTransactionsByAddress() {
+    return this._mockTxs;
+  }
+}
 
 async function testCache() {
   console.log('  Testing basic cache operations...');
@@ -49,7 +64,7 @@ async function testCache() {
   // Test TTL
   cache.set('ttl_key', 'ttl_value', 50);
   assert.strictEqual(cache.get('ttl_key'), 'ttl_value');
-  await new Promise((r) => setTimeout(r, 60));
+  await sleep(60);
   assert.strictEqual(cache.get('ttl_key'), null);
 
   // Test size limit and eviction
@@ -79,7 +94,7 @@ async function testCache() {
   cleanupCache.set('expire1', 'v1', 50);
   cleanupCache.set('expire2', 'v2', 50);
   cleanupCache.set('stay', 'v3', 60000);
-  await new Promise((r) => setTimeout(r, 60));
+  await sleep(60);
   const removed = cleanupCache.cleanup();
   assert.strictEqual(removed, 2);
   assert.strictEqual(cleanupCache.get('stay'), 'v3');
@@ -93,7 +108,7 @@ async function testCache() {
 }
 
 // ============================================================
-// 2. AlgorandClient Tests (mocked)
+// 2. AlgorandClient Tests (config only, no network)
 // ============================================================
 async function testAlgorandClient() {
   console.log('  Testing AlgorandClient configuration...');
@@ -103,7 +118,7 @@ async function testAlgorandClient() {
   assert.ok(DEFAULT_CONFIG.nodeURL.includes('testnet'));
   assert.ok(DEFAULT_CONFIG.indexerURL.includes('testnet'));
 
-  // Test client instantiation (won't actually connect)
+  // Test client instantiation (won't actually connect — we verify it creates without error)
   const client = new AlgorandClient();
   assert.ok(client);
 
@@ -124,67 +139,61 @@ async function testAlgorandClient() {
 async function testTransactionHistory() {
   console.log('  Testing TransactionHistoryService with mock data...');
 
-  // Create a mock AlgorandClient that returns controlled test data
-  class TestAlgorandClient extends AlgorandClient {
-    private mockTransactions: any[] = [];
-    
-    setMockTransactions(txns: any[]) {
-      this.mockTransactions = txns;
-    }
+  // Create a mock client instance that we control
+  const mockClient = new MockAlgorandClient();
+  mockClient.setMockTransactions([
+    {
+      txid: 'TEST001',
+      round: 100,
+      timestamp: Date.now() - 100000,
+      sender: 'ADDR_SENDER_A',
+      receiver: 'ADDR_TARGET',
+      amount: 5000000, // 5 ALGO in microAlgos
+      fee: 1000,
+      type: 'received',
+      confirmations: 1000,
+    },
+    {
+      txid: 'TEST002',
+      round: 200,
+      timestamp: Date.now() - 90000,
+      sender: 'ADDR_TARGET',
+      receiver: 'ADDR_COUNTERPARTY_1',
+      amount: 2000000, // 2 ALGO
+      fee: 1000,
+      type: 'sent',
+      confirmations: 900,
+    },
+    {
+      txid: 'TEST003',
+      round: 300,
+      timestamp: Date.now() - 80000,
+      sender: 'ADDR_TARGET',
+      receiver: 'ADDR_COUNTERPARTY_1',
+      amount: 3000000, // 3 ALGO
+      fee: 1000,
+      type: 'sent',
+      confirmations: 800,
+    },
+    {
+      txid: 'TEST004',
+      round: 400,
+      timestamp: Date.now() - 70000,
+      sender: 'ADDR_COUNTERPARTY_2',
+      receiver: 'ADDR_TARGET',
+      amount: 1000000, // 1 ALGO
+      fee: 1000,
+      type: 'received',
+      confirmations: 700,
+    },
+  ]);
 
-    async getTransactionsByAddress() {
-      // Return structured mock transactions
-      return [
-        {
-          txid: 'TEST001',
-          round: 100,
-          timestamp: Date.now() - 100000,
-          sender: 'ADDR_SENDER_A',
-          receiver: 'ADDR_TARGET',
-          amount: 5000000, // 5 ALGO in microAlgos
-          fee: 1000,
-          type: 'received',
-          confirmations: 1000,
-        },
-        {
-          txid: 'TEST002',
-          round: 200,
-          timestamp: Date.now() - 90000,
-          sender: 'ADDR_TARGET',
-          receiver: 'ADDR_COUNTERPARTY_1',
-          amount: 2000000, // 2 ALGO
-          fee: 1000,
-          type: 'sent',
-          confirmations: 900,
-        },
-        {
-          txid: 'TEST003',
-          round: 300,
-          timestamp: Date.now() - 80000,
-          sender: 'ADDR_TARGET',
-          receiver: 'ADDR_COUNTERPARTY_1',
-          amount: 3000000, // 3 ALGO
-          fee: 1000,
-          type: 'sent',
-          confirmations: 800,
-        },
-        {
-          txid: 'TEST004',
-          round: 400,
-          timestamp: Date.now() - 70000,
-          sender: 'ADDR_COUNTERPARTY_2',
-          receiver: 'ADDR_TARGET',
-          amount: 1000000, // 1 ALGO
-          fee: 1000,
-          type: 'received',
-          confirmations: 700,
-        },
-      ];
-    }
-  }
-
-  const client = new TestAlgorandClient();
-  const service = new TransactionHistoryService(client);
+  // TransactionHistoryService takes an AlgorandClient. We pass the mock.
+  // Since TransactionHistoryService calls client.getTransactionsByAddress(),
+  // the mock will return our controlled data.
+  // We need to cast the mock to satisfy TypeScript's AlgorandClient type.
+  // The real AlgorandClient has the same method signature, so this is safe.
+  const service = new TransactionHistoryService(mockClient as any);
 
   // Test getting transaction history
   const history = await service.getTransactionHistory('ADDR_TARGET');
@@ -217,7 +226,8 @@ async function testTransactionHistory() {
 
   // Test invalidation
   service.invalidate('ADDR_TARGET');
-  assert.strictEqual(cacheStats.size, 0 || cacheStats.size === 0);
+  const afterInvalidate = service.getCacheStats();
+  assert.strictEqual(afterInvalidate.size, 0);
 
   console.log('  ✅ TransactionHistoryService tests passed');
 }
@@ -241,7 +251,7 @@ async function testSiblingDiscovery() {
       fee: 1000,
       type: 'received',
       confirmations: 100,
-    } as any,
+    },
     {
       txid: 'TX002',
       round: 200,
@@ -252,7 +262,7 @@ async function testSiblingDiscovery() {
       fee: 1000,
       type: 'sent',
       confirmations: 99,
-    } as any,
+    },
     {
       txid: 'TX003',
       round: 300,
@@ -263,7 +273,7 @@ async function testSiblingDiscovery() {
       fee: 1000,
       type: 'received',
       confirmations: 98,
-    } as any,
+    },
     {
       txid: 'TX004',
       round: 400,
@@ -274,7 +284,7 @@ async function testSiblingDiscovery() {
       fee: 1000,
       type: 'received',
       confirmations: 97,
-    } as any,
+    },
   ];
 
   const mockCounterparties = [
@@ -322,7 +332,7 @@ async function testSiblingDiscovery() {
   assert.ok(siblingB.confidence >= 0);
   assert.ok(siblingB.confidence <= 1);
 
-  // Test cache
+  // Test cache stats
   const cacheStats = service.getCacheStats();
   assert.ok(cacheStats.size >= 0);
 

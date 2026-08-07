@@ -11,10 +11,12 @@
  * In production: Run as a background cron job or via API endpoint.
  */
 
-import {
+import type {
   SanctionsList,
   SanctionedEntry,
   ListRegistry,
+} from './ofac.js';
+import {
   buildDefaultData,
   saveSanctionsList,
   loadSanctionsList,
@@ -22,6 +24,9 @@ import {
   parseOFACCSV,
   parseOFACJSON,
 } from './ofac.js';
+
+// Re-export ListRegistry for consumers
+export type { ListRegistry } from './ofac.js';
 import { logUpdate, logError } from './audit.js';
 
 const WATCHLIST_PATH = process.env.KYA_DATA_DIR

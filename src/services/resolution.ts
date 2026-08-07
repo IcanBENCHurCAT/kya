@@ -114,6 +114,7 @@ export function resolveForScreening(walletAddress: string): ResolutionResult {
     return {
       walletAddress,
       resolved: false,
+      associatedWallets: [],
       confidence: 0.0,
       notes: 'No identity data found for this wallet. Screening will use address-only matching.',
       timestamp: new Date().toISOString(),
@@ -189,7 +190,11 @@ export function seedTestData(): void {
   );
 
   // Wallet with no verification
-  registerWalletIdentity('XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX');
+  registerWalletIdentity(
+    'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
+    'Unknown Owner',
+    { verificationMethod: 'none' },
+  );
 
   console.log('[Resolution] Test data seeded.');
 }

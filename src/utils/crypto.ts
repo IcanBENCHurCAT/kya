@@ -12,22 +12,11 @@ import {
   importPKCS8,
   exportPKCS8,
   exportSPKI,
-  verify,
-  sign,
+  importSPKI,
+  CompactSign,
+  compactVerify,
 } from "jose";
-import { VerificationClaim } from "../types.js";
-
-/**
- * Convert raw bytes to PEM string (PKCS#8 or SPKI).
- * This is a minimal PEM encoder for Ed25519 keys.
- */
-function toPEM(bytes: Uint8Array, type: "PRIVATE" | "PUBLIC"): string {
-  // Base64 encode the DER bytes
-  const b64 = btoa(String.fromCharCode(...bytes));
-  // Wrap in PEM headers
-  const lines = b64.match(/.{1,64}/g) || [];
-  return `-----BEGIN ${type} KEY-----\n${lines.join("\n")}\n-----END ${type} KEY-----`;
-}
+import { VerificationClaim } from "../verification/types.js";
 
 /**
  * Generate a new Ed25519 key pair for signing claims.
@@ -39,12 +28,13 @@ export async function generateSigningKey(): Promise<{
 }> {
   const { privateKey, publicKey } = await generateKeyPair("EdDSA");
 
+  // jose v5 exportPKCS8/exportSPKI return PEM strings directly
   const pkcs8 = await exportPKCS8(privateKey);
   const spki = await exportSPKI(publicKey);
 
   return {
-    privateKey: toPEM(pkcs8, "PRIVATE"),
-    publicKey: toPEM(spki, "PUBLIC"),
+    privateKey: pkcs8,
+    publicKey: spki,
   };
 }
 
@@ -68,26 +58,19 @@ export async function signClaim(params: {
   keyId: string;
   verifiedAt: number;
 }> {
-  // Parse PEM private key — strip headers, decode base64, import as PKCS8
-  const pemPrivateKey = params.privateKey
-    .replace(/-----BEGIN PRIVATE KEY-----/g, "")
-    .replace(/-----END PRIVATE KEY-----/g, "")
-    .replace(/\s/g, "");
-  const pkcs8Bytes = Uint8Array.from(atob(pemPrivateKey), (c) =>
-    c.charCodeAt(0)
-  );
-
-  // jose v5 importPKCS8 accepts Uint8Array
-  const privateKey = await importPKCS8(pkcs8Bytes, "EdDSA");
+  // jose v5 importPKCS8 takes a PEM string directly (not decoded bytes)
+  const privateKey = await importPKCS8(params.privateKey, "EdDSA");
 
   const message = `${params.walletAddress}|${params.identityHash}|${params.verifiedAt}`;
   const encoder = new TextEncoder();
 
-  const signature = await sign(encoder.encode(message), privateKey);
+  // Use jose v5 CompactSign API for EdDSA signing
+  const signer = new CompactSign(new TextEncoder().encode(message));
+  signer.setProtectedHeader({ alg: "EdDSA" });
+  const jws = await signer.sign(privateKey);
 
-  const signatureHex = Array.from(new Uint8Array(signature))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+  // Extract signature from JWS (part after second dot) and convert to hex
+  const signatureHex = Buffer.from(jws.split(".")[2], "base64url").toString("hex");
 
   return {
     signature: signatureHex,
@@ -106,24 +89,30 @@ export async function verifyClaimSignature(params: {
   signature: string;
   publicKey: string;
 }): Promise<boolean> {
-  const pemPublicKey = params.publicKey
-    .replace(/-----BEGIN PUBLIC KEY-----/g, "")
-    .replace(/-----END PUBLIC KEY-----/g, "")
-    .replace(/\s/g, "");
-  const spkiBytes = Uint8Array.from(atob(pemPublicKey), (c) =>
-    c.charCodeAt(0)
-  );
-
-  const publicKey = await importSPKI(spkiBytes, "EdDSA");
+  // jose v5 importSPKI takes a PEM string directly (not decoded bytes)
+  const publicKey = await importSPKI(params.publicKey, "EdDSA");
 
   const message = `${params.walletAddress}|${params.identityHash}|${params.verifiedAt}`;
-  const encoder = new TextEncoder();
 
-  const signatureBytes = new Uint8Array(
+  // Reconstruct the compact JWS: base64url(header).base64url(payload).base64url(signature)
+  const signatureBytes = Uint8Array.from(
     params.signature.match(/.{1,2}/g)?.map((hex) => parseInt(hex, 16)) || []
   );
+  const base64urlSignature = Buffer.from(signatureBytes).toString("base64url");
+  const base64urlMessage = Buffer.from(message).toString("base64url");
+  const base64urlHeader = Buffer.from(
+    JSON.stringify({ alg: "EdDSA" }),
+  ).toString("base64url");
+  const jws = `${base64urlHeader}.${base64urlMessage}.${base64urlSignature}`;
 
-  return verify(signatureBytes, encoder.encode(message), publicKey);
+  try {
+    const result = await compactVerify(jws, publicKey);
+    // Verify the payload matches the expected message
+    const decoded = new TextDecoder().decode(result.payload);
+    return decoded === message;
+  } catch {
+    return false;
+  }
 }
 
 /**

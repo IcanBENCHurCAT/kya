@@ -4,12 +4,12 @@
  */
 
 import type {
-  AlgorandClient,
   AlgorandTransaction,
   WalletTransactionHistory,
   CounterpartyStats,
   AssetStats,
 } from '../types/index.js';
+import { AlgorandClient } from '../algorand/client.js';
 import { InMemoryCache } from '../cache/inMemoryCache.js';
 
 export class TransactionHistoryService {

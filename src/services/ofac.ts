@@ -45,7 +45,7 @@ export interface SanctionsList {
 }
 
 export interface ListRegistry {
-  [listName: string]: SanctionsList;
+  [listName: string]: SanctionedEntry[];
 }
 
 /**
@@ -242,7 +242,7 @@ export async function downloadOFACSDN(): Promise<SanctionedEntry[]> {
 /**
  * Parse OFAC SDN JSON v2 format (from sanctionslistservice.ofac.gov).
  */
-function parseOFACJSON(data: any): SanctionedEntry[] {
+export function parseOFACJSON(data: any): SanctionedEntry[] {
   const entries: SanctionedEntry[] = [];
   const list = Array.isArray(data) ? data : data.SDNList || [];
 

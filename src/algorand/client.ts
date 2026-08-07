@@ -1,6 +1,8 @@
 /**
  * Algorand Client — connects to Algorand nodes and indexers
  * Provides methods to query transactions, accounts, and asset data
+ *
+ * Compatible with algosdk v2.7.x (uses the builder-pattern indexer/algod API)
  */
 
 import * as algosdk from 'algosdk';
@@ -17,47 +19,69 @@ export class AlgorandClient {
     this.config = { ...DEFAULT_CONFIG, ...config };
     this.network = this.config.network;
 
-    // Configure Algod client
+    // Configure Algod client: Algodv2(token, server, port)
     const algodServer = this.config.nodeURL || DEFAULT_CONFIG.nodeURL;
-    const algodPort = this.config.port || DEFAULT_CONFIG.port;
+    const algodPort = this.config.port || '';
     const algodToken = this.config.token || '';
 
-    this.algod = new algosdk.Algodv2(algodToken, algodServer, algodPort);
+    this.algod = new algosdk.Algodv2(
+      algodToken as string,
+      algodServer as string,
+      algodPort as string
+    );
 
-    // Configure Indexer client
+    // Configure Indexer client: Indexer(token, server, port)
     const indexerServer = this.config.indexerURL || DEFAULT_CONFIG.indexerURL;
-    const indexerPort = this.config.indexerPort || DEFAULT_CONFIG.indexerPort;
-    const indexerToken = this.config.indexerToken || DEFAULT_CONFIG.indexerToken;
+    const indexerPort = this.config.indexerPort || '';
+    const indexerToken = this.config.indexerToken || '';
 
-    this.indexer = new algosdk.Indexer(indexerToken, indexerServer, indexerPort);
+    this.indexer = new algosdk.Indexer(
+      indexerToken as string,
+      indexerServer as string,
+      indexerPort as string
+    );
   }
 
   /**
-   * Get current network parameters
+   * Get current network parameters (node status)
    */
-  async getNetworkParams(): Promise<algosdk.NodeStatusResponse> {
+  async getNetworkParams(): Promise<{
+    lastRound: number;
+    version: string;
+    timeSinceRound: number;
+    caughtUp: boolean;
+  }> {
     const status = await this.algod.status().do();
-    return status;
+    return status as {
+      lastRound: number;
+      version: string;
+      timeSinceRound: number;
+      caughtUp: boolean;
+    };
   }
 
   /**
    * Get account information including balance and assets
    */
-  async getAccountInfo(address: string): Promise<algosdk.AccountInformation> {
-    const response = await this.indexer.lookupAccountByID(parseInt(address)).do();
-    return response;
+  async getAccountInfo(address: string): Promise<Record<string, unknown>> {
+    const response = await this.indexer
+      .lookupAccountByID(address)
+      .do();
+    return response as unknown as Record<string, unknown>;
   }
 
   /**
    * Get transaction by ID
    */
-  async getTransactionByID(txID: string): Promise<algosdk.PendingTransactionResponse> {
-    return this.algod.getTxById(txID).do();
+  async getTransactionByID(txID: string): Promise<Record<string, unknown>> {
+    return this.indexer
+      .lookupTransactionByID(txID)
+      .do();
   }
 
   /**
    * Query all transactions for an address (incoming and outgoing)
-   * Uses the Algorand Indexer API for comprehensive transaction history
+   * Uses the Algorand Indexer API with builder-style query params
    */
   async getTransactionsByAddress(
     address: string,
@@ -72,39 +96,35 @@ export class AlgorandClient {
       assetId?: number;
     }
   ): Promise<AlgorandTransaction[]> {
-    const limit = options?.limit ?? 100;
-    const params: Record<string, string | number> = {
-      limit: limit.toString(),
-    };
+    // Use builder-style API — limit(), minRound(), maxRound(), etc.
+    let query = this.indexer
+      .lookupAccountTransactions(address)
+      .limit(options?.limit ?? 100);
 
-    if (options?.beforeRound) {
-      params['before-round'] = options.beforeRound.toString();
-    }
     if (options?.afterRound) {
-      params['after-round'] = options.afterRound.toString();
+      query = query.minRound(options.afterRound);
+    }
+    if (options?.beforeRound) {
+      query = query.maxRound(options.beforeRound);
     }
     if (options?.minAmount) {
-      params['min-amount'] = options.minAmount.toString();
+      query = query.currencyGreaterThan(options.minAmount - 1);
     }
     if (options?.maxAmount) {
-      params['max-amount'] = options.maxAmount.toString();
+      query = query.currencyLessThan(options.maxAmount + 1);
     }
     if (options?.assetId) {
-      params['asset-id'] = options.assetId.toString();
+      query = query.assetID(options.assetId);
     }
     if (options?.startTime) {
-      params['start-time'] = new Date(options.startTime).toISOString();
+      query = query.afterTime(new Date(options.startTime).toISOString());
     }
     if (options?.endTime) {
-      params['end-time'] = new Date(options.endTime).toISOString();
+      query = query.beforeTime(new Date(options.endTime).toISOString());
     }
 
-    const response = await this.indexer
-      .lookupAccountTransactions(address)
-      .params(params)
-      .do();
-
-    return this.parseTransactions(response.transactions);
+    const response = await query.do();
+    return this.parseTransactions(response?.transactions || []);
   }
 
   /**
@@ -112,41 +132,35 @@ export class AlgorandClient {
    */
   async getPendingTransactionsByAddress(
     address: string
-  ): Promise<algosdk.PendingTransactionResponse[]> {
+  ): Promise<Record<string, unknown>[]> {
     const response = await this.indexer
       .lookupAccountTransactions(address)
-      .addressRole('sender')
       .do();
-
-    return response.transactions || [];
+    return (response?.transactions || []) as unknown as Record<string, unknown>[];
   }
 
   /**
    * Query transactions by application ID (smart contract interactions)
+   * Uses the generic searchForTransactions with application-id filter
    */
   async getTransactionsByApplication(
     appID: number,
     options?: { limit?: number; beforeRound?: number; afterRound?: number }
   ): Promise<AlgorandTransaction[]> {
-    const limit = options?.limit ?? 100;
-    const params: Record<string, string | number> = {
-      'application-id': appID.toString(),
-      limit: limit.toString(),
-    };
+    let query = this.indexer
+      .searchForTransactions()
+      .applicationID(appID)
+      .limit(options?.limit ?? 100);
 
-    if (options?.beforeRound) {
-      params['before-round'] = options.beforeRound.toString();
-    }
     if (options?.afterRound) {
-      params['after-round'] = options.afterRound.toString();
+      query = query.minRound(options.afterRound);
+    }
+    if (options?.beforeRound) {
+      query = query.maxRound(options.beforeRound);
     }
 
-    const response = await this.indexer
-      .lookupApplicationTransactionsByApplicationID(appID)
-      .params(params)
-      .do();
-
-    return this.parseTransactions(response.transactions);
+    const response = await query.do();
+    return this.parseTransactions(response?.transactions || []);
   }
 
   /**
@@ -156,18 +170,12 @@ export class AlgorandClient {
     assetId: number,
     options?: { limit?: number }
   ): Promise<AlgorandTransaction[]> {
-    const limit = options?.limit ?? 100;
-    const params: Record<string, string | number> = {
-      'asset-id': assetId.toString(),
-      limit: limit.toString(),
-    };
-
-    const response = await this.indexer
+    let query = this.indexer
       .lookupAssetTransactions(assetId)
-      .params(params)
-      .do();
+      .limit(options?.limit ?? 100);
 
-    return this.parseTransactions(response.transactions);
+    const response = await query.do();
+    return this.parseTransactions(response?.transactions || []);
   }
 
   /**
@@ -175,144 +183,168 @@ export class AlgorandClient {
    */
   async getCurrentRound(): Promise<number> {
     const status = await this.algod.status().do();
-    return status.lastRound;
+    return status.lastRound || 0;
   }
 
   /**
    * Search for accounts by asset balance
    */
-  async searchAccountsByAsset(assetId: number): Promise<{ accounts: algosdk.AccountInformation[] }> {
+  async searchAccountsByAsset(assetId: number): Promise<Record<string, unknown>> {
     const response = await this.indexer
-      .searchForAccounts()
-      .assetId(assetId)
+      .searchAccounts()
+      .assetID(assetId)
       .do();
-
-    return response;
+    return response as unknown as Record<string, unknown>;
   }
 
   /**
-   * Search for accounts by min balance
+   * Search for accounts by min balance (uses currencyGreaterThan as proxy)
    */
-  async searchAccountsByMinBalance(minBalance: number): Promise<{ accounts: algosdk.AccountInformation[] }> {
+  async searchAccountsByMinBalance(minBalance: number): Promise<Record<string, unknown>> {
     const response = await this.indexer
-      .searchForAccounts()
-      .minBalance(minBalance)
+      .searchAccounts()
+      .currencyGreaterThan(minBalance)
       .do();
-
-    return response;
+    return response as unknown as Record<string, unknown>;
   }
 
   /**
    * Look up asset by ID
    */
-  async getAssetByID(assetId: number): Promise<{ asset: { params: { name: string; 'decimals': number; 'total': number } } }> {
-    const response = await this.indexer.lookupAssetByID(assetId).do();
-    return response;
+  async getAssetByID(assetId: number): Promise<Record<string, unknown>> {
+    const response = await this.indexer
+      .lookupAssetByID(assetId)
+      .do();
+    return response as unknown as Record<string, unknown>;
   }
 
   /**
    * Look up block by round
    */
-  async getBlockByRound(round: number): Promise<algosdk.BlockResponse> {
-    return this.algod.block(round).do();
+  async getBlockByRound(round: number): Promise<Record<string, unknown>> {
+    return this.indexer
+      .lookupBlock(round)
+      .do();
   }
 
   /**
    * Internal: Parse raw transaction results into our structured format
+   *
+   * The algosdk v2.x indexer returns transactions in a nested structure:
+   * { transactions: [ { tx: { ... }, ...confirmedRound, ...block-time }, ... ] }
    */
   private parseTransactions(
-    rawTransactions: algosdk.types.TransactionResult[]
+    rawTransactions: Record<string, unknown>[]
   ): AlgorandTransaction[] {
     if (!rawTransactions) {
       return [];
     }
 
-    return rawTransactions.map((tx) => {
-      const result = tx.tx;
-      if (!result) {
-        return null;
-      }
-
-      // Determine transaction type
-      let txType: 'sent' | 'received' | 'application' = 'sent';
-      let appCall: AlgorandTransaction['applicationCall'] = undefined;
-      let assetTransfer: AlgorandTransaction['assetTransfer'] = undefined;
-
-      if (result.tx && result.tx.appCallTxnFields) {
-        txType = 'application';
-        appCall = {
-          type: this.mapOnCompletion(result.tx.appCallTxnFields.onCompletion) || 'NoOp',
-          applicationId: result.tx.appCallTxnFields.applicationID,
-          onCompletion: result.tx.appCallTxnFields.onCompletion,
-        };
-      } else if (result.tx && result.tx.assetTransferTxnFields) {
-        assetTransfer = {
-          assetId: result.tx.assetTransferTxnFields.assetIndex,
-          amount: result.tx.assetTransferTxnFields.amount,
-          receiver: result.tx.assetTransferTxnFields.assetReceiver,
-          sender: result.tx.assetTransferTxnFields.assetSender,
-          closeTo: result.tx.assetTransferTxnFields.assetCloseTo,
-        };
-
-        // Determine if this is a send or receive for the watched address
-        if (assetTransfer.receiver === result.tx.snd) {
-          txType = 'received';
-        } else {
-          txType = 'sent';
+    return rawTransactions
+      .map((tx): AlgorandTransaction | null => {
+        if (!tx) {
+          return null;
         }
-      } else {
-        // Regular payment transaction
-        const paymentTxnFields = result.tx.paymentTxnFields;
-        if (paymentTxnFields) {
-          if (paymentTxnFields.receiver === result.tx.snd) {
-            // Payment to self (close remainder)
-            txType = 'sent';
+
+        // Determine transaction type
+        let txType: 'sent' | 'received' | 'application' = 'sent';
+        let appCall: AlgorandTransaction['applicationCall'] = undefined;
+        let assetTransfer: AlgorandTransaction['assetTransfer'] = undefined;
+
+        const txn = (tx as any).tx;
+        if (!txn) {
+          return null;
+        }
+
+        if ((txn as any).appCallTxnFields) {
+          txType = 'application';
+          appCall = {
+            type: this.mapOnCompletion(
+              (txn as any).appCallTxnFields.onCompletion
+            ),
+            applicationId: (txn as any).appCallTxnFields.applicationID,
+            onCompletion: (txn as any).appCallTxnFields.onCompletion,
+          };
+        } else if ((txn as any).assetTransferTxnFields) {
+          assetTransfer = {
+            assetId: (txn as any).assetTransferTxnFields.assetIndex,
+            amount: (txn as any).assetTransferTxnFields.amount,
+            receiver: (txn as any).assetTransferTxnFields.assetReceiver,
+            sender: (txn as any).assetTransferTxnFields.assetSender,
+            closeTo: (txn as any).assetTransferTxnFields.assetCloseTo,
+          };
+
+          if (assetTransfer.receiver === txn.snd) {
+            txType = 'received';
           } else {
-            txType = result.tx.snd === paymentTxnFields.sender ? 'sent' : 'received';
+            txType = 'sent';
+          }
+        } else {
+          const paymentTxnFields = (txn as any).paymentTxnFields;
+          if (paymentTxnFields) {
+            if (paymentTxnFields.receiver === txn.snd) {
+              // Payment to self (close remainder)
+              txType = 'sent';
+            } else {
+              txType =
+                txn.snd === paymentTxnFields.sender
+                  ? 'sent'
+                  : 'received';
+            }
           }
         }
-      }
 
-      const amount = result.tx.amount || 0;
-      const fee = result.tx.fee || 0;
-      const round = result.confirmedRound || 0;
-      const timestamp = result['block-time'] || 0;
+        const amount = txn.amount || 0;
+        const fee = txn.fee || 0;
+        const round = (tx as any).confirmedRound || 0;
+        const timestamp = (tx as any)['block-time'] || 0;
 
-      // Get the primary sender and receiver
-      const sender = result.tx.snd || '';
-      let receiver = '';
-      if (result.tx.paymentTxnFields) {
-        receiver = result.tx.paymentTxnFields.receiver;
-      }
+        // Get the primary sender and receiver
+        const sender = txn.snd || '';
+        let receiver = '';
+        if ((txn as any).paymentTxnFields) {
+          receiver = (txn as any).paymentTxnFields.receiver;
+        }
 
-      return {
-        txid: result.txid || '',
-        round,
-        timestamp,
-        sender,
-        receiver,
-        amount,
-        fee,
-        type: txType,
-        note: result.tx.note ? Buffer.from(result.tx.note).toString('base64') : undefined,
-        closeRemainderTo: result.tx.paymentTxnFields?.closeRemainderTo,
-        assetTransfer,
-        applicationCall: appCall,
-        blockHash: result.blockHash,
-        confirmations: 0, // Will be calculated externally
-      };
-    }).filter((tx): tx is AlgorandTransaction => tx !== null);
+        return {
+          txid: (tx as any).txid || '',
+          round,
+          timestamp,
+          sender,
+          receiver,
+          amount,
+          fee,
+          type: txType,
+          note: txn.note
+            ? Buffer.from(txn.note).toString('base64')
+            : undefined,
+          closeRemainderTo: (txn as any).paymentTxnFields?.closeRemainderTo,
+          assetTransfer,
+          applicationCall: appCall,
+          blockHash: (tx as any).blockHash,
+          confirmations: 0,
+        };
+      })
+      .filter((tx): tx is AlgorandTransaction => tx !== null);
   }
 
-  private mapOnCompletion(value: string): string {
-    const map: Record<string, string> = {
-      'noop': 'NoOp',
-      'optin': 'OptIn',
-      'closeout': 'CloseOut',
-      'clearstate': 'ClearState',
-      'updateapplication': 'UpdateApplication',
-      'deleteapplication': 'DeleteApplication',
+  private mapOnCompletion(
+    value: string
+  ): 'NoOp' | 'OptIn' | 'CloseOut' | 'ClearState' | 'UpdateApplication' | 'DeleteApplication' {
+    const map: Record<
+      string,
+      'NoOp' | 'OptIn' | 'CloseOut' | 'ClearState' | 'UpdateApplication' | 'DeleteApplication'
+    > = {
+      noop: 'NoOp',
+      optin: 'OptIn',
+      closeout: 'CloseOut',
+      clearstate: 'ClearState',
+      updateapplication: 'UpdateApplication',
+      deleteapplication: 'DeleteApplication',
     };
-    return map[value.toLowerCase()] || value;
+    return (
+      map[value.toLowerCase()] ||
+      ('NoOp' as 'NoOp' | 'OptIn' | 'CloseOut' | 'ClearState' | 'UpdateApplication' | 'DeleteApplication')
+    );
   }
 }
