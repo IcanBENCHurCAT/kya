@@ -16,12 +16,13 @@ import { VerificationConfig } from "./types.js";
 import { VerificationError } from "./types.js";
 import { AttemptStore } from "./attempt-store.js";
 import { ClaimStore } from "./claim-store.js";
+import { InMemoryClaimStore } from "./in-memory-claim-store.js";
 import { InMemoryAttemptStore } from "./in-memory-store.js";
 
 export class VerificationService {
   private registry: ProviderRegistry;
   private attemptStore: AttemptStore | InMemoryAttemptStore;
-  private claimStore: ClaimStore;
+  private claimStore: ClaimStore | InMemoryClaimStore;
   private rateLimitPerHour: number;
   private config: VerificationConfig;
 
@@ -30,7 +31,7 @@ export class VerificationService {
     this.registry = new ProviderRegistry();
 
     // Set up stores
-    if (config.databaseUrl) {
+    if (config.databaseUrl && config.serviceRoleKey) {
       this.attemptStore = new AttemptStore(
         config.databaseUrl,
         config.serviceRoleKey
@@ -39,13 +40,14 @@ export class VerificationService {
         config.databaseUrl,
         config.serviceRoleKey
       );
+    } else if (config.claimStore) {
+      // Test injection: use provided in-memory stores
+      this.claimStore = config.claimStore;
+      this.attemptStore = config.attemptStore ?? new InMemoryAttemptStore();
     } else {
       // For testing, use in-memory stores
       this.attemptStore = new InMemoryAttemptStore();
-      this.claimStore = new ClaimStore(
-        "http://localhost:54321",
-        "dummy-key"
-      );
+      this.claimStore = new InMemoryClaimStore();
     }
 
     this.rateLimitPerHour = config.rateLimitPerHour ?? 10;

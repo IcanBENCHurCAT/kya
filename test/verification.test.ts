@@ -14,7 +14,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import bcrypt from "bcryptjs";
 import { VerificationProvider } from "../src/verification/types.js";
 import { InMemoryAttemptStore } from "../src/verification/in-memory-store.js";
-import { ClaimStore } from "../src/verification/claim-store.js";
+import { InMemoryClaimStore } from "../src/verification/in-memory-claim-store.js";
 import { EmailVerificationProvider } from "../src/verification/providers/email-provider.js";
 import { ProviderRegistry } from "../src/verification/provider-registry.js";
 import { VerificationService } from "../src/verification/service.js";
@@ -300,13 +300,13 @@ describe("ProviderRegistry", () => {
 // ---------------------------------------------------------------------------
 describe("EmailVerificationProvider", () => {
   let store: InMemoryAttemptStore;
-  let claimStore: ClaimStore;
+  let claimStore: InMemoryClaimStore;
   let provider: EmailVerificationProvider;
   let sentEmails: { to: string; subject: string; body: string }[];
 
   beforeEach(() => {
     store = new InMemoryAttemptStore();
-    claimStore = new ClaimStore("http://localhost:54321", "dummy-key");
+    claimStore = new InMemoryClaimStore();
     sentEmails = [];
 
     provider = new EmailVerificationProvider({
@@ -381,9 +381,13 @@ describe("EmailVerificationProvider", () => {
       walletAddress: "RPXAZ2345678901234567890123456789012345678901234567890",
     });
 
+    const all = await store.getAll();
+    const firstAttempt = all.values().next().value;
+    expect(firstAttempt).toBeDefined();
+
     await expect(
       provider.completeVerification({
-        attemptId: (await store.getAll())[0].id,
+        attemptId: firstAttempt.id,
         code: "000000", // Wrong code
         walletAddress: "RPXAZ2345678901234567890123456789012345678901234567890",
       })
@@ -481,12 +485,13 @@ describe("EmailVerificationProvider", () => {
       maxAttempts: 3,
     });
 
-    // Exhaust attempts
+    // Initiate once and exhaust attempts on the SAME attempt
+    const initResult = await provider5.initiateVerification({
+      identifier: "test@example.com",
+      walletAddress,
+    });
+
     for (let i = 0; i < 3; i++) {
-      const initResult = await provider5.initiateVerification({
-        identifier: "test@example.com",
-        walletAddress,
-      });
       await expect(
         provider5.completeVerification({
           attemptId: initResult.attemptId,
@@ -496,11 +501,7 @@ describe("EmailVerificationProvider", () => {
       ).rejects.toThrow("Invalid verification code");
     }
 
-    // Next attempt should be rate limited
-    const initResult = await provider5.initiateVerification({
-      identifier: "test@example.com",
-      walletAddress,
-    });
+    // After maxAttempts wrong tries, next call should be rate limited
     await expect(
       provider5.completeVerification({
         attemptId: initResult.attemptId,
@@ -517,17 +518,22 @@ describe("EmailVerificationProvider", () => {
 describe("VerificationService", () => {
   let service: VerificationService;
   let sentEmails: { to: string; subject: string; body: string }[];
+  let attemptStore: InMemoryAttemptStore;
+  let claimStore: InMemoryClaimStore;
 
   beforeEach(() => {
     sentEmails = [];
+    attemptStore = new InMemoryAttemptStore();
+    claimStore = new InMemoryClaimStore();
     service = new VerificationService({
-      databaseUrl: "http://localhost:54321",
-      serviceRoleKey: "dummy-key",
+      databaseUrl: undefined,
       privateKey: testSigningKey,
       keyId: testKeyId,
+      claimStore,
+      attemptStore,
       defaultProvider: new EmailVerificationProvider({
-        attemptStore: new InMemoryAttemptStore(),
-        claimStore: new ClaimStore("http://localhost:54321", "dummy-key"),
+        attemptStore,
+        claimStore,
         privateKey: testSigningKey,
         keyId: testKeyId,
         sendEmail: async (to, subject, body) => {

@@ -210,9 +210,9 @@ export interface VerificationProvider {
 /** Configuration for the verification service. */
 export interface VerificationConfig {
   /** Database URL (Supabase) */
-  databaseUrl: string;
+  databaseUrl?: string;
   /** JWT service key (for Supabase) */
-  serviceRoleKey: string;
+  serviceRoleKey?: string;
   /** Service private key for signing claims (Ed25519 PEM) */
   privateKey: string;
   /** Key ID for this private key (for key rotation) */
@@ -227,4 +227,8 @@ export interface VerificationConfig {
   rateLimitPerHour?: number;
   /** Default verification provider */
   defaultProvider?: VerificationProvider;
+  /** Optional test injection: claim store */
+  claimStore?: any;
+  /** Optional test injection: attempt store */
+  attemptStore?: any;
 }
