@@ -1,0 +1,133 @@
+/**
+ * Beneficial Owner Resolution Service
+ *
+ * Resolves wallet addresses to beneficial owners using KYC/verification data.
+ * If a human is verified, use that identity; otherwise fall back to address associations.
+ *
+ * In production, this would connect to:
+ * - Supabase (KYC/verification database)
+ * - Algorand blockchain (wallet ownership, on-chain identity)
+ * - External KYC providers
+ *
+ * This implementation provides the interface with in-memory/fallback data for dev/testing.
+ */
+import { randomUUID } from 'node:crypto';
+/**
+ * In-memory wallet identity store (dev/testing only).
+ * In production: Supabase, Algorand indexer, KYC provider APIs.
+ */
+const walletIdentities = new Map();
+/**
+ * Register a wallet-to-owner mapping.
+ * Used for seeding test data and simulating KYC registration.
+ */
+export function registerWalletIdentity(walletAddress, ownerName, options = {}) {
+    const identity = {
+        walletAddress,
+        verifiedOwner: {
+            name: ownerName,
+            nationality: options.nationality,
+            dateOfBirth: options.dateOfBirth,
+            verifiedAt: new Date().toISOString(),
+            verificationMethod: options.verificationMethod || 'email',
+            verificationId: randomUUID(),
+        },
+        altAddresses: options.altAddresses,
+        lastSeen: new Date().toISOString(),
+    };
+    walletIdentities.set(walletAddress, identity);
+    return identity;
+}
+/**
+ * Query wallet identity by address.
+ */
+export function resolveWalletIdentity(walletAddress) {
+    return walletIdentities.get(walletAddress) || null;
+}
+/**
+ * Check if a wallet has a verified beneficial owner.
+ */
+export function hasVerifiedOwner(walletAddress) {
+    const identity = walletIdentities.get(walletAddress);
+    return !!identity?.verifiedOwner;
+}
+/**
+ * Full resolution: wallet → beneficial owner for screening.
+ *
+ * Priority:
+ * 1. If KYC-verified identity exists → use that
+ * 2. If known address associations exist → check those too
+ * 3. Fall back to address itself
+ *
+ * Returns a ResolutionResult suitable for screening.
+ */
+export function resolveForScreening(walletAddress) {
+    const identity = walletIdentities.get(walletAddress);
+    if (!identity) {
+        return {
+            walletAddress,
+            resolved: false,
+            associatedWallets: [],
+            confidence: 0.0,
+            notes: 'No identity data found for this wallet. Screening will use address-only matching.',
+            timestamp: new Date().toISOString(),
+        };
+    }
+    const beneficiaries = [];
+    const associatedWallets = [];
+    let maxConfidence = 0;
+    // Primary: verified owner
+    if (identity.verifiedOwner) {
+        beneficiaries.push(identity.verifiedOwner.name);
+        maxConfidence = Math.max(maxConfidence, 1.0);
+    }
+    // Secondary: known associated wallets (sibling wallets)
+    if (identity.altAddresses) {
+        for (const altAddr of identity.altAddresses) {
+            associatedWallets.push(altAddr);
+            const altIdentity = walletIdentities.get(altAddr);
+            if (altIdentity?.verifiedOwner) {
+                beneficiaries.push(altIdentity.verifiedOwner.name);
+            }
+        }
+    }
+    return {
+        walletAddress,
+        resolved: true,
+        beneficialOwner: identity.verifiedOwner
+            ? {
+                name: identity.verifiedOwner.name,
+                nationality: identity.verifiedOwner.nationality,
+                dateOfBirth: identity.verifiedOwner.dateOfBirth,
+                verified: true,
+                verificationMethod: identity.verifiedOwner.verificationMethod,
+            }
+            : undefined,
+        associatedWallets,
+        confidence: maxConfidence,
+        notes: identity.verifiedOwner
+            ? `Verified owner: ${identity.verifiedOwner.name} (${identity.verifiedOwner.verificationMethod})`
+            : 'Wallet exists but has no verified owner. Use address-based screening.',
+        timestamp: new Date().toISOString(),
+    };
+}
+/**
+ * Seed development/test data.
+ * Includes some known sanctioned patterns for testing.
+ */
+export function seedTestData() {
+    registerWalletIdentity('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA', 'John Doe', {
+        nationality: 'US',
+        dateOfBirth: '1990-01-01',
+        verificationMethod: 'email',
+    });
+    // Wallet that maps to a "sanctioned" identity for testing
+    registerWalletIdentity('SANCXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX', 'SANC-WALLET-01 (Test Entry)', {
+        nationality: 'IR',
+        dateOfBirth: '1970-03-15',
+        verificationMethod: 'document',
+    });
+    // Wallet with no verification
+    registerWalletIdentity('XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX', 'Unknown Owner', { verificationMethod: 'none' });
+    console.log('[Resolution] Test data seeded.');
+}

@@ -1,0 +1,33 @@
+{
+  "name": "kya-service",
+  "version": "1.0.0",
+  "description": "Know Your Agent (KYA) — On-Chain Karma, Verification & Sanctions Screening Service",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/index.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src/",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.19.17",
+    "@supabase/supabase-js": "^2.39.0",
+    "algosdk": "^2.7.0",
+    "bcryptjs": "^2.4.3",
+    "hono": "^4.13.1",
+    "jose": "^5.2.0",
+    "supabase": "^1.190.0"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^26.2.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0"
+  },
+  "license": "AGPL-3.0"
+}
