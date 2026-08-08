@@ -1,287 +1,171 @@
-# KYA Sanctions Screening Service
+# KYA Service (Know Your Agent)
 
-**KYA (Know Your Agent)** — Sanctions Screening Module for blockchain wallet compliance.
+**KYA Service** — Standalone On-Chain Karma, Verification & Sanctions Screening Microservice for AI Agents on Algorand.
 
-## Overview
+---
 
-A Hono-based HTTP service that screens wallet addresses and beneficial owners against global sanctions watchlists (primarily OFAC SDN). Provides pass/fail decisions with confidence scores, audit logging, and automated watchlist updates.
+## 🌟 Overview
 
-## Features
+KYA (Know Your Agent) provides **trust, compliance, and reputation infrastructure** for autonomous AI agents. Built with TypeScript and Hono, KYA gates API access behind HTTP 402 micro-payments (microALGO or USDCa), maintains on-chain agent Karma ledgers on Algorand Box Storage, screens counterparties against global sanctions watchlists (OFAC SDN), and verifies beneficial human owners off-chain.
 
-- **OFAC SDN Integration** — Downloads and parses official OFAC Specially Designated Nationals list
-- **Fuzzy Name Matching** — Jaro-Winkler + Levenshtein similarity for robust matching
-- **Beneficial Owner Resolution** — Resolves wallets → KYC-verified owners → screening
-- **Compliance Gate** — Auto-approve/approve-flag/block decisions
-- **Audit Logging** — Full traceability for compliance/regulatory purposes
-- **Watchlist Updates** — Periodic refresh from official sources
+> **Governance & Specification:** KYA is governed by its [Constitution](.specify/memory/constitution.md) (v1.2.0) and full [End-State Architecture Specification](docs/ARCHITECTURE.md) (v2.0.0).
 
-## Screening Decision Flow
+---
+
+## 🚀 Key Features
+
+- **⚡ x402 Micro-Payment Gate**: HTTP 402 Payment Required middleware gating non-health endpoints behind microALGO / ASA payments with atomic 60/25/15 revenue splitting (60% Node Operators, 25% Staking Insurance, 15% Treasury).
+- **🔒 On-Chain Karma Ledger**: Algorand Box Storage binary profiles (`k_{agent_address}`) tracking dynamic reputation, stake balances, and risk bitmasks with ARC-28 event logging.
+- **🛡️ Sanctions & Compliance Screening**: OFAC SDN multi-list integration with Jaro-Winkler ($\ge 0.88$) + Levenshtein fuzzy matching and audit traceability.
+- **🔐 Human Identity Verification**: Off-chain OTP identity binding (Supabase / In-Memory), Ed25519 signature claims, and Zero-Knowledge (ZK) privacy compliance (zero PII on-chain).
+- **🌐 Algorand Wallet Graph & Sibling Discovery**: Algorand Indexer integration analyzing transaction history, counterparty diversity, and sibling wallet relationships.
+
+---
+
+## 🏗️ Architecture & Component Overview
 
 ```
-Wallet Address → Check Direct Match (nationalId field)
-                → Check Alias Match
-                → Check Address Match
-                → Check Beneficial Owner Name
-                              │
-                              ▼
-              Confidence Score ≥ 0.85 → FAIL (BLOCK)
-              Confidence Score ≥ 0.50 → FLAG (REVIEW)
-              Confidence Score <  0.50 → PASS (ALLOW)
+                                  ┌────────────────────────────────────────────────────────┐
+                                  │            Autonomous AI Agent / Client (A2A)          │
+                                  └───────────────────────────┬────────────────────────────┘
+                                                              │
+                                                      HTTP Request + x402
+                                                              │
+                                                              ▼
+┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                                  KYA SERVICE GATEWAY                                                     │
+├──────────────────────────────┬──────────────────────────────┬──────────────────────────────┬─────────────────────────────┤
+│  1. x402 Payment Gate        │  2. Sanctions Screening      │  3. Identity & Proofs        │  4. On-Chain Karma Ledger   │
+│  - MicroALGO / USDCa fees    - Multi-list OFAC/EU/UN        - ZK-KYC assertion             - Algorand Box Storage        │
+│  - Atomic fee splits (60/25/15)- Fuzzy Jaro-Winkler >= 0.88 - Zero on-chain PII (GDPR)     - ARC-28 events & indexer     │
+│  - Replay protection         - Graph proximity check        - W3C Verifiable Credentials   - EigenTrust & anti-sybil     │
+└──────────────────────────────┴──────────────────────────────┴──────────────────────────────┴─────────────────────────────┘
+                                                              │
+                                                    Anchored State Logs
+                                                              │
+                                                              ▼
+                                               ┌─────────────────────────────┐
+                                               │ Algorand Mainnet Blockchain │
+                                               └─────────────────────────────┘
 ```
 
-## Setup
+Detailed architectural diagrams and byte layouts are documented in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
+---
+
+## 🛠️ Setup & Installation
 
 ```bash
+# Clone the repository
+git clone https://github.com/IcanBENCHurCAT/kya.git
+cd kya
+
 # Install dependencies
 npm install
 
-# Development (hot-reload)
-npm run dev
-
-# Build for production
+# Build TypeScript to dist/
 npm run build
 
-# Run tests
+# Execute unified Vitest test suite
 npm test
 
-# Run in production
+# Start development server with hot-reload
+npm run dev
+
+# Run in production mode
 npm start
 ```
 
-## API Endpoints
+---
 
-### Health Check
-```
-GET /api/v1/health
-```
+## 🔌 API Endpoints
 
-### Screen Wallet Address
-```
-POST /api/v1/screen
-Content-Type: application/json
+### 1. System & Health
+- `GET /api/v1/health` — Health check endpoint (Un-gated).
 
-{
-  "address": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-  "beneficialOwner": "John Doe",  // Optional: if KYC-verified
-  "force": false,                 // Optional: bypass cache
-  "config": {                     // Optional: per-request config
-    "failThreshold": 0.85,
-    "flagThreshold": 0.5,
-    "fuzzyTolerance": 0.8
-  }
-}
+### 2. x402 Micro-Payments & Negotiation (Principle II)
+- `POST /api/v1/x402/quote` — Request a payment quote for an endpoint.
+- `POST /api/v1/x402/verify` — Verify transaction receipt on-chain.
 
-Response:
-{
-  "success": true,
-  "result": {
-    "screened": "...",
-    "match": false,
-    "status": "PASS",           // PASS | FAIL | FLAGGED
-    "confidence": 0.0,          // 0.0 — 1.0
-    "matchedEntries": [],
-    "matchedListNames": [],
-    "details": "No sanctions matches found",
-    "timestamp": "2025-01-01T00:00:00.000Z"
-  },
-  "compliance": {
-    "status": "PASS",
-    "action": "ALLOW",          // ALLOW | REVIEW | BLOCK
-    "reason": "No sanctions matches found"
-  },
-  "hasVerifiedOwner": true
-}
-```
+### 3. Sanctions Screening
+- `POST /api/v1/screen` — Screen a single wallet address / beneficial owner.
+- `POST /api/v1/screen/bulk` — Bulk screening for multiple wallets.
+- `GET  /api/v1/watchlist` — Current sanctions watchlist summary & metadata.
+- `POST /api/v1/watchlist/refresh` — Trigger watchlist update from Treasury/OFAC sources.
+- `GET  /api/v1/audit` — Query compliance audit logs.
+- `GET  /api/v1/audit/summary` — Audit log statistical breakdown.
 
-### Bulk Screening
-```
-POST /api/v1/screen/bulk
-Content-Type: application/json
+### 4. Human Verification
+- `POST /api/v1/verify/email/initiate` — Initiate email OTP verification.
+- `POST /api/v1/verify/email/complete` — Complete OTP verification & issue signature claim.
+- `GET  /api/v1/verify/wallet/:address` — Check verification status by wallet address.
+- `GET  /api/v1/verify/identity/:hash` — Check verification status by SHA-256 identity hash.
 
-{
-  "targets": [
-    { "address": "AAAA...", "beneficialOwner": "John Doe" },
-    { "address": "BBBB..." }
-  ],
-  "config": { ... }
-}
+### 5. Karma Ledger
+- `GET  /api/v1/karma/:address` — Get agent Karma score, tier, and history.
+- `POST /api/v1/karma/event` — Emit a Karma reputation event (credit/debit/emit).
 
-Response:
-{
-  "success": true,
-  "results": [...],
-  "summary": {
-    "total": 2,
-    "pass": 1,
-    "fail": 0,
-    "flagged": 1
-  }
-}
-```
+### 6. Wallet Analysis
+- `GET  /api/v1/wallet/:address/history` — Aggregated transaction history.
+- `GET  /api/v1/wallet/:address/siblings` — Sibling wallet discovery.
+- `GET  /api/v1/wallet/:address/graph` — Directed counterparty graph.
 
-### Register Wallet Identity (KYC)
-```
-POST /api/v1/register
-Content-Type: application/json
+---
 
-{
-  "address": "AAAA...",
-  "ownerName": "John Doe",
-  "nationality": "US",
-  "dateOfBirth": "1990-01-01",
-  "verificationMethod": "email",  // email | document | biometric | blockchain
-  "altAddresses": ["BBBB..."]     // Sibling/associated wallets
-}
-```
+## ⚙️ Configuration & Environment Variables
 
-### Watchlist Info
-```
-GET /api/v1/watchlist
-
-Response:
-{
-  "name": "OFAC-SDN",
-  "lastUpdated": "2025-01-01",
-  "totalEntries": 10000,
-  "version": "2025-01-01",
-  "source": "treasury.gov/ofac",
-  "cached": true,
-  "listBreakdown": {
-    "OFAC-SDN": 10000
-  }
-}
-```
-
-### Refresh Watchlists
-```
-POST /api/v1/watchlist/refresh
-Content-Type: application/json
-
-{ "force": true }  // Optional: force network fetch
-
-Response:
-{
-  "status": "success",
-  "totalEntries": 10000,
-  "timestamp": "2025-01-01T00:00:00.000Z"
-}
-```
-
-### Audit Log
-```
-GET /api/v1/audit?limit=100&after=2025-01-01&result=FAIL
-
-Response:
-{
-  "success": true,
-  "entries": [
-    {
-      "id": "uuid...",
-      "timestamp": "2025-01-01T00:00:00.000Z",
-      "eventType": "screening",
-      "walletAddress": "AAAA...",
-      "result": "FAIL",
-      "confidence": 1.0,
-      "matchedEntries": ["Sanctioned Entity"],
-      "matchedListNames": ["OFAC-SDN"],
-      "screenableTarget": "AAAA...",
-      "details": "Exact name match found"
-    }
-  ]
-}
-```
-
-### Audit Summary
-```
-GET /api/v1/audit/summary
-
-Response:
-{
-  "success": true,
-  "total": 100,
-  "pass": 95,
-  "fail": 3,
-  "flagged": 2,
-  "errors": 0,
-  "recentScreenings": 24
-}
-```
-
-## Configuration
-
-Environment variables:
+Create a `.env` file based on `.env.example`:
 
 | Variable | Default | Description |
-|----------|---------|-------------|
+|---|---|---|
 | `PORT` | `3000` | HTTP server port |
-| `KYA_DATA_DIR` | `.` | Directory for audit/watchlist data files |
+| `NODE_ENV` | `development` | Node execution environment |
+| `SUPABASE_URL` | — | Supabase project URL (optional, falls back to in-memory) |
+| `SUPABASE_SERVICE_ROLE_KEY` | — | Supabase service key |
+| `KYA_PRIVATE_KEY` | — | Ed25519 private key for signing verification claims |
+| `ALGORAND_NETWORK_URL` | `https://testnet-api.algonode.cloud` | Algorand Algod node URL |
+| `ALGORAND_INDEXER_URL` | `https://testnet-indexer.algonode.cloud` | Algorand Indexer URL |
+| `X402_PRICE_MICROALGO` | `1000` | Base x402 payment gate price in microALGOs |
+| `KYA_TREASURY_ADDRESS` | — | Algorand wallet address receiving x402 micro-payments |
 
-Per-request screening config (passed in request body):
+---
 
-| Field | Default | Description |
-|-------|---------|-------------|
-| `failThreshold` | 0.85 | Confidence threshold for FAIL |
-| `flagThreshold` | 0.50 | Confidence threshold for FLAGGED |
-| `maxResults` | 10 | Maximum match candidates |
-| `fuzzyTolerance` | 0.80 | Fuzzy match similarity threshold |
-| `matchAliases` | true | Enable alias matching |
-| `matchNationalIds` | true | Enable national ID matching |
-| `matchAddresses` | true | Enable address matching |
-
-## Watchlist Sources
-
-- **OFAC SDN** (primary): `https://www.treasury.gov/ofac/downloads/sdn.csv`
-- **OFAC SDN JSON v2**: `https://sanctionslistservice.ofac.gov/v2/SDN.json`
-
-## Data Flow
-
-```
-┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│  Wallet Address │────▶│  Screening       │────▶│  Compliance     │
-│  + Owner Info   │     │  Engine          │     │  Gate           │
-└─────────────────┘     └────────┬─────────┘     └────────┬────────┘
-                                 │                         │
-                          ┌──────▼──────────┐     ┌───────▼────────┐
-                          │  Sanctions Lists │────▶│  Pass/Fail/    │
-                          │  (OFAC SDN)      │     │  Flag Decision │
-                          └──────────────────┘     └────────────────┘
-                                 │
-                          ┌──────▼──────────┐
-                          │  Audit Log       │
-                          │  (Compliance     │
-                          │   Traceability)  │
-                          └──────────────────┘
-```
-
-## Project Structure
+## 📂 Project Structure
 
 ```
 kya-service/
+├── .github/
+│   └── agents/                 # Spec Kit subagent definitions
+├── .specify/
+│   ├── memory/
+│   │   └── constitution.md     # Project Constitution (v1.2.0)
+│   └── templates/              # Spec Kit SDD templates
+├── docs/
+│   └── ARCHITECTURE.md         # End-State Architecture Specification (v2.0.0)
+├── db/
+│   └── migrations/             # Supabase PostgreSQL migrations
 ├── src/
-│   ├── app.ts                 # Main entry point
-│   ├── routes/
-│   │   └── screening.ts       # Hono API routes
-│   ├── services/
-│   │   ├── ofac.ts            # OFAC data download/parse
-│   │   ├── screening.ts       # Fuzzy matching engine
-│   │   ├── resolution.ts      # Wallet → owner resolution
-│   │   ├── audit.ts           # Audit logging
-│   │   └── watchlist-updater.ts  # Watchlist refresh
-│   └── utils/
-├── __tests__/
-│   └── screening.test.ts      # Comprehensive tests
-├── data/                      # Watchlists & audit log (runtime)
+│   ├── app.ts                  # Main Hono application entrypoint
+│   ├── index.ts                # Package exports
+│   ├── algorand/               # Algorand SDK client
+│   ├── cache/                  # In-memory TTL cache with stats
+│   ├── graph/                  # Directed wallet transaction graph
+│   ├── middleware/
+│   │   └── x402.ts             # x402 Payment Gate middleware
+│   ├── routes/                 # Hono API domain routes (screening, verification, karma, wallet)
+│   ├── services/               # Core business services (screening, OFAC, audit, karma)
+│   ├── types/                  # TypeScript interfaces & shared types
+│   ├── utils/                  # Cryptographic & utility helpers
+│   └── verification/           # Human verification service & stores
+├── __tests__/                  # Vitest unit & integration test suites
+├── tests/                      # Wallet analysis test suite
 ├── package.json
-└── tsconfig.json
+├── tsconfig.json
+└── vitest.config.ts
 ```
 
-## License
+---
 
-AGPL-3.0 — See LICENSE file.
+## 📜 License
 
-## Notes
-
-- This is a screening service, not a full KYC module
-- In production, connect walletIdentities to Supabase/Algorand indexer
-- Watchlist updates should run via cron (recommended: every 4-6 hours)
-- Audit logs are persistent (JSON file) but should be migrated to structured DB for production
+AGPL-3.0 — See [LICENSE](LICENSE) file for full text.

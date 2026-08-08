@@ -6,6 +6,8 @@
  * - Screening endpoint (wallet → sanctions check)
  * - Audit logging
  * - Watchlist refresh mechanism
+ * - x402 Payment Gate middleware
+ * - Karma Ledger routes
  *
  * Usage:
  *   npm install
@@ -13,4 +15,6 @@
  *   npm run build    # Compile to dist/
  *   npm start        # Run in production
  */
-export {};
+import { Hono } from 'hono';
+declare const app: Hono<import("hono/types").BlankEnv, import("hono/types").BlankSchema, "/">;
+export { app };

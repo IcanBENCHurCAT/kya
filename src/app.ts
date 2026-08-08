@@ -6,6 +6,8 @@
  * - Screening endpoint (wallet → sanctions check)
  * - Audit logging
  * - Watchlist refresh mechanism
+ * - x402 Payment Gate middleware
+ * - Karma Ledger routes
  *
  * Usage:
  *   npm install
@@ -18,6 +20,8 @@ import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
 import screeningApp from './routes/screening.js';
 import walletAnalysisApp from './routes/wallet-analysis.js';
+import karmaApp from './routes/karma.js';
+import { x402PaymentGate } from './middleware/x402.js';
 import { createVerificationRoutes } from './routes/verification-routes.js';
 import {
   initializeWatchlist,
@@ -37,10 +41,17 @@ import { VerificationService } from './verification/service.js';
 
 // Mount all apps into a single router
 const app = new Hono();
+
+// Global health check routes (exempt)
+app.get('/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString() }));
+app.get('/api/v1/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString() }));
+
+// Mount x402 payment gate over /api/v1/*
+app.use('/api/v1/*', x402PaymentGate({ priceMicroAlgo: 1000, receiverAddress: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' }));
+
 app.route('/api/v1', screeningApp);
 app.route('/api/v1', walletAnalysisApp);
-
-// Verify and mount verification routes after the service is ready
+app.route('/api/v1', karmaApp);
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
 
@@ -52,7 +63,7 @@ async function main() {
 
   // Initialize watchlists
   console.log('⬇️  Loading sanctions watchlists...');
-  const lists = await initializeWatchlist({}, false);
+  await initializeWatchlist({}, false);
 
   // ─── Initialize Verification Service ───────────────────────────────
   console.log('🔐 Initializing KYA verification service...');
@@ -61,7 +72,6 @@ async function main() {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
   const privateKey = process.env.KYA_PRIVATE_KEY || '';
   const keyId = process.env.KYA_KEY_ID || 'default-key';
-  const emailFrom = process.env.EMAIL_FROM || 'KYA Service <noreply@example.com>';
   const useInMemory = !dbUrl || !serviceRoleKey || !privateKey;
 
   let attemptStore: AttemptStore | InMemoryAttemptStore;
@@ -95,7 +105,6 @@ async function main() {
     keyId,
     sendEmail: async (to, subject, body) => {
       if (process.env.NODE_ENV === 'production') {
-        // TODO: integrate with SendGrid / Resend / etc.
         console.log(`📧 Email to ${to}: ${subject}`);
       } else {
         console.log(`📧 Email to ${to}: ${subject} — ${body}`);
@@ -133,6 +142,9 @@ async function main() {
   console.log(`   - GET  /api/v1/audit/summary — Audit summary`);
   console.log(`   - GET  /api/v1/watchlist    — Watchlist info`);
   console.log(`   - POST /api/v1/watchlist/refresh — Refresh watchlists`);
+  console.log(`   ── Karma Ledger ──`);
+  console.log(`   - GET  /api/v1/karma/:address — Query agent karma score & history`);
+  console.log(`   - POST /api/v1/karma/event  — Record karma credit/debit event`);
   console.log(`   ── Human Verification ──`);
   console.log(`   - POST /api/v1/verify/email/initiate   — Start email OTP verification`);
   console.log(`   - POST /api/v1/verify/email/complete   — Complete email OTP verification`);
@@ -150,4 +162,8 @@ async function main() {
   });
 }
 
-main().catch(console.error);
+if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
+  main().catch(console.error);
+}
+
+export { app };

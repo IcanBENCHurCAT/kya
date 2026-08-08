@@ -1,20 +1,44 @@
 import type { MiddlewareHandler } from 'hono';
 
 export interface X402Options {
-  priceMicroAlgo: number;
-  receiverAddress: string;
+  priceMicroAlgo?: number;
+  receiverAddress?: string;
   treasuryAddress?: string;
   ttlSeconds?: number;
 }
 
-export function x402PaymentGate(options: X402Options): MiddlewareHandler {
+export interface X402Receipt {
+  receiptId: string;
+  txid: string;
+  payerAddress?: string;
+  amountMicroAlgo: number;
+  endpoint: string;
+  timestamp: string;
+}
+
+const usedTxIds: Map<string, X402Receipt> = new Map();
+
+export function resetX402Receipts(): void {
+  usedTxIds.clear();
+}
+
+export function getX402Receipts(): X402Receipt[] {
+  return Array.from(usedTxIds.values());
+}
+
+export function x402PaymentGate(options: X402Options = {}): MiddlewareHandler {
   const price = options.priceMicroAlgo || 1000;
   const receiver = options.receiverAddress || 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
   const ttl = options.ttlSeconds || 300;
 
   return async (c, next) => {
     const path = c.req.path;
-    if (path.includes('/health') || path.includes('/x402')) {
+    if (
+      path === '/health' ||
+      path === '/api/v1/health' ||
+      path.includes('/health') ||
+      path.includes('/x402')
+    ) {
       return await next();
     }
 
@@ -31,12 +55,35 @@ export function x402PaymentGate(options: X402Options): MiddlewareHandler {
             expiresInSeconds: ttl,
             instructions: 'Submit payment transaction to receiverAddress and include transaction ID in X-Payment header.',
           },
+          priceMicroAlgo: price,
+          receiverAddress: receiver,
+          expiresInSeconds: ttl,
         },
         402
       );
     }
 
-    c.header('X-Payment-Receipt', `receipt_${paymentTxId}_${Date.now()}`);
+    // Replay attack protection: check if txid has already been used
+    if (usedTxIds.has(paymentTxId)) {
+      return c.json(
+        {
+          error: 'Bad Request',
+          message: 'Transaction ID already redeemed',
+        },
+        400
+      );
+    }
+
+    const receipt: X402Receipt = {
+      receiptId: `receipt_${paymentTxId}_${Date.now()}`,
+      txid: paymentTxId,
+      amountMicroAlgo: price,
+      endpoint: path,
+      timestamp: new Date().toISOString(),
+    };
+
+    usedTxIds.set(paymentTxId, receipt);
+    c.header('X-Payment-Receipt', receipt.receiptId);
     return await next();
   };
 }
