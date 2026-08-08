@@ -1,43 +1,54 @@
 import { Hono } from 'hono';
-const karmaStore = new Map();
-const karmaApp = new Hono();
-karmaApp.get('/karma/:address', (c) => {
-    const address = c.req.param('address');
-    const record = karmaStore.get(address) || {
-        agentAddress: address,
-        score: 100,
-        totalEvents: 0,
-        lastUpdated: new Date().toISOString(),
-        events: [],
+import { defaultKarmaService } from '../services/karma.js';
+export function createKarmaRoutes(karmaService = defaultKarmaService) {
+    const karmaApp = new Hono();
+    const handleGetKarma = async (c) => {
+        const address = c.req.param('address');
+        if (!address) {
+            return c.json({ error: 'Address parameter is required' }, 400);
+        }
+        const record = await karmaService.getProfile(address);
+        return c.json({
+            success: true,
+            karma: record,
+            score: record.score,
+            tier: record.tier,
+            totalEvents: record.totalEvents,
+            lastUpdated: record.lastUpdated,
+            events: record.events,
+        });
     };
-    return c.json({ success: true, karma: record });
-});
-karmaApp.post('/karma/event', async (c) => {
-    const body = await c.req.json();
-    const { agentAddress, eventType, amount, reason, txid } = body;
-    if (!agentAddress || !eventType || typeof amount !== 'number') {
-        return c.json({ error: 'Invalid parameters' }, 400);
-    }
-    let record = karmaStore.get(agentAddress) || {
-        agentAddress,
-        score: 100,
-        totalEvents: 0,
-        lastUpdated: new Date().toISOString(),
-        events: [],
+    const handlePostKarmaEvent = async (c) => {
+        const body = await c.req.json().catch(() => ({}));
+        const { agentAddress, eventType, amount, reason, txid } = body;
+        if (!agentAddress ||
+            !eventType ||
+            typeof amount !== 'number' ||
+            !['credit', 'debit', 'emit', 'CREDIT', 'DEBIT', 'EMIT'].includes(eventType)) {
+            return c.json({ error: 'Invalid parameters' }, 400);
+        }
+        const record = await karmaService.recordEvent({
+            agentAddress,
+            eventType,
+            amount,
+            reason,
+            txid,
+        });
+        return c.json({
+            success: true,
+            karma: record,
+            score: record.score,
+            tier: record.tier,
+            totalEvents: record.totalEvents,
+            lastUpdated: record.lastUpdated,
+            events: record.events,
+        });
     };
-    const delta = eventType === 'credit' ? amount : eventType === 'debit' ? -amount : 0;
-    record.score = Math.max(0, record.score + delta);
-    record.totalEvents += 1;
-    record.lastUpdated = new Date().toISOString();
-    record.events.push({
-        id: `evt_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-        eventType,
-        amount,
-        reason: reason || 'Karma event',
-        timestamp: new Date().toISOString(),
-        txid,
-    });
-    karmaStore.set(agentAddress, record);
-    return c.json({ success: true, karma: record });
-});
+    karmaApp.get('/karma/:address', handleGetKarma);
+    karmaApp.get('/:address', handleGetKarma);
+    karmaApp.post('/karma/event', handlePostKarmaEvent);
+    karmaApp.post('/event', handlePostKarmaEvent);
+    return karmaApp;
+}
+const karmaApp = createKarmaRoutes();
 export default karmaApp;

@@ -1,17 +1,6 @@
 import { Hono } from 'hono';
-export interface KarmaRecord {
-    agentAddress: string;
-    score: number;
-    totalEvents: number;
-    lastUpdated: string;
-    events: Array<{
-        id: string;
-        eventType: 'credit' | 'debit' | 'emit';
-        amount: number;
-        reason: string;
-        timestamp: string;
-        txid?: string;
-    }>;
-}
+import { KarmaService } from '../services/karma.js';
+export type { KarmaRecord, KarmaEvent, AgentProfile } from '../services/karma.js';
+export declare function createKarmaRoutes(karmaService?: KarmaService): Hono<import("hono/types").BlankEnv, import("hono/types").BlankSchema, "/">;
 declare const karmaApp: Hono<import("hono/types").BlankEnv, import("hono/types").BlankSchema, "/">;
 export default karmaApp;

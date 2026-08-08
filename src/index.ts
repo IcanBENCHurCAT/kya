@@ -22,5 +22,13 @@ export type {
   AssetStats,
   SiblingWallet,
   WalletGraphEdge,
-  WalletGraphNode,
 } from './types/index.js';
+
+export { KarmaService, InMemoryKarmaStore, defaultKarmaService } from './services/karma.js';
+export type { AgentProfile, KarmaEvent, KarmaRecord } from './services/karma.js';
+export { x402PaymentGate, resetX402Receipts, getX402Receipts } from './middleware/x402.js';
+export type { X402Options, X402Receipt } from './middleware/x402.js';
+
+
+
+
