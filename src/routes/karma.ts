@@ -21,7 +21,7 @@ const karmaApp = new Hono();
 
 karmaApp.get('/karma/:address', (c) => {
   const address = c.req.param('address');
-  const record = karmaStore.get(address) || {
+  const record: KarmaRecord = karmaStore.get(address) || {
     agentAddress: address,
     score: 100,
     totalEvents: 0,
@@ -39,7 +39,7 @@ karmaApp.post('/karma/event', async (c) => {
     return c.json({ error: 'Invalid parameters' }, 400);
   }
 
-  let record = karmaStore.get(agentAddress) || {
+  let record: KarmaRecord = karmaStore.get(agentAddress) || {
     agentAddress,
     score: 100,
     totalEvents: 0,
