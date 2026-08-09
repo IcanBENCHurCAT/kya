@@ -21,6 +21,8 @@ import { serve } from '@hono/node-server';
 import screeningApp from './routes/screening.js';
 import walletAnalysisApp from './routes/wallet-analysis.js';
 import karmaApp from './routes/karma.js';
+import zkProofApp from './routes/zk-proof.js';
+import a2aApp from './routes/a2a.js';
 import { x402PaymentGate } from './middleware/x402.js';
 import { createVerificationRoutes } from './routes/verification-routes.js';
 import {
@@ -52,6 +54,8 @@ app.use('/api/v1/*', x402PaymentGate({ priceMicroAlgo: 1000, receiverAddress: 'A
 app.route('/api/v1', screeningApp);
 app.route('/api/v1', walletAnalysisApp);
 app.route('/api/v1', karmaApp);
+app.route('/api/v1', zkProofApp);
+app.route('/api/v1', a2aApp);
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
 
