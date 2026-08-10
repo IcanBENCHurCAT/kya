@@ -120,6 +120,9 @@ export class InMemoryCache<K extends string, V> {
 
   /**
    * Evict the oldest entry (to make room for new entries)
+   *
+   * Note: This relies on ES2015+ guarantees that Map iterates elements in insertion order.
+   * Therefore, the first key returned by keys().next() is the oldest inserted key.
    */
   private evictOldest(): void {
     if (this.store.size === 0) return;
