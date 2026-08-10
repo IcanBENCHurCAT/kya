@@ -104,10 +104,16 @@ export class InMemoryCache {
     evictOldest() {
         if (this.store.size === 0)
             return;
-        // Maps preserve insertion order, so the first key is the oldest
-        const firstKey = this.store.keys().next().value;
-        if (firstKey !== undefined) {
-            this.store.delete(firstKey);
+        let oldestKey = null;
+        let oldestTimestamp = Infinity;
+        for (const [key, entry] of this.store) {
+            if (entry.timestamp < oldestTimestamp) {
+                oldestTimestamp = entry.timestamp;
+                oldestKey = key;
+            }
+        }
+        if (oldestKey !== null) {
+            this.store.delete(oldestKey);
         }
     }
     /**
