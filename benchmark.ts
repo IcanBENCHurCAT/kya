@@ -1,27 +1,23 @@
-import { WalletGraph } from "./src/graph/walletGraph.js";
+import { InMemoryCache } from './src/cache/inMemoryCache.js';
 
 function runBenchmark() {
-  const graph = new WalletGraph();
-  const NUM_NODES = 2000;
+  const cache = new InMemoryCache<string, number>(300000, 10000);
 
-  // Add nodes
-  for (let i = 0; i < NUM_NODES; i++) {
-    graph.addNode(`node_${i}`, 0, 0, 0, 0, 0);
-  }
-
-  // Add edges (sparse graph)
-  for (let i = 0; i < NUM_NODES; i++) {
-    for (let j = 1; j <= 20; j++) {
-      const target = (i + j) % NUM_NODES;
-      graph.addEdge(`node_${i}`, `node_${target}`, 1, 'transfer', 10, 0, 0);
-    }
+  // Fill cache to capacity
+  for (let i = 0; i < 10000; i++) {
+    cache.set(`key-${i}`, i);
   }
 
   const start = performance.now();
-  const centrality = graph.getDegreeCentrality();
+
+  // These insertions will trigger eviction
+  for (let i = 10000; i < 20000; i++) {
+    cache.set(`key-${i}`, i);
+  }
+
   const end = performance.now();
 
-  console.log(`Centrality calculated in ${end - start} ms`);
+  console.log(`Time taken to insert 10,000 items with eviction: ${(end - start).toFixed(2)} ms`);
 }
 
 runBenchmark();
