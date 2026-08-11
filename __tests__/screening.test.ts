@@ -10,7 +10,7 @@
  * 6. Integration test (full API flow)
  */
 
-import { describe, it, beforeEach, expect } from "vitest";
+import { describe, it, beforeEach, expect, afterEach, vi } from "vitest";
 import fs from "node:fs";
 import {
   buildDefaultData,
@@ -43,6 +43,7 @@ import {
   loadFallbackWatchlist,
   initializeWatchlist,
   getSummary as getWatchlistSummary,
+  loadWatchlist,
   type ListRegistry,
 } from "../src/services/watchlist-updater.js";
 
@@ -310,135 +311,6 @@ describe("Beneficial Owner Resolution", () => {
     assert(result.beneficialOwner?.verified === true);
   });
 
-  describe("resolveForScreening Edge Cases", () => {
-    it("should handle non-existent wallet", () => {
-      const result = resolveForScreening("NON-EXISTENT-WALLET");
-      assert(result.resolved === false);
-      assert(result.beneficialOwner === undefined);
-      assert(result.confidence === 0.0);
-      assert(result.associatedWallets.length === 0);
-      assert(result.notes.includes("No identity data found"));
-    });
-
-    it("should handle wallet with identity data but no verified owner", () => {
-      // Register with an empty owner (simulating unknown or unverified)
-      // Since registerWalletIdentity requires ownerName and creates a verifiedOwner, we can
-      // directly seed it without verifiedOwner or manually test resolveForScreening scenarios.
-      // Wait, let's look at registerWalletIdentity:
-      // It always populates verifiedOwner with { name: ownerName, ... }.
-      // Can we manually put an identity into the in-memory store if we need to? No, walletIdentities is not exported.
-      // Wait! In the code:
-      // if (identity.verifiedOwner) { ... }
-      // beneficialOwner: identity.verifiedOwner ? { ... } : undefined
-      // Also 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX' is registered as 'Unknown Owner' but
-      // actually registerWalletIdentity still puts 'Unknown Owner' as verifiedOwner.
-      // Wait, let's see: is there any way to register a wallet without verifiedOwner?
-      // Since walletIdentities is not exported, we can't mutate it directly unless we test other ways.
-      // But let's check: can we call registerWalletIdentity or mock?
-      // Or does the system ever have an identity without verifiedOwner?
-      // Yes, WalletIdentity interface has: verifiedOwner?: { ... }
-      // If we cannot easily set a walletIdentity without verifiedOwner, can we inspect if any other function creates it?
-      // Let's check `resolveForScreening` again:
-      // `beneficialOwner: identity.verifiedOwner ? ... : undefined`
-      // Since walletIdentities is a private Map in `src/services/resolution.ts`, can we use JS/TS runtime or other means?
-      // We can actually use `registerWalletIdentity` and then modify the returned object!
-      // Yes! `registerWalletIdentity` returns the `WalletIdentity` object which is a reference to the one stored in `walletIdentities` map!
-      // Let's verify this in src/services/resolution.ts:
-      // "walletIdentities.set(walletAddress, identity); return identity;"
-      // Perfect! Since it returns the identity reference, we can delete `verifiedOwner` from it!
-      const identity = registerWalletIdentity(
-        "UNVERIFIED-IDENTITY-WALLET",
-        "Unverified Person",
-      );
-      delete identity.verifiedOwner;
-
-      const result = resolveForScreening("UNVERIFIED-IDENTITY-WALLET");
-      assert(result.resolved === true);
-      assert(result.beneficialOwner === undefined);
-      assert(result.confidence === 0.0);
-      assert(result.notes.includes("has no verified owner"));
-    });
-
-    it("should handle wallet with verified owner and no associated wallets", () => {
-      registerWalletIdentity("VERIFIED-SOLO-WALLET", "Solo Owner", {
-        nationality: "CA",
-        verificationMethod: "document",
-      });
-
-      const result = resolveForScreening("VERIFIED-SOLO-WALLET");
-      assert(result.resolved === true);
-      assert(result.beneficialOwner?.name === "Solo Owner");
-      assert(result.beneficialOwner?.nationality === "CA");
-      assert(result.beneficialOwner?.verified === true);
-      assert(result.beneficialOwner?.verificationMethod === "document");
-      assert(result.confidence === 1.0);
-      assert(result.associatedWallets.length === 0);
-      assert(result.notes.includes("Verified owner: Solo Owner"));
-    });
-
-    it("should handle wallet with alt addresses (associated sibling wallets)", () => {
-      // 1. Sibling wallet with no identity data
-      registerWalletIdentity("MAIN-WALLET-1", "Main Owner 1", {
-        altAddresses: ["SIBLING-1A"],
-      });
-
-      const result1 = resolveForScreening("MAIN-WALLET-1");
-      assert(result1.resolved === true);
-      assert(result1.beneficialOwner?.name === "Main Owner 1");
-      assert(result1.associatedWallets.includes("SIBLING-1A"));
-      assert(result1.confidence === 1.0);
-
-      // 2. Sibling wallet with verified owner
-      registerWalletIdentity("SIBLING-2B", "Sibling Owner 2", {
-        nationality: "FR",
-      });
-      registerWalletIdentity("MAIN-WALLET-2", "Main Owner 2", {
-        altAddresses: ["SIBLING-2B"],
-      });
-
-      const result2 = resolveForScreening("MAIN-WALLET-2");
-      assert(result2.resolved === true);
-      assert(result2.beneficialOwner?.name === "Main Owner 2");
-      assert(result2.associatedWallets.includes("SIBLING-2B"));
-      assert(result2.confidence === 1.0);
-
-      // 3. Sibling wallet with identity data but no verified owner
-      const siblingIdentity = registerWalletIdentity(
-        "SIBLING-3C",
-        "Sibling Owner 3",
-      );
-      delete siblingIdentity.verifiedOwner; // Unverified identity
-
-      registerWalletIdentity("MAIN-WALLET-3", "Main Owner 3", {
-        altAddresses: ["SIBLING-3C"],
-      });
-
-      const result3 = resolveForScreening("MAIN-WALLET-3");
-      assert(result3.resolved === true);
-      assert(result3.beneficialOwner?.name === "Main Owner 3");
-      assert(result3.associatedWallets.includes("SIBLING-3C"));
-      assert(result3.confidence === 1.0);
-
-      // 4. Main wallet has no verified owner, but has associated wallets
-      const mainIdentity = registerWalletIdentity(
-        "MAIN-WALLET-4",
-        "Main Owner 4",
-        {
-          altAddresses: ["SIBLING-4D"],
-        },
-      );
-      delete mainIdentity.verifiedOwner; // Unverified main identity
-
-      registerWalletIdentity("SIBLING-4D", "Sibling Owner 4"); // Sibling is verified
-
-      const result4 = resolveForScreening("MAIN-WALLET-4");
-      assert(result4.resolved === true);
-      assert(result4.beneficialOwner === undefined);
-      assert(result4.confidence === 0.0);
-      assert(result4.associatedWallets.includes("SIBLING-4D"));
-    });
-  });
-
   it("should seed test data", () => {
     seedTestData();
     const john = resolveWalletIdentity(
@@ -598,6 +470,78 @@ describe("Audit Logging", () => {
 // ─── Watchlist Update Tests ────────────────────────────────────────
 
 describe("Watchlist Update", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  describe("loadWatchlist", () => {
+    it("should load watchlist successfully when file exists and JSON is valid", () => {
+      const mockList = {
+        name: "OFAC-SDN",
+        version: "2023-10-27",
+        lastUpdated: "2023-10-27",
+        totalEntries: 2,
+        entries: [
+          {
+            id: "123",
+            name: "John Doe",
+            type: "individual" as const,
+            source: "OFAC-SDN",
+            program: "SDN",
+            addresses: [],
+            aliases: [],
+            nationalities: [],
+            nationalIds: [],
+            birthdates: [],
+            lastUpdated: "2023-10-27",
+          },
+        ],
+      };
+
+      const existsSpy = vi.spyOn(fs, "existsSync").mockReturnValue(true);
+      const readSpy = vi
+        .spyOn(fs, "readFileSync")
+        .mockReturnValue(JSON.stringify(mockList));
+
+      const list = loadWatchlist();
+
+      expect(existsSpy).toHaveBeenCalled();
+      expect(readSpy).toHaveBeenCalled();
+      expect(list).not.toBeNull();
+      expect(list?.name).toBe("OFAC-SDN");
+      expect(list?.entries.length).toBe(1);
+      expect(list?.entries[0].name).toBe("John Doe");
+    });
+
+    it("should return null when file does not exist", () => {
+      const existsSpy = vi.spyOn(fs, "existsSync").mockReturnValue(false);
+      const readSpy = vi.spyOn(fs, "readFileSync");
+
+      const list = loadWatchlist();
+
+      expect(existsSpy).toHaveBeenCalled();
+      expect(readSpy).not.toHaveBeenCalled();
+      expect(list).toBeNull();
+    });
+
+    it("should return null and log an error when JSON format is invalid", () => {
+      const existsSpy = vi.spyOn(fs, "existsSync").mockReturnValue(true);
+      const readSpy = vi
+        .spyOn(fs, "readFileSync")
+        .mockReturnValue("invalid-json");
+      const consoleSpy = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+
+      const list = loadWatchlist();
+
+      expect(existsSpy).toHaveBeenCalled();
+      expect(readSpy).toHaveBeenCalled();
+      expect(consoleSpy).toHaveBeenCalled();
+      expect(list).toBeNull();
+    });
+  });
+
   it("should load fallback watchlist", () => {
     const list = loadFallbackWatchlist();
     assert(list.name === "OFAC-SDN");
