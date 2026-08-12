@@ -4,7 +4,7 @@
  * Core fuzzy-matching engine that compares wallet addresses and
  * beneficial owner identities against sanctions watchlists.
  *
- * Returns: pass/fail decision, confidence score, matched list details.
+ * Returns: screening evidence, confidence score, and matched list details.
  */
 const DEFAULT_CONFIG = {
     failThreshold: 0.85,
@@ -274,12 +274,12 @@ export function screenSanctions(target, beneficialOwner, lists = {}, config = {}
     // Determine overall decision
     const highestScore = topResults.length > 0 ? topResults[0].matchScore : 0;
     const matchedListNames = [...new Set(topResults.map(r => r.source))];
-    let status = 'PASS';
+    let status = 'NO_MATCH_FOUND';
     if (highestScore >= settings.failThreshold) {
-        status = 'FAIL';
+        status = 'POTENTIAL_MATCH';
     }
     else if (highestScore >= settings.flagThreshold) {
-        status = 'FLAGGED';
+        status = 'MATCH_REQUIRES_REVIEW';
     }
     // Build matched list names from all entries
     const allListNames = new Set();
@@ -288,7 +288,7 @@ export function screenSanctions(target, beneficialOwner, lists = {}, config = {}
     }
     return {
         screened: target,
-        match: status !== 'PASS',
+        match: status !== 'NO_MATCH_FOUND',
         status,
         confidence: highestScore,
         matchedEntries: topResults,

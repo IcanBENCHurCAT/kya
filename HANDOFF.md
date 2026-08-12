@@ -8,7 +8,7 @@
 
 ## 📋 Synopsis
 
-KYA ("Know Your Agent") is a TypeScript/Hono service that provides blockchain wallet KYC and sanctions screening. It was built through workboard cards where multiple sub-agents contributed modules.
+KYA ("Know Your Agent") is a TypeScript/Hono service that provides blockchain wallet identity attestation and sanctions screening. It was built through workboard cards where multiple sub-agents contributed modules.
 
 ### Completed Modules (Production-Ready)
 

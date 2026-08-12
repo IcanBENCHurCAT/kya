@@ -95,10 +95,10 @@ export class KarmaService {
   }
 
   public calculateTier(score: number): string {
-    if (score < 300) return 'Tier 0';
-    if (score < 600) return 'Tier 1';
-    if (score < 850) return 'Tier 2';
-    return 'Tier 3';
+    if (score < 300) return 'Tier 0 (Unscored)';
+    if (score < 600) return 'Tier 1 (Emerging)';
+    if (score < 850) return 'Tier 2 (Established)';
+    return 'Tier 3 (Seasoned)';
   }
 
   public async getProfile(address: string): Promise<KarmaRecord> {
@@ -162,7 +162,7 @@ export class KarmaService {
       profile = {
         agentAddress: address,
         karmaScore: 100,
-        tier: 'Tier 0',
+        tier: 'Tier 0 (Unscored)',
         registeredAt: now,
         lastUpdated: now,
       };

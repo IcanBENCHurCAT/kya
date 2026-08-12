@@ -20,7 +20,7 @@ export interface W3CVerifiableCredential {
     agentAddress: string;
     karmaScore: number;
     tier: string;
-    sanctionsStatus: 'PASS' | 'FAIL' | 'FLAGGED';
+    sanctionsStatus: 'NO_MATCH_FOUND' | 'POTENTIAL_MATCH' | 'MATCH_REQUIRES_REVIEW';
     verifiedAt: string;
   };
   proof?: {
@@ -38,15 +38,15 @@ export interface A2AHandshakeResponse {
     agentAddress: string;
     karmaScore: number;
     tier: string;
-    sanctionsStatus?: 'PASS' | 'FAIL' | 'FLAGGED';
+    sanctionsStatus?: 'NO_MATCH_FOUND' | 'POTENTIAL_MATCH' | 'MATCH_REQUIRES_REVIEW';
   };
   verifiableCredential?: W3CVerifiableCredential;
   signature?: string;
   timestamp: string;
   riskSummary: {
     karmaPass: boolean;
-    sanctionsPass?: boolean;
-    sanctionsStatus: 'PASS' | 'FAIL' | 'FLAGGED';
+    noSanctionsMatch?: boolean;
+    sanctionsStatus: 'NO_MATCH_FOUND' | 'POTENTIAL_MATCH' | 'MATCH_REQUIRES_REVIEW';
     details: string;
   };
 }
@@ -95,18 +95,18 @@ export class A2AService {
     const screeningResult = screenSanctions(request.targetAddress, undefined, watchlist || {});
     const sanctionsStatus = screeningResult.status;
 
-    // 3. Compliance rule evaluation
+    // 3. Risk signal evaluation
     const karmaPass = targetProfile.score >= minKarmaScore;
-    const sanctionsPass = sanctionsStatus === 'PASS';
+    const noSanctionsMatch = sanctionsStatus === 'NO_MATCH_FOUND';
 
     let decision: 'PROCEED' | 'REJECT' | 'REVIEW' = 'PROCEED';
-    let details = 'Pre-flight evaluation passed successfully';
+    let details = 'Pre-flight risk signals evaluated — no adverse indicators detected';
 
-    if (!sanctionsPass || !karmaPass) {
+    if (!noSanctionsMatch || !karmaPass) {
       decision = 'REJECT';
-      if (!sanctionsPass && !karmaPass) {
+      if (!noSanctionsMatch && !karmaPass) {
         details = `Rejected: Karma score (${targetProfile.score}) below required (${minKarmaScore}) and sanctions status is ${sanctionsStatus}`;
-      } else if (!sanctionsPass) {
+      } else if (!noSanctionsMatch) {
         details = `Rejected: Sanctions status is ${sanctionsStatus}`;
       } else {
         details = `Rejected: Karma score (${targetProfile.score}) below required (${minKarmaScore})`;
@@ -115,7 +115,7 @@ export class A2AService {
 
     const riskSummary = {
       karmaPass,
-      sanctionsPass,
+      noSanctionsMatch,
       sanctionsStatus,
       details,
     };

@@ -4,13 +4,13 @@
  * Core fuzzy-matching engine that compares wallet addresses and
  * beneficial owner identities against sanctions watchlists.
  *
- * Returns: pass/fail decision, confidence score, matched list details.
+ * Returns: screening evidence, confidence score, and matched list details.
  */
 import { SanctionedEntry } from './ofac.js';
 export interface ScreeningResult {
     screened: string;
     match: boolean;
-    status: 'PASS' | 'FAIL' | 'FLAGGED';
+    status: 'NO_MATCH_FOUND' | 'POTENTIAL_MATCH' | 'MATCH_REQUIRES_REVIEW';
     confidence: number;
     matchedEntries: MatchedEntry[];
     matchedListNames: string[];
@@ -30,9 +30,9 @@ export interface MatchedEntry {
  * Screening configuration.
  */
 export interface ScreeningConfig {
-    /** Confidence threshold for FAIL (default: 0.85) */
+    /** Confidence threshold for potential match escalation (default: 0.85) */
     failThreshold: number;
-    /** Confidence threshold for FLAG (default: 0.5) */
+    /** Confidence threshold for review escalation (default: 0.5) */
     flagThreshold: number;
     /** Max matching candidates to return (default: 10) */
     maxResults: number;

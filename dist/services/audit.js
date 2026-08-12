@@ -1,7 +1,7 @@
 /**
  * Audit Logging Service
  *
- * Records all screening operations for compliance traceability.
+ * Records all screening operations for screening audit traceability.
  * Logs include: who was screened, result, confidence, matched entries, timestamp.
  *
  * In production: Write to Supabase/PostgreSQL with structured audit table.
@@ -42,7 +42,7 @@ export function logUpdate(details) {
         id: randomUUID(),
         timestamp: new Date().toISOString(),
         eventType: 'update',
-        result: details.success ? 'PASS' : 'ERROR',
+        result: details.success ? 'NO_MATCH_FOUND' : 'ERROR',
         confidence: details.success ? 1.0 : 0.0,
         matchedEntries: [],
         matchedListNames: [details.source],
@@ -104,9 +104,9 @@ export function getAuditSummary() {
     });
     return {
         total: entries.length,
-        pass: entries.filter(e => e.result === 'PASS').length,
-        fail: entries.filter(e => e.result === 'FAIL').length,
-        flagged: entries.filter(e => e.result === 'FLAGGED').length,
+        noMatchFound: entries.filter(e => e.result === 'NO_MATCH_FOUND').length,
+        potentialMatch: entries.filter(e => e.result === 'POTENTIAL_MATCH').length,
+        requiresReview: entries.filter(e => e.result === 'MATCH_REQUIRES_REVIEW').length,
         errors: entries.filter(e => e.result === 'ERROR').length,
         recentScreenings: last24h.filter(e => e.eventType === 'screening').length,
     };

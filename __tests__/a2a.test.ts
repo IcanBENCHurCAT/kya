@@ -35,10 +35,10 @@ describe('A2A Pre-Flight Handshake & W3C VC Engine', () => {
 
       expect(response.decision).toBe('PROCEED');
       expect(response.targetProfile?.karmaScore).toBe(700);
-      expect(response.targetProfile?.sanctionsStatus).toBe('PASS');
+      expect(response.targetProfile?.sanctionsStatus).toBe('NO_MATCH_FOUND');
       expect(response.riskSummary.karmaPass).toBe(true);
-      expect(response.riskSummary.sanctionsPass).toBe(true);
-      expect(response.riskSummary.sanctionsStatus).toBe('PASS');
+      expect(response.riskSummary.noSanctionsMatch).toBe(true);
+      expect(response.riskSummary.sanctionsStatus).toBe('NO_MATCH_FOUND');
 
       // Verify W3C VC structure
       expect(response.verifiableCredential).toBeDefined();
@@ -47,7 +47,7 @@ describe('A2A Pre-Flight Handshake & W3C VC Engine', () => {
       expect(vc.type).toContain('VerifiableCredential');
       expect(vc.credentialSubject.agentAddress).toBe(targetAddress);
       expect(vc.credentialSubject.karmaScore).toBe(700);
-      expect(vc.credentialSubject.sanctionsStatus).toBe('PASS');
+      expect(vc.credentialSubject.sanctionsStatus).toBe('NO_MATCH_FOUND');
       expect(vc.proof?.type).toBe('Ed25519Signature2020');
       expect(response.signature).toBeDefined();
 
@@ -55,7 +55,7 @@ describe('A2A Pre-Flight Handshake & W3C VC Engine', () => {
       if (response.signature) {
         const isValid = await a2aService.verifyPassportSignature({
           walletAddress: targetAddress,
-          identityHash: `karma:700|sanctions:PASS`,
+          identityHash: `karma:700|sanctions:NO_MATCH_FOUND`,
           verifiedAt: Math.floor(new Date(vc.issuanceDate).getTime() / 1000),
           signature: response.signature,
         });
@@ -116,8 +116,8 @@ describe('A2A Pre-Flight Handshake & W3C VC Engine', () => {
       );
 
       expect(response.decision).toBe('REJECT');
-      expect(response.targetProfile?.sanctionsStatus).toBe('FAIL');
-      expect(response.riskSummary.sanctionsPass).toBe(false);
+      expect(response.targetProfile?.sanctionsStatus).toBe('POTENTIAL_MATCH');
+      expect(response.riskSummary.noSanctionsMatch).toBe(false);
     });
   });
 

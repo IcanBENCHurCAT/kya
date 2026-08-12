@@ -44,7 +44,7 @@ export interface A2AHandshakeResponse {
     address: string;
     karmaScore: number;
     tier: string;
-    sanctionsStatus: 'PASS' | 'FAIL' | 'FLAGGED';
+    sanctionsStatus: 'NO_MATCH_FOUND' | 'POTENTIAL_MATCH' | 'MATCH_REQUIRES_REVIEW';
   };
   verifiableCredential?: Record<string, any>;
   signature?: string;
@@ -67,7 +67,7 @@ export interface ScreeningResponse {
   result: {
     screened: string;
     match: boolean;
-    status: 'PASS' | 'FAIL' | 'FLAGGED';
+    status: 'NO_MATCH_FOUND' | 'POTENTIAL_MATCH' | 'MATCH_REQUIRES_REVIEW';
     confidence: number;
     details: string;
   };
@@ -125,7 +125,7 @@ export class KyaClient {
   }
 
   /**
-   * Execute A2A pre-flight trust handshake before initiating bounties or fund transfers
+   * Execute A2A pre-flight risk evaluation before initiating bounties or fund transfers
    */
   public async executeA2AHandshake(
     request: A2AHandshakeRequest
@@ -139,7 +139,7 @@ export class KyaClient {
   }
 
   /**
-   * Submit Groth16 Zero-Knowledge KYC proof payload to upgrade verification tier
+   * Submit Groth16 Zero-Knowledge identity proof payload to upgrade verification tier
    */
   public async submitZKProof(payload: ZKProofPayload): Promise<any> {
     const res = await fetch(`${this.baseUrl}/api/v1/verify/zk-proof`, {
@@ -151,7 +151,7 @@ export class KyaClient {
   }
 
   /**
-   * Screen wallet address against OFAC SDN sanctions list
+   * Screen wallet address against sanctions watchlists
    */
   public async screenWallet(
     address: string,

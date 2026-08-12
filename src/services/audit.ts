@@ -1,7 +1,7 @@
 /**
  * Audit Logging Service
  *
- * Records all screening operations for compliance traceability.
+ * Records all screening operations for screening audit traceability.
  * Logs include: who was screened, result, confidence, matched entries, timestamp.
  *
  * In production: Write to Supabase/PostgreSQL with structured audit table.
@@ -18,7 +18,7 @@ export interface AuditEntry {
   eventType: 'screening' | 'update' | 'error' | 'config_change';
   walletAddress?: string;
   beneficialOwner?: string;
-  result: 'PASS' | 'FAIL' | 'FLAGGED' | 'ERROR';
+  result: 'NO_MATCH_FOUND' | 'POTENTIAL_MATCH' | 'MATCH_REQUIRES_REVIEW' | 'ERROR';
   confidence: number;
   matchedEntries: string[];
   matchedListNames: string[];
@@ -43,7 +43,7 @@ const AUDIT_LOG_PATH = path.join(
  */
 export function logScreening(result: {
   screened: string;
-  status: 'PASS' | 'FAIL' | 'FLAGGED';
+  status: 'NO_MATCH_FOUND' | 'POTENTIAL_MATCH' | 'MATCH_REQUIRES_REVIEW';
   confidence: number;
   matchedEntries: { name: string }[];
   matchedListNames: string[];
@@ -81,7 +81,7 @@ export function logUpdate(details: {
     id: randomUUID(),
     timestamp: new Date().toISOString(),
     eventType: 'update',
-    result: details.success ? 'PASS' : 'ERROR',
+    result: details.success ? 'NO_MATCH_FOUND' : 'ERROR',
     confidence: details.success ? 1.0 : 0.0,
     matchedEntries: [],
     matchedListNames: [details.source],
@@ -124,7 +124,7 @@ export function getAuditLog(
     limit?: number;
     after?: string; // ISO timestamp
     before?: string; // ISO timestamp
-    result?: 'PASS' | 'FAIL' | 'FLAGGED' | 'ERROR';
+    result?: 'NO_MATCH_FOUND' | 'POTENTIAL_MATCH' | 'MATCH_REQUIRES_REVIEW' | 'ERROR';
   } = {},
 ): AuditEntry[] {
   let entries = [...auditLog];
@@ -152,9 +152,9 @@ export function getAuditLog(
  */
 export function getAuditSummary(): {
   total: number;
-  pass: number;
-  fail: number;
-  flagged: number;
+  noMatchFound: number;
+  potentialMatch: number;
+  requiresReview: number;
   errors: number;
   recentScreenings: number;
 } {
@@ -166,9 +166,9 @@ export function getAuditSummary(): {
 
   return {
     total: entries.length,
-    pass: entries.filter(e => e.result === 'PASS').length,
-    fail: entries.filter(e => e.result === 'FAIL').length,
-    flagged: entries.filter(e => e.result === 'FLAGGED').length,
+    noMatchFound: entries.filter(e => e.result === 'NO_MATCH_FOUND').length,
+    potentialMatch: entries.filter(e => e.result === 'POTENTIAL_MATCH').length,
+    requiresReview: entries.filter(e => e.result === 'MATCH_REQUIRES_REVIEW').length,
     errors: entries.filter(e => e.result === 'ERROR').length,
     recentScreenings: last24h.filter(e => e.eventType === 'screening').length,
   };

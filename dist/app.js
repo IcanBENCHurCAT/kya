@@ -119,7 +119,7 @@ async function main() {
     console.log(`   ── Screening ──`);
     console.log(`   - POST /api/v1/screen       — Screen a wallet address`);
     console.log(`   - POST /api/v1/screen/bulk  — Bulk screening`);
-    console.log(`   - POST /api/v1/register     — Register wallet identity (KYC)`);
+    console.log(`   - POST /api/v1/register     — Register wallet identity attestation`);
     console.log(`   - GET  /api/v1/audit        — Audit log`);
     console.log(`   - GET  /api/v1/audit/summary — Audit summary`);
     console.log(`   - GET  /api/v1/watchlist    — Watchlist info`);

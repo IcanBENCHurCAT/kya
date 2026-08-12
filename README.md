@@ -1,23 +1,23 @@
 # KYA Service (Know Your Agent)
 
-**KYA Service** — Standalone On-Chain Karma, Verification & Sanctions Screening Microservice for AI Agents on Algorand.
+**KYA Service** — Trust Infrastructure for AI Agents — Verifiable Evidence & Risk Signals on Algorand.
 
 ---
 
 ## 🌟 Overview
 
-KYA (Know Your Agent) provides **trust, compliance, and reputation infrastructure** for autonomous AI agents. Built with TypeScript and Hono, KYA gates API access behind HTTP 402 micro-payments (microALGO or USDCa), maintains on-chain agent Karma ledgers on Algorand Box Storage, screens counterparties against global sanctions watchlists (OFAC SDN), and verifies beneficial human owners off-chain.
+KYA (Know Your Agent) provides **trust-data infrastructure providing verifiable evidence and risk signals** for autonomous AI agents. Built with TypeScript and Hono, KYA gates API access behind HTTP 402 micro-payments (microALGO or USDCa), maintains on-chain agent Karma ledgers on Algorand Box Storage, screens counterparties against global sanctions watchlists (OFAC SDN), and verifies beneficial human owners off-chain.
 
-> **Governance & Specification:** KYA is governed by its [Constitution](.specify/memory/constitution.md) (v1.2.0) and full [End-State Architecture Specification](docs/ARCHITECTURE.md) (v2.0.0).
+> **Governance & Specification:** KYA is governed by its [Constitution](.specify/memory/constitution.md) (v3.0.0) and full [End-State Architecture Specification](docs/ARCHITECTURE.md) (v2.0.0).
 
 ---
 
 ## 🚀 Key Features
 
-- **⚡ x402 Micro-Payment Gate**: HTTP 402 Payment Required middleware gating non-health endpoints behind microALGO / ASA payments with atomic 60/25/15 revenue splitting (60% Node Operators, 25% Staking Insurance, 15% Treasury).
+- **⚡ x402 Micro-Payment Gate**: HTTP 402 Payment Required middleware gating non-health endpoints behind microALGO / ASA payments. 100% service fee → KYA operator. Protocol-level revenue distribution deferred pending legal review.
 - **🔒 On-Chain Karma Ledger**: Algorand Box Storage binary profiles (`k_{agent_address}`) tracking dynamic reputation, stake balances, and risk bitmasks with ARC-28 event logging.
-- **🛡️ Sanctions & Compliance Screening**: OFAC SDN multi-list integration with Jaro-Winkler ($\ge 0.88$) + Levenshtein fuzzy matching and audit traceability.
-- **🔐 Human Identity Verification**: Off-chain OTP identity binding (Supabase / In-Memory), Ed25519 signature claims, and Zero-Knowledge (ZK) privacy compliance (zero PII on-chain).
+- **🛡️ Multi-Source Sanctions Screening**: OFAC SDN multi-list integration with Jaro-Winkler ($\ge 0.88$) + Levenshtein fuzzy matching and audit traceability.
+- **🔐 Human Identity Verification**: Off-chain OTP identity binding (Supabase / In-Memory), Ed25519 signature claims, and Zero-Knowledge (ZK) privacy guarantees (zero PII on-chain).
 - **🌐 Algorand Wallet Graph & Sibling Discovery**: Algorand Indexer integration analyzing transaction history, counterparty diversity, and sibling wallet relationships.
 
 ---
@@ -36,8 +36,8 @@ KYA (Know Your Agent) provides **trust, compliance, and reputation infrastructur
 │                                                  KYA SERVICE GATEWAY                                                     │
 ├──────────────────────────────┬──────────────────────────────┬──────────────────────────────┬─────────────────────────────┤
 │  1. x402 Payment Gate        │  2. Sanctions Screening      │  3. Identity & Proofs        │  4. On-Chain Karma Ledger   │
-│  - MicroALGO / USDCa fees    - Multi-list OFAC/EU/UN        - ZK-KYC assertion             - Algorand Box Storage        │
-│  - Atomic fee splits (60/25/15)- Fuzzy Jaro-Winkler >= 0.88 - Zero on-chain PII (GDPR)     - ARC-28 events & indexer     │
+│  - MicroALGO / USDCa fees    - Multi-list OFAC/EU/UN        - ZK identity attestation      - Algorand Box Storage        │
+│  - 100% service fee -> oper. - Fuzzy Jaro-Winkler >= 0.88 - Zero on-chain PII (GDPR)     - ARC-28 events & indexer     │
 │  - Replay protection         - Graph proximity check        - W3C Verifiable Credentials   - EigenTrust & anti-sybil     │
 └──────────────────────────────┴──────────────────────────────┴──────────────────────────────┴─────────────────────────────┘
                                                               │
@@ -92,7 +92,7 @@ npm start
 - `POST /api/v1/screen/bulk` — Bulk screening for multiple wallets.
 - `GET  /api/v1/watchlist` — Current sanctions watchlist summary & metadata.
 - `POST /api/v1/watchlist/refresh` — Trigger watchlist update from Treasury/OFAC sources.
-- `GET  /api/v1/audit` — Query compliance audit logs.
+- `GET  /api/v1/audit` — Query screening audit logs.
 - `GET  /api/v1/audit/summary` — Audit log statistical breakdown.
 
 ### 4. Human Verification

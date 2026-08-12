@@ -34,17 +34,17 @@ export class A2AService {
         // 2. Perform screening
         const screeningResult = screenSanctions(request.targetAddress, undefined, watchlist || {});
         const sanctionsStatus = screeningResult.status;
-        // 3. Compliance rule evaluation
+        // 3. Risk signal evaluation
         const karmaPass = targetProfile.score >= minKarmaScore;
-        const sanctionsPass = sanctionsStatus === 'PASS';
+        const noSanctionsMatch = sanctionsStatus === 'NO_MATCH_FOUND';
         let decision = 'PROCEED';
-        let details = 'Pre-flight evaluation passed successfully';
-        if (!sanctionsPass || !karmaPass) {
+        let details = 'Pre-flight risk signals evaluated — no adverse indicators detected';
+        if (!noSanctionsMatch || !karmaPass) {
             decision = 'REJECT';
-            if (!sanctionsPass && !karmaPass) {
+            if (!noSanctionsMatch && !karmaPass) {
                 details = `Rejected: Karma score (${targetProfile.score}) below required (${minKarmaScore}) and sanctions status is ${sanctionsStatus}`;
             }
-            else if (!sanctionsPass) {
+            else if (!noSanctionsMatch) {
                 details = `Rejected: Sanctions status is ${sanctionsStatus}`;
             }
             else {
@@ -53,7 +53,7 @@ export class A2AService {
         }
         const riskSummary = {
             karmaPass,
-            sanctionsPass,
+            noSanctionsMatch,
             sanctionsStatus,
             details,
         };

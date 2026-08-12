@@ -16,7 +16,7 @@ export interface W3CVerifiableCredential {
         agentAddress: string;
         karmaScore: number;
         tier: string;
-        sanctionsStatus: 'PASS' | 'FAIL' | 'FLAGGED';
+        sanctionsStatus: 'NO_MATCH_FOUND' | 'POTENTIAL_MATCH' | 'MATCH_REQUIRES_REVIEW';
         verifiedAt: string;
     };
     proof?: {
@@ -33,15 +33,15 @@ export interface A2AHandshakeResponse {
         agentAddress: string;
         karmaScore: number;
         tier: string;
-        sanctionsStatus?: 'PASS' | 'FAIL' | 'FLAGGED';
+        sanctionsStatus?: 'NO_MATCH_FOUND' | 'POTENTIAL_MATCH' | 'MATCH_REQUIRES_REVIEW';
     };
     verifiableCredential?: W3CVerifiableCredential;
     signature?: string;
     timestamp: string;
     riskSummary: {
         karmaPass: boolean;
-        sanctionsPass?: boolean;
-        sanctionsStatus: 'PASS' | 'FAIL' | 'FLAGGED';
+        noSanctionsMatch?: boolean;
+        sanctionsStatus: 'NO_MATCH_FOUND' | 'POTENTIAL_MATCH' | 'MATCH_REQUIRES_REVIEW';
         details: string;
     };
 }

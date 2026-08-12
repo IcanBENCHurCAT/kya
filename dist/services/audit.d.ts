@@ -1,7 +1,7 @@
 /**
  * Audit Logging Service
  *
- * Records all screening operations for compliance traceability.
+ * Records all screening operations for screening audit traceability.
  * Logs include: who was screened, result, confidence, matched entries, timestamp.
  *
  * In production: Write to Supabase/PostgreSQL with structured audit table.
@@ -13,7 +13,7 @@ export interface AuditEntry {
     eventType: 'screening' | 'update' | 'error' | 'config_change';
     walletAddress?: string;
     beneficialOwner?: string;
-    result: 'PASS' | 'FAIL' | 'FLAGGED' | 'ERROR';
+    result: 'NO_MATCH_FOUND' | 'POTENTIAL_MATCH' | 'MATCH_REQUIRES_REVIEW' | 'ERROR';
     confidence: number;
     matchedEntries: string[];
     matchedListNames: string[];
@@ -26,7 +26,7 @@ export interface AuditEntry {
  */
 export declare function logScreening(result: {
     screened: string;
-    status: 'PASS' | 'FAIL' | 'FLAGGED';
+    status: 'NO_MATCH_FOUND' | 'POTENTIAL_MATCH' | 'MATCH_REQUIRES_REVIEW';
     confidence: number;
     matchedEntries: {
         name: string;
@@ -56,16 +56,16 @@ export declare function getAuditLog(options?: {
     limit?: number;
     after?: string;
     before?: string;
-    result?: 'PASS' | 'FAIL' | 'FLAGGED' | 'ERROR';
+    result?: 'NO_MATCH_FOUND' | 'POTENTIAL_MATCH' | 'MATCH_REQUIRES_REVIEW' | 'ERROR';
 }): AuditEntry[];
 /**
  * Get audit summary stats.
  */
 export declare function getAuditSummary(): {
     total: number;
-    pass: number;
-    fail: number;
-    flagged: number;
+    noMatchFound: number;
+    potentialMatch: number;
+    requiresReview: number;
     errors: number;
     recentScreenings: number;
 };

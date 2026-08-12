@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-KYA (Know Your Agent) is a **standalone, mainnet-native trust and compliance oracle for autonomous AI agents on Algorand**. It converts compliance and reputation overhead into a revenue-generating micro-service by pairing **HTTP 402 (x402) micro-payments** with **Algorand Box Storage Karma ledgers**, **OFAC sanctions fuzzy screening**, and **privacy-preserving Zero-Knowledge (ZK) identity assertions**.
+KYA (Know Your Agent) is a **standalone, mainnet-native trust-data infrastructure service for autonomous AI agents on Algorand**. It converts screening and reputation overhead into a revenue-generating micro-service by pairing **HTTP 402 (x402) micro-payments** with **Algorand Box Storage Karma ledgers**, **OFAC sanctions fuzzy screening**, and **privacy-preserving Zero-Knowledge (ZK) identity assertions**.
 
 ---
 
@@ -26,8 +26,8 @@ KYA (Know Your Agent) is a **standalone, mainnet-native trust and compliance ora
 │                                                  KYA SERVICE GATEWAY                                                     │
 ├──────────────────────────────┬──────────────────────────────┬──────────────────────────────┬─────────────────────────────┤
 │  1. x402 Payment Gate        │  2. Sanctions Screening      │  3. Identity & Proofs        │  4. On-Chain Karma Ledger   │
-│  - MicroALGO / USDCa fees    - Multi-list OFAC/EU/UN        - ZK-KYC assertion             - Algorand Box Storage        │
-│  - Atomic fee splits (60/25/15)- Fuzzy Jaro-Winkler >= 0.88 - Zero on-chain PII (GDPR)     - ARC-28 events & indexer     │
+│  - MicroALGO / USDCa fees    - Multi-list OFAC/EU/UN        - ZK identity attestation      - Algorand Box Storage        │
+│  - 100% service fee -> oper. - Fuzzy Jaro-Winkler >= 0.88 - Zero on-chain PII (GDPR)     - ARC-28 events & indexer     │
 │  - Replay protection         - Graph proximity check        - W3C Verifiable Credentials   - EigenTrust & anti-sybil     │
 └──────────────────────────────┴──────────────────────────────┴──────────────────────────────┴─────────────────────────────┘
                                                               │
@@ -47,9 +47,7 @@ Every non-health endpoint requires microALGO or ASA payments (USDCa, Asset ID `3
 
 ### 1.1 Atomic Revenue Waterfall (Algorand Group Txn)
 Payments are split atomically at the smart contract level:
-- **60% Node Operators**: Offsets compute for OFAC fuzzy searching, indexer queries, and wallet graph analysis.
-- **25% Staking Insurance Pool**: Yield distributed to KYA collateral stakers backing dispute resolution.
-- **15% Protocol Treasury**: Directs capital to automated watchlist fetchers, legal/compliance maintenance, and developer grants.
+- 100% service fee → operator. Protocol-level revenue distribution deferred pending legal review.
 
 ### 1.2 Dynamic Pricing Equation
 The API request price $P(e, a, \text{load})$ for agent $a$ on endpoint $e$ scales dynamically:
@@ -108,7 +106,7 @@ Events are emitted on-chain for Conduit ingestion into Supabase read-caches:
 ## ⚡ 3. Mechanism Design: Anti-Sybil, Staking & Slashing
 
 1. **Seed-Anchored Personalized EigenTrust (PPR)**:
-   Trust vectors $e_S$ are anchored exclusively to KYC-verified seed nodes ($S_0$). Unverified Sybil clusters cannot wash-trade or farm Karma outside the trusted seed graph:
+   Trust vectors $e_S$ are anchored exclusively to identity-verified seed nodes ($S_0$). Unverified Sybil clusters cannot wash-trade or farm Karma outside the trusted seed graph:
    $$t^{(k+1)} = (1 - d) \cdot e_S + d \cdot P^T t^{(k)} \quad (d = 0.85)$$
 2. **Quadratic Bonding Escrow**:
    High-influence agents must stake ALGO / KYA tokens into an Algorand Box Storage escrow:
@@ -141,7 +139,7 @@ sequenceDiagram
     KYA-->>AgentA: 6. Return Pre-Flight Decision Token (ALLOW / REVIEW / BLOCK)
     alt Decision == ALLOW & Karma >= Threshold
         AgentA->>AgentB: 7. Dispatch Task + Escrow Payment
-    else Decision == BLOCK / FLAGGED / Low Karma
+    else Decision == BLOCK / MATCH_REQUIRES_REVIEW / Low Karma
         AgentA->>AgentB: 8. Reject Handshake (Circuit Breaker Tripped)
     end
 ```
@@ -155,18 +153,18 @@ SDK interceptor modules auto-sign x402 payments and enforce Karma thresholds acr
 
 ### 4.2 Circuit-Breaker State Machine
 - **CLOSED (Normal)**: Full execution rights, standard escrow.
-- **HALF-OPEN (Probation)**: Karma 500–650 or screening `FLAGGED` (confidence 0.50–0.84). Micro-task limits enforced (max 50 ALGO), 200% collateral required.
-- **OPEN (Hard Block)**: Sanctions screening `FAIL` (confidence $\ge 0.85$) or Karma $< 500$. Immediate task cancellation, funds returned, incident logged to Merkle audit log.
+- **HALF-OPEN (Probation)**: Karma 500–650 or screening `MATCH_REQUIRES_REVIEW` (confidence 0.50–0.84). Micro-task limits enforced (max 50 ALGO), 200% collateral required.
+- **OPEN (Hard Block)**: Sanctions screening `POTENTIAL_MATCH` (confidence $\ge 0.85$) or Karma $< 500$. Immediate task cancellation, funds returned, incident logged to Merkle audit log.
 
 ---
 
-## ⚖️ 5. Legal Compliance & Zero-Knowledge Privacy (Principle VI & VII)
+## ⚖️ 5. Privacy Architecture & Data Minimization (Principle VI & VII)
 
-1. **Zero On-Chain PII (GDPR Art. 17 Compliance)**:
+1. **Zero On-Chain PII (GDPR Art. 17)**:
    Storing raw PII or un-salted hashes on an immutable ledger violates GDPR. KYA uses **off-chain hardware-attested enclave verification** (purged within 72 hours) and on-chain **Groth16 zk-SNARK proof verification**.
 2. **Multi-List Fuzzy Screening Engine**:
    OFAC SDN, EU CFSP, UN Security Council, and UK HMT. Combines **Jaro-Winkler ($\ge 0.88$)**, Levenshtein distance, and Double Metaphone phonetic matching.
-3. **Cryptographic Compliance Logging**:
+3. **Cryptographic Audit Logging**:
    Screening responses emit a verifiable Merkle Audit proof header (`X-KYA-Audit-Proof`). Periodic Merkle roots are anchored onto Algorand transaction notes for tamper-proof regulatory reporting (BSA / EU AI Act Art. 12).
 4. **Micro-Payment Legal Characterization**:
    Direct seller of computational API bandwidth. Exempt from FinCEN Money Transmitter Licensing under **31 CFR § 1010.100(ff)(5)** and **FIN-2019-G001**.
@@ -183,7 +181,7 @@ $$S_{\text{KYA}}(a, t) = \text{Clamp}_{0}^{1000} \left[ \left( 0.35 \cdot S_{\te
 
 | Tier | Score Range | Badge Name | Human Action Required | Capped Execution Limit |
 | :--- | :--- | :--- | :--- | :--- |
-| **Tier 0** | $0 - 299$ | Unverified / High Risk | **MANUAL APPROVAL REQUIRED** | 0 ALGO (Block) |
-| **Tier 1** | $300 - 599$ | Screened Agent | **AUTOMATED WITH CAP** | $\le 50$ ALGO |
-| **Tier 2** | $600 - 849$ | Verified Mainnet Agent | **AUTONOMOUS EXECUTION** | $\le 5,000$ ALGO |
-| **Tier 3** | $850 - 1000$ | Sovereign Enterprise | **VIP UNRESTRICTED** | Unlimited |
+| **Tier 0 (Unscored)** | $0 - 299$ | Unverified / High Risk | **MANUAL APPROVAL REQUIRED** | 0 ALGO (Block) |
+| **Tier 1 (Emerging)** | $300 - 599$ | Screened Agent | **AUTOMATED WITH CAP** | $\le 50$ ALGO |
+| **Tier 2 (Established)** | $600 - 849$ | Verified Mainnet Agent | **AUTONOMOUS EXECUTION** | $\le 5,000$ ALGO |
+| **Tier 3 (Seasoned)** | $850 - 1000$ | Sovereign Enterprise | **VIP UNRESTRICTED** | Unlimited |

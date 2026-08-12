@@ -93,15 +93,15 @@ app.post('/api/v1/screen', async (c) => {
     // Log to audit
     logScreening(result);
     // Add compliance flag
-    const compliance = {
+    const screeningResult = {
         status: result.status,
-        action: result.status === 'FAIL' ? 'BLOCK' : result.status === 'FLAGGED' ? 'REVIEW' : 'ALLOW',
+        recommendation: result.status === 'POTENTIAL_MATCH' ? 'ESCALATE' : result.status === 'MATCH_REQUIRES_REVIEW' ? 'REVIEW' : 'NO_ACTION_REQUIRED',
         reason: result.details,
     };
     return c.json({
         success: true,
         result,
-        compliance,
+        screeningResult,
         hasVerifiedOwner: !!resolvedOwner,
     });
 });
@@ -146,9 +146,9 @@ app.post('/api/v1/screen/bulk', async (c) => {
         return {
             address: t.address,
             result,
-            compliance: {
+            screeningResult: {
                 status: result.status,
-                action: result.status === 'FAIL' ? 'BLOCK' : result.status === 'FLAGGED' ? 'REVIEW' : 'ALLOW',
+                recommendation: result.status === 'POTENTIAL_MATCH' ? 'ESCALATE' : result.status === 'MATCH_REQUIRES_REVIEW' ? 'REVIEW' : 'NO_ACTION_REQUIRED',
                 reason: result.details,
             },
         };
@@ -156,9 +156,9 @@ app.post('/api/v1/screen/bulk', async (c) => {
     // Count by status
     const summary = {
         total: results.length,
-        pass: results.filter(r => r.compliance.status === 'PASS').length,
-        fail: results.filter(r => r.compliance.status === 'FAIL').length,
-        flagged: results.filter(r => r.compliance.status === 'FLAGGED').length,
+        noMatchFound: results.filter(r => r.screeningResult.status === 'NO_MATCH_FOUND').length,
+        potentialMatch: results.filter(r => r.screeningResult.status === 'POTENTIAL_MATCH').length,
+        requiresReview: results.filter(r => r.screeningResult.status === 'MATCH_REQUIRES_REVIEW').length,
     };
     return c.json({ success: true, results, summary });
 });
@@ -169,7 +169,7 @@ app.post('/api/v1/screen/bulk', async (c) => {
  *   limit: number (default 100)
  *   after: ISO timestamp
  *   before: ISO timestamp
- *   result: PASS | FAIL | FLAGGED | ERROR
+ *   result: NO_MATCH_FOUND | POTENTIAL_MATCH | MATCH_REQUIRES_REVIEW | ERROR
  */
 app.get('/api/v1/audit', (c) => {
     const limit = parseInt(c.req.query('limit') || '100', 10);
@@ -187,7 +187,7 @@ app.get('/api/v1/audit/summary', (c) => {
     return c.json({ success: true, ...stats });
 });
 /**
- * Register a wallet identity (for KYC/verification).
+ * Register a wallet identity (for identity attestation/verification).
  *
  * Request body:
  * {

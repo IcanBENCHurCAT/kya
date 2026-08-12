@@ -14,26 +14,26 @@ describe('Karma Ledger & KarmaService', () => {
 
   describe('Tier Calculations', () => {
     it('should assign Tier 0 for scores < 300', () => {
-      expect(karmaService.calculateTier(0)).toBe('Tier 0');
-      expect(karmaService.calculateTier(100)).toBe('Tier 0');
-      expect(karmaService.calculateTier(299)).toBe('Tier 0');
+      expect(karmaService.calculateTier(0)).toBe('Tier 0 (Unscored)');
+      expect(karmaService.calculateTier(100)).toBe('Tier 0 (Unscored)');
+      expect(karmaService.calculateTier(299)).toBe('Tier 0 (Unscored)');
     });
 
     it('should assign Tier 1 for scores 300 - 599', () => {
-      expect(karmaService.calculateTier(300)).toBe('Tier 1');
-      expect(karmaService.calculateTier(450)).toBe('Tier 1');
-      expect(karmaService.calculateTier(599)).toBe('Tier 1');
+      expect(karmaService.calculateTier(300)).toBe('Tier 1 (Emerging)');
+      expect(karmaService.calculateTier(450)).toBe('Tier 1 (Emerging)');
+      expect(karmaService.calculateTier(599)).toBe('Tier 1 (Emerging)');
     });
 
     it('should assign Tier 2 for scores 600 - 849', () => {
-      expect(karmaService.calculateTier(600)).toBe('Tier 2');
-      expect(karmaService.calculateTier(750)).toBe('Tier 2');
-      expect(karmaService.calculateTier(849)).toBe('Tier 2');
+      expect(karmaService.calculateTier(600)).toBe('Tier 2 (Established)');
+      expect(karmaService.calculateTier(750)).toBe('Tier 2 (Established)');
+      expect(karmaService.calculateTier(849)).toBe('Tier 2 (Established)');
     });
 
     it('should assign Tier 3 for scores >= 850', () => {
-      expect(karmaService.calculateTier(850)).toBe('Tier 3');
-      expect(karmaService.calculateTier(1000)).toBe('Tier 3');
+      expect(karmaService.calculateTier(850)).toBe('Tier 3 (Seasoned)');
+      expect(karmaService.calculateTier(1000)).toBe('Tier 3 (Seasoned)');
     });
   });
 
@@ -42,7 +42,7 @@ describe('Karma Ledger & KarmaService', () => {
       const profile = await karmaService.getProfile('TEST_AGENT_ADDRESS_1');
       expect(profile.agentAddress).toBe('TEST_AGENT_ADDRESS_1');
       expect(profile.score).toBe(100);
-      expect(profile.tier).toBe('Tier 0');
+      expect(profile.tier).toBe('Tier 0 (Unscored)');
       expect(profile.totalEvents).toBe(0);
       expect(profile.events).toEqual([]);
     });
@@ -56,7 +56,7 @@ describe('Karma Ledger & KarmaService', () => {
       });
 
       expect(record.score).toBe(350);
-      expect(record.tier).toBe('Tier 1');
+      expect(record.tier).toBe('Tier 1 (Emerging)');
       expect(record.totalEvents).toBe(1);
       expect(record.events.length).toBe(1);
       expect(record.events[0].amount).toBe(250);
@@ -80,7 +80,7 @@ describe('Karma Ledger & KarmaService', () => {
       });
 
       expect(afterDebit.score).toBe(0);
-      expect(afterDebit.tier).toBe('Tier 0');
+      expect(afterDebit.tier).toBe('Tier 0 (Unscored)');
       expect(afterDebit.totalEvents).toBe(2);
     });
 
@@ -153,7 +153,7 @@ describe('Karma Ledger & KarmaService', () => {
       const json = await res.json();
       expect(json.success).toBe(true);
       expect(json.score).toBe(600);
-      expect(json.tier).toBe('Tier 2');
+      expect(json.tier).toBe('Tier 2 (Established)');
     });
 
     it('should reject invalid payload on POST /api/v1/karma/event', async () => {

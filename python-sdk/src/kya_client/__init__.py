@@ -46,7 +46,7 @@ class KyaClient:
     def execute_a2a_handshake(
         self, initiator_address: str, target_address: str, min_karma_score: int = 600
     ) -> Dict[str, Any]:
-        """Execute A2A pre-flight trust handshake before dispatching funds or claiming bounties."""
+        """Execute A2A pre-flight risk evaluation before dispatching funds or claiming bounties."""
         url = f"{self.base_url}/api/v1/a2a/handshake"
         payload = {
             "initiatorAddress": initiator_address,
@@ -58,7 +58,7 @@ class KyaClient:
         return response.json()
 
     def submit_zk_proof(self, agent_address: str, proof: Dict[str, Any], public_signals: list) -> Dict[str, Any]:
-        """Submit Groth16 Zero-Knowledge KYC proof payload."""
+        """Submit Groth16 Zero-Knowledge identity proof payload."""
         url = f"{self.base_url}/api/v1/verify/zk-proof"
         payload = {
             "agentAddress": agent_address,
@@ -70,7 +70,7 @@ class KyaClient:
         return response.json()
 
     def screen_wallet(self, address: str, beneficial_owner: Optional[str] = None) -> Dict[str, Any]:
-        """Screen wallet address against OFAC SDN sanctions lists."""
+        """Screen wallet address against sanctions watchlists."""
         url = f"{self.base_url}/api/v1/screen"
         payload = {"address": address}
         if beneficial_owner:
