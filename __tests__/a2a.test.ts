@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { A2AService } from '../src/services/a2a.js';
 import { KarmaService } from '../src/services/karma.js';
-import { verifyClaimSignature } from '../src/utils/crypto.js';
 import { app } from '../src/app.js';
 import { resetX402Receipts } from '../src/middleware/x402.js';
 
@@ -35,10 +34,11 @@ describe('A2A Pre-Flight Handshake & W3C VC Engine', () => {
       });
 
       expect(response.decision).toBe('PROCEED');
-      expect(response.targetProfile.karmaScore).toBe(700);
-      expect(response.targetProfile.sanctionsStatus).toBe('PASS');
+      expect(response.targetProfile?.karmaScore).toBe(700);
+      expect(response.targetProfile?.sanctionsStatus).toBe('PASS');
       expect(response.riskSummary.karmaPass).toBe(true);
       expect(response.riskSummary.sanctionsPass).toBe(true);
+      expect(response.riskSummary.sanctionsStatus).toBe('PASS');
 
       // Verify W3C VC structure
       expect(response.verifiableCredential).toBeDefined();
@@ -51,14 +51,13 @@ describe('A2A Pre-Flight Handshake & W3C VC Engine', () => {
       expect(vc.proof?.type).toBe('Ed25519Signature2020');
       expect(response.signature).toBeDefined();
 
-      // Verify Ed25519 signature validity over the claim payload
-      if (response.signature && response.publicKey) {
-        const isValid = await verifyClaimSignature({
+      // Verify Ed25519 signature validity over passport
+      if (response.signature) {
+        const isValid = await a2aService.verifyPassportSignature({
           walletAddress: targetAddress,
           identityHash: `karma:700|sanctions:PASS`,
           verifiedAt: Math.floor(new Date(vc.issuanceDate).getTime() / 1000),
           signature: response.signature,
-          publicKey: response.publicKey,
         });
         expect(isValid).toBe(true);
       }
@@ -75,7 +74,7 @@ describe('A2A Pre-Flight Handshake & W3C VC Engine', () => {
       });
 
       expect(response.decision).toBe('REJECT');
-      expect(response.targetProfile.karmaScore).toBe(100);
+      expect(response.targetProfile?.karmaScore).toBe(100);
       expect(response.riskSummary.karmaPass).toBe(false);
       expect(response.verifiableCredential).toBeUndefined();
       expect(response.signature).toBeUndefined();
@@ -117,7 +116,7 @@ describe('A2A Pre-Flight Handshake & W3C VC Engine', () => {
       );
 
       expect(response.decision).toBe('REJECT');
-      expect(response.targetProfile.sanctionsStatus).toBe('FAIL');
+      expect(response.targetProfile?.sanctionsStatus).toBe('FAIL');
       expect(response.riskSummary.sanctionsPass).toBe(false);
     });
   });

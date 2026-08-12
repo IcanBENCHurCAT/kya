@@ -1,0 +1,32 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "kya-client"
+version = "1.0.0"
+description = "Python client library for KYA Service — On-Chain Karma, A2A Handshakes, x402 Payments & Sanctions Screening on Algorand."
+readme = "README.md"
+requires-python = ">=3.9"
+license = "AGPL-3.0-or-later"
+authors = [
+  { name = "KYA Maintainers" }
+]
+dependencies = [
+  "requests>=2.28.0"
+]
+
+[project.optional-dependencies]
+algorand = [
+  "py-algorand-sdk>=2.0.0"
+]
+dev = [
+  "pytest>=7.0.0"
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/kya_client"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

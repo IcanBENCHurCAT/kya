@@ -1,0 +1,23 @@
+{
+  "name": "kya-sdk",
+  "version": "1.0.0",
+  "description": "TypeScript SDK client for KYA Service — On-Chain Karma, A2A Handshake, x402 Micro-Payments & Sanctions Screening on Algorand.",
+  "license": "AGPL-3.0-or-later",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "algosdk": "^2.7.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0"
+  }
+}

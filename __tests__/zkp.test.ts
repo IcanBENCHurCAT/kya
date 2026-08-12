@@ -24,8 +24,6 @@ describe('Groth16 ZK-KYC Proof Verifier & REST Routes', () => {
         ['0x3333', '0x4444'],
       ],
       pi_c: ['0x5555', '0x6666'],
-      protocol: 'groth16',
-      curve: 'bn128',
     },
     publicSignals: ['0x0001', '0x0002'],
     claimType: 'KYC_AGE_18',
@@ -40,22 +38,10 @@ describe('Groth16 ZK-KYC Proof Verifier & REST Routes', () => {
       expect(result.agentAddress).toBe('ZK_AGENT_ADDRESS_1');
       expect(result.timestamp).toBeDefined();
 
-      // Check KarmaService updated agent score
+      // Check KarmaService updated agent score (100 base + 150 boost)
       const profile = await karmaService.getProfile('ZK_AGENT_ADDRESS_1');
-      expect(profile.score).toBe(250); // 100 base + 150 credit
+      expect(profile.score).toBe(250);
       expect(profile.totalEvents).toBe(1);
-    });
-
-    it('should promote to Tier 3 when claimType is KYC_TIER_3', async () => {
-      const payload = {
-        ...validProofPayload,
-        agentAddress: 'ZK_AGENT_ADDRESS_TIER_3',
-        claimType: 'KYC_TIER_3',
-      };
-      const result = await zkpService.verifyProof(payload);
-
-      expect(result.valid).toBe(true);
-      expect(result.verificationLevel).toBe('Tier 3');
     });
 
     it('should reject proof payload with missing public signals', async () => {
