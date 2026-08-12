@@ -1,70 +1,61 @@
 <!-- SYNC IMPACT REPORT
-  Version: 1.3.0
+  Version: 2.0.0
   Date: 2026-08-12
-  Action: CONSTITUTION AMENDMENT — SECURITY, SDK & INFRASTRUCTURE MANDATES
+  Action: CONSTITUTION REFACTOR — POSITIVE-ASSERTION PRINCIPLES & GOVERNANCE ALIGNMENT
   Summary:
-    - Added Principle VIII (Client SDK Maintenance): Mandates twin TypeScript (`kya-sdk`) and Python (`kya-client`) SDK clients kept in sync with REST API.
-    - Added Principle IX (Infrastructure & Secret Sentinel): Mandates automated pre-commit secret scanning hooks and Terraform infrastructure patterns (OCI/Cloud) with strict .gitignore of sensitive credentials (*.tfvars, *.tfstate).
+    - Refactored all principles from legacy negative constraints ("MUST NOT") to proactive, positive assertions ("SHALL / WILL").
+    - Cleaned out legacy historical legacy references, focusing purely on KYA Service core identity.
+    - Elevated x402 payment gate, on-chain Box Storage, A2A interoperability, ZK-KYC privacy, and twin SDKs into clear affirmative capabilities.
 -->
 
 # KYA Service (Know Your Agent) Constitution
 
 ## Core Principles
 
-### I. Standalone Service
-KYA MUST NOT be packaged, scoped, or coupled to any parent project. The npm package name MUST be `kya-service`. The `@algorbounty` namespace MUST NOT appear in `package.json`, import paths, or configuration files. No code MUST depend on `algo-bounty` or `@algorbounty/*`.
+### I. Independent Microservice Architecture
+KYA is a standalone, self-contained microservice (`kya-service`). All package manifests, module exports, and configurations maintain complete structural independence, ensuring KYA operates as an autonomous protocol layer for any blockchain or agent ecosystem.
 
-### II. x402 Payment Gate (NON-NEGOTIABLE)
-Every API endpoint except `/health` and `/api/v1/x402/*` negotiation endpoints MUST be gated behind the x402 (HTTP 402 Payment Required) protocol. MicroALGO or ASA (USDCa) payments are required per request. Middleware MUST verify payments on-chain before forwarding to domain handlers. Payments MUST settle via an atomic 60/25/15 revenue split (60% Node Operators, 25% Staking Pool, 15% Treasury). Payment receipts MUST be logged and auditable.
+### II. On-Chain Micro-Payment Monetization (x402 Gate)
+Every service endpoint (excluding `/health` and `/api/v1/x402/*` negotiation routes) is payment-gated via the HTTP 402 Payment Required (x402) protocol. Requests settle in microALGO or ASA (USDCa) tokens through an on-chain atomic 60/25/15 revenue waterfall (60% Node Compute, 25% Staking Insurance, 15% Treasury). All transactions produce immutable, verifiable payment receipts.
 
-### III. On-Chain Karma System & Box Storage Layout
-Agent reputation (Karma) is the primary value proposition of KYA. Karma state MUST be anchored on Algorand using packed 77-byte static binary Box Storage (`k_{agent_address}`) to optimize Minimum Balance Requirements (MBR = 0.0469 ALGO). Full MBR MUST be refunded upon deregistration. The system MUST emit ARC-28 standard event logs for Conduit indexing into Supabase read-caches.
+### III. On-Chain Reputation & Optimized Box Storage
+Agent reputation (Karma) is anchored immutably on the Algorand blockchain using packed 77-byte static binary Box Storage (`k_{agent_address}`). State updates emit ARC-28 standard event logs for real-time indexer synchronization, while guaranteeing full Minimum Balance Requirement (0.0469 ALGO MBR) refundability upon profile deregistration.
 
-### IV. Module Independence & A2A Interoperability
-Domains (`screening`, `verification`, `karma`, `wallet-analysis`, `a2a`) MUST be self-contained and independently testable. Modules interact strictly via shared TypeScript interfaces in `src/types/` and W3C Verifiable Credentials. Removing one module MUST NOT break others.
+### IV. Modular Domain Autonomy & A2A Interoperability
+Domain modules (`screening`, `verification`, `karma`, `wallet-analysis`, `a2a`) maintain decoupled business logic interacting exclusively through typed contracts in `src/types/` and machine-readable W3C Verifiable Credentials. Each module operates and tests independently.
 
-### V. Test-First Development
-All modules MUST use `vitest` as the single test runner (`npm test` = `vitest run`). Tests MUST pass before merging code. Production entry points MUST NEVER invoke test data seed functions.
+### V. Test-Driven Development & Quality Assurance
+Quality assurance relies on a single unified Vitest test suite (`npm test`). Every production code path, middleware, and service method maintains complete test coverage. Application startup paths evaluate runtime configurations without reliance on synthetic test data seeds.
 
-### VI. Mainnet-Ready & Privacy-Preserving (Zero-Knowledge KYC)
-Production code paths MUST NOT use stub or `console.log` fallbacks. Empty scaffold directories under `src/` are forbidden. Required environment variables MUST be validated at application startup. Raw PII or un-salted identity hashes MUST NOT be written to the blockchain; identity verification MUST use off-chain ephemeral enclaves (purged within 72h) and Groth16 ZK-SNARK proofs to maintain full GDPR compliance.
+### VI. Zero-Knowledge Privacy & Production Readiness
+User and agent privacy is preserved by design. Identity assertions utilize off-chain ephemeral verification enclaves (purged within 72h) and Groth16 ZK-SNARK zero-knowledge proofs, achieving full GDPR Art. 17 compliance with zero on-chain PII exposure. Production entry points enforce strict configuration validation.
 
-### VII. Honest Documentation
-Documentation (`README.md`, `HANDOFF.md`, `docs/ARCHITECTURE.md`, architecture diagrams) MUST strictly reflect the actual state of the codebase. Features that are not implemented MUST NOT be documented as functional.
+### VII. Architectural Transparency & Documentation Integrity
+Project documentation (`README.md`, `HANDOFF.md`, `docs/ARCHITECTURE.md`) reflects active, verified source code. System capabilities, visual diagrams, and API contracts remain synchronized with production builds.
 
-### VIII. Dual Client SDK Maintenance (TypeScript & Python)
-To enable seamless integration into multi-language agent ecosystems (`algo-bounty`, ElizaOS, AutoGen, LangChain), KYA MUST maintain twin client SDK libraries:
-- `sdk/`: TypeScript client (`kya-sdk`)
-- `python-sdk/`: Python client (`kya-client`) with Pytest suite
-Both SDKs MUST support x402 payment header injection, A2A handshakes, ZK-KYC proof submission, and Karma querying.
+### VIII. Multi-Language SDK Ecosystem
+KYA maintains twin client libraries to support agent frameworks (ElizaOS, OpenClaw, AutoGen, LangChain, `algo-bounty`):
+- `sdk/`: Native TypeScript client (`kya-sdk`)
+- `python-sdk/`: Native Python client (`kya-client`) with Pytest suite
+Both SDKs provide seamless x402 payment handling, A2A pre-flight trust handshakes, ZK-KYC proof submission, and Karma profile management.
 
-### IX. Infrastructure Security & Pre-Commit Secret Sentinel
-All infrastructure provisioning MUST follow modular Terraform patterns. Sensitive files (`*.tfstate`, `*.tfvars`, `.env.deploy`) MUST be strictly ignored in `.gitignore`. A `.githooks/pre-commit` secret scanner MUST run before every commit to block hardcoded API keys, JWTs, and database credentials.
-
----
-
-## x402 Payment Architecture
-
-1. **Challenge**: Unauthenticated requests receive HTTP 402 with price, payment address, and offer TTL.
-2. **Payment**: Client submits an Algorand payment transaction (microALGO or USDCa).
-3. **Verification**: Client retries with transaction ID in `X-Payment` header. x402 middleware verifies round, amount, receiver, and replay protection via Algorand indexer.
-4. **Fulfillment**: Validated requests pass to domain handlers; an immutable receipt is recorded.
+### IX. Infrastructure Security & Automated Secret Protection
+Infrastructure deployment leverages modular Terraform patterns. Sensitive environment files (`*.tfstate`, `*.tfvars`, `.env.deploy`) are strictly excluded via `.gitignore`. An automated pre-commit secret scanner (`.githooks/pre-commit`) validates staged commits to prevent credential exposure.
 
 ---
 
-## Development Workflow & Quality Gates
+## Technical Specifications & Control Flow
 
-- **Test Gate**: All tests MUST pass via `vitest run`.
-- **Pre-Commit Gate**: `.githooks/pre-commit` MUST pass cleanly to prevent credential leaks.
-- **Clean Structure**: Scaffold directories without active code MUST be deleted immediately.
-- **Strict Scoping**: All features MUST be covered by unit/integration tests before PR approval.
+1. **x402 Negotiation**: Unauthenticated clients receive HTTP 402 challenges detailing price, receiver address, and offer TTL.
+2. **On-Chain Verification**: Middleware verifies transaction round, payment receiver, amount, and replay protection via Algorand indexer before delegating execution to domain routes.
+3. **A2A Pre-Flight Handshake**: Autonomous agents execute pre-flight counterparty evaluation (`POST /api/v1/a2a/handshake`), receiving Ed25519-signed W3C Verifiable Credential trust passports.
 
 ---
 
-## Governance
+## Governance & Quality Gates
 
-- This constitution is the authoritative source of truth for all development.
-- **Priority**: Principle II (x402) is non-negotiable. Lower-numbered principles take precedence in conflicts.
-- **Amendments**: Require user approval, semver bump, and updated `Last Amended` timestamp.
+- **Quality Gate**: Every commit and pull request must pass `npm run typecheck`, `npm run build`, and `npm test`.
+- **Pre-Commit Gate**: `.githooks/pre-commit` secret scanner must pass cleanly before commits are created.
+- **Priority**: Principle II (x402 Monetization) is non-negotiable. Numerically lower principles guide design precedence in architectural decisions.
 
-**Version**: 1.3.0 | **Ratified**: 2026-08-07 | **Last Amended**: 2026-08-12
+**Version**: 2.0.0 | **Ratified**: 2026-08-07 | **Last Amended**: 2026-08-12
