@@ -1,37 +1,26 @@
-# /home/st9797/.openclaw/workspace/agents/coding/kya-service/docker-compose.yml
-#
-# KYA Service — Local Development Compose
-#
-# Starts the KYA app behind nginx reverse proxy with HTTPS via mkcert.
-#
-# Usage:
-#   docker compose up --build        # Start everything
-#   docker compose up -d             # Start detached
-#   docker compose down              # Stop and clean up
-#
-# Licensed under AGPL-3.0 — See LICENSE file for details.
+# KYA Service — Production Docker Compose Stack
+# Orchestrates kya-service (Hono app), Caddy reverse proxy, and DuckDNS dynamic DNS updater.
 
 services:
   # ─── KYA Application ─────────────────────────────────────────────────────
-  kya:
+  kya-service:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: kya-app
+    container_name: kya-service
     environment:
       - PORT=3000
       - NODE_ENV=production
       - SUPABASE_URL=${SUPABASE_URL:-}
       - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY:-}
       - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY:-}
-      - ALGORAND_NETWORK_URL=${ALGORAND_NETWORK_URL:-}
+      - ALGORAND_NETWORK_URL=${ALGORAND_NETWORK_URL:-https://mainnet-api.algonode.cloud}
       - ALGORAND_API_TOKEN=${ALGORAND_API_TOKEN:-}
       - SCREENING_FAIL_THRESHOLD=${SCREENING_FAIL_THRESHOLD:-0.85}
       - SCREENING_FLAG_THRESHOLD=${SCREENING_FLAG_THRESHOLD:-0.50}
       - LOG_LEVEL=${LOG_LEVEL:-info}
     volumes:
       - watchdata:/app/data
-    # No port exposure — only accessible via nginx proxy
     networks:
       - kya-net
     restart: unless-stopped
@@ -42,27 +31,51 @@ services:
       retries: 3
       start_period: 30s
 
-  # ─── Nginx Reverse Proxy ─────────────────────────────────────────────────
-  nginx:
-    image: nginx:1.27-alpine
-    container_name: kya-nginx
+  # ─── Caddy Reverse Proxy & TLS Ingress ──────────────────────────────────
+  caddy:
+    image: caddy:2-alpine
+    container_name: kya-caddy
     ports:
+      - "80:80"
       - "443:443"
+    environment:
+      - DUCKDNS_SUBDOMAIN=${DUCKDNS_SUBDOMAIN:-kya-service}
+      - DUCKDNS_TOKEN=${DUCKDNS_TOKEN:-}
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./certs:/etc/nginx/certs:ro
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
     depends_on:
-      kya:
+      kya-service:
         condition: service_healthy
     networks:
       - kya-net
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "https://localhost/health"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
+
+  # ─── DuckDNS Dynamic DNS Updater ─────────────────────────────────────────
+  duckdns-updater:
+    image: curlimages/curl:latest
+    container_name: duckdns-updater
+    environment:
+      - DUCKDNS_SUBDOMAIN=${DUCKDNS_SUBDOMAIN:-kya-service}
+      - DUCKDNS_TOKEN=${DUCKDNS_TOKEN:-}
+      - UPDATE_INTERVAL=${UPDATE_INTERVAL:-300}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        if [ -z "$$DUCKDNS_TOKEN" ]; then
+          echo "DUCKDNS_TOKEN not set. Exiting DuckDNS updater."
+          exit 0
+        fi
+        while true; do
+          echo "Updating DuckDNS IP for domain $$DUCKDNS_SUBDOMAIN.duckdns.org..."
+          curl -s "https://www.duckdns.org/update?domains=$${DUCKDNS_SUBDOMAIN}&token=$${DUCKDNS_TOKEN}&ip="
+          echo ""
+          sleep $${UPDATE_INTERVAL:-300}
+        done
+    networks:
+      - kya-net
+    restart: unless-stopped
 
 # ─── Networks ───────────────────────────────────────────────────────────────
 networks:
@@ -72,4 +85,8 @@ networks:
 # ─── Volumes ────────────────────────────────────────────────────────────────
 volumes:
   watchdata:
+    driver: local
+  caddy_data:
+    driver: local
+  caddy_config:
     driver: local

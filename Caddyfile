@@ -1,0 +1,19 @@
+{
+	admin off
+}
+
+# Ingress configuration for DuckDNS subdomain with TLS termination
+{$DUCKDNS_SUBDOMAIN:kya-service}.duckdns.org {
+	# Reverse proxy HTTPS (port 443) traffic to internal KYA service on port 3000
+	reverse_proxy kya-service:3000 {
+		header_up Host {host}
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+
+		# Explicitly preserve and forward x402 payment protocol headers
+		header_up X-402-Payment-Required {http.request.header.X-402-Payment-Required}
+		header_up X-402-Payment-Receipt {http.request.header.X-402-Payment-Receipt}
+		header_up X-Payment {http.request.header.X-Payment}
+	}
+}

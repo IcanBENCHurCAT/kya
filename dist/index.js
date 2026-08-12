@@ -10,3 +10,4 @@ export { SiblingDiscoveryService } from './services/siblingDiscovery.js';
 export { WalletGraph } from './graph/walletGraph.js';
 export { KarmaService, InMemoryKarmaStore, defaultKarmaService } from './services/karma.js';
 export { x402PaymentGate, resetX402Receipts, getX402Receipts } from './middleware/x402.js';
+export { app } from './app.js';
