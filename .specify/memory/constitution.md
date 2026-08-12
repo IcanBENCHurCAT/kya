@@ -1,12 +1,10 @@
 <!-- SYNC IMPACT REPORT
-  Version: 1.2.0
-  Date: 2026-08-08
-  Action: CONSTITUTION AMENDMENT & END-STATE VISION ALIGNMENT
+  Version: 1.3.0
+  Date: 2026-08-12
+  Action: CONSTITUTION AMENDMENT — SECURITY, SDK & INFRASTRUCTURE MANDATES
   Summary:
-    - Expanded Principle II (x402 Payment Gate) to mandate atomic revenue waterfall (60/25/15) and dynamic pricing.
-    - Expanded Principle III (On-Chain Karma) to specify Algorand 77-byte static binary Box Storage layouts, ARC-28 event standards, and refund MBR mechanics.
-    - Added Zero-Knowledge (ZK) identity assertion mandate (GDPR compliance; zero raw PII on-chain).
-    - Added Agent-to-Agent (A2A) pre-flight trust handshake mandate (W3C Verifiable Credentials & framework middleware SDKs).
+    - Added Principle VIII (Client SDK Maintenance): Mandates twin TypeScript (`kya-sdk`) and Python (`kya-client`) SDK clients kept in sync with REST API.
+    - Added Principle IX (Infrastructure & Secret Sentinel): Mandates automated pre-commit secret scanning hooks and Terraform infrastructure patterns (OCI/Cloud) with strict .gitignore of sensitive credentials (*.tfvars, *.tfstate).
 -->
 
 # KYA Service (Know Your Agent) Constitution
@@ -34,6 +32,15 @@ Production code paths MUST NOT use stub or `console.log` fallbacks. Empty scaffo
 ### VII. Honest Documentation
 Documentation (`README.md`, `HANDOFF.md`, `docs/ARCHITECTURE.md`, architecture diagrams) MUST strictly reflect the actual state of the codebase. Features that are not implemented MUST NOT be documented as functional.
 
+### VIII. Dual Client SDK Maintenance (TypeScript & Python)
+To enable seamless integration into multi-language agent ecosystems (`algo-bounty`, ElizaOS, AutoGen, LangChain), KYA MUST maintain twin client SDK libraries:
+- `sdk/`: TypeScript client (`kya-sdk`)
+- `python-sdk/`: Python client (`kya-client`) with Pytest suite
+Both SDKs MUST support x402 payment header injection, A2A handshakes, ZK-KYC proof submission, and Karma querying.
+
+### IX. Infrastructure Security & Pre-Commit Secret Sentinel
+All infrastructure provisioning MUST follow modular Terraform patterns. Sensitive files (`*.tfstate`, `*.tfvars`, `.env.deploy`) MUST be strictly ignored in `.gitignore`. A `.githooks/pre-commit` secret scanner MUST run before every commit to block hardcoded API keys, JWTs, and database credentials.
+
 ---
 
 ## x402 Payment Architecture
@@ -48,6 +55,7 @@ Documentation (`README.md`, `HANDOFF.md`, `docs/ARCHITECTURE.md`, architecture d
 ## Development Workflow & Quality Gates
 
 - **Test Gate**: All tests MUST pass via `vitest run`.
+- **Pre-Commit Gate**: `.githooks/pre-commit` MUST pass cleanly to prevent credential leaks.
 - **Clean Structure**: Scaffold directories without active code MUST be deleted immediately.
 - **Strict Scoping**: All features MUST be covered by unit/integration tests before PR approval.
 
@@ -59,4 +67,4 @@ Documentation (`README.md`, `HANDOFF.md`, `docs/ARCHITECTURE.md`, architecture d
 - **Priority**: Principle II (x402) is non-negotiable. Lower-numbered principles take precedence in conflicts.
 - **Amendments**: Require user approval, semver bump, and updated `Last Amended` timestamp.
 
-**Version**: 1.2.0 | **Ratified**: 2026-08-07 | **Last Amended**: 2026-08-08
+**Version**: 1.3.0 | **Ratified**: 2026-08-07 | **Last Amended**: 2026-08-12

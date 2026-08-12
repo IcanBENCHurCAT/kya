@@ -1,0 +1,29 @@
+# Oracle Cloud Infrastructure (OCI) Terraform Configuration
+#
+# ⚠️ DO NOT commit real values here. Copy this file to terraform.tfvars
+#    and fill in your own credentials. This file is committed to the repo
+#    as a TEMPLATE ONLY — all values must be fake placeholders.
+#
+# Setup:
+#   1. cp terraform/terraform.tfvars.example terraform/terraform.tfvars
+#   2. Fill in real values in terraform/terraform.tfvars (gitignored)
+
+# Oracle Cloud Infrastructure Credentials
+tenancy_ocid     = "ocid1.tenancy.oc1..example..."
+user_ocid        = "ocid1.user.oc1..example..."
+fingerprint      = "xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx"
+private_key_path = "~/.oci/oci_api_key.pem"
+region           = "us-ashburn-1"
+compartment_ocid = "ocid1.compartment.oc1..example..."
+ssh_public_key   = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQ..."
+
+# Application Credentials (PLACEHOLDERS ONLY)
+pinata_jwt        = "your_pinata_jwt_here"
+supabase_url      = "https://your-project.supabase.co"
+supabase_key      = "your_supabase_key_here"
+duckdns_subdomain = "your-domain"
+duckdns_token     = "your-duckdns-token-here"
+escrow_address        = "W5IRXJWPSXNUJVSN2MOEJGTDGKUGFKUDVPTR5ZQVMDG5O4KYD5M3QPG3TE"
+evm_escrow_address    = "0x0000000000000000000000000000000000000000"
+solana_escrow_address = "11111111111111111111111111111111"
+notification_email    = "your-email@example.com"

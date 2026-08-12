@@ -1,1 +1,10 @@
 node_modules
+dist
+.env
+.env.local
+.env.deploy
+*.tfstate
+*.tfstate.*
+*.tfvars
+.terraform/
+.gitleaks.json

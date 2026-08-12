@@ -272,15 +272,16 @@ export class WalletGraph {
         const n = this.nodes.size;
         if (n <= 1)
             return centrality;
+        const incomingCounts = new Map();
+        for (const [, targetEdges] of this.edges) {
+            for (const target of targetEdges.keys()) {
+                incomingCounts.set(target, (incomingCounts.get(target) || 0) + 1);
+            }
+        }
         for (const [address] of this.nodes) {
             const outgoing = this.adjacencyList.get(address);
             const outgoingCount = outgoing ? outgoing.size : 0;
-            let incomingCount = 0;
-            for (const [, targetEdges] of this.edges) {
-                if (targetEdges.has(address)) {
-                    incomingCount++;
-                }
-            }
+            const incomingCount = incomingCounts.get(address) || 0;
             centrality.set(address, (outgoingCount + incomingCount) / (n - 1));
         }
         return centrality;
