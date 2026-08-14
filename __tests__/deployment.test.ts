@@ -42,13 +42,16 @@ describe('Phase 4 Deployment & Gateway Ingress Tests', () => {
       expect(data.merchant.name).toContain('KYA Service');
       expect(data.resources).toBeInstanceOf(Array);
       expect(data.resources.length).toBeGreaterThan(0);
+      expect(data.resources[0].tag).toBe('x402-global-challenge');
     });
 
     it('should serve agent card metadata on /.well-known/agent-card.json', async () => {
       const res = await app.request('/.well-known/agent-card.json');
       expect(res.status).toBe(200);
       const data = await res.json();
-      expect(data.merchant.contact).toBe('support@kya.network');
+      expect(data.name).toContain('KYA Service');
+      expect(data.skills).toBeInstanceOf(Array);
+      expect(data.skills[0].tags).toContain('x402-global-challenge');
     });
   });
 
@@ -90,6 +93,7 @@ describe('Phase 4 Deployment & Gateway Ingress Tests', () => {
       expect(body.error).toBe('Payment Required');
       expect(body.paymentOffer).toBeDefined();
       expect(body.paymentOffer.priceMicroAlgo).toBe(1000);
+      expect(body.paymentOffer.tag).toBe('x402-global-challenge');
     });
 
     it('should process reverse-proxy headers (Host, X-Forwarded-For, X-Forwarded-Proto) correctly', async () => {

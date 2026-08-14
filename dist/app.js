@@ -65,6 +65,7 @@ const x402MetadataHandler = (c) => {
                 description: 'Query agent Karma score, tier, risk flags, and event history.',
                 methods: ['GET'],
                 networks: ['algorand:mainnet', 'algorand:testnet'],
+                tag: 'x402-global-challenge',
             },
             {
                 path: '/api/v1/a2a/handshake',
@@ -72,6 +73,7 @@ const x402MetadataHandler = (c) => {
                 description: 'Execute machine-to-machine pre-flight risk evaluation and issue Ed25519-signed W3C Verifiable Credentials.',
                 methods: ['POST'],
                 networks: ['algorand:mainnet', 'algorand:testnet'],
+                tag: 'x402-global-challenge',
             },
             {
                 path: '/api/v1/verify/zk-proof',
@@ -79,6 +81,7 @@ const x402MetadataHandler = (c) => {
                 description: 'Submit Groth16 Zero-Knowledge identity proof payloads (zero PII on-chain).',
                 methods: ['POST'],
                 networks: ['algorand:mainnet', 'algorand:testnet'],
+                tag: 'x402-global-challenge',
             },
             {
                 path: '/api/v1/screen',
@@ -86,15 +89,88 @@ const x402MetadataHandler = (c) => {
                 description: 'Screen wallet address or beneficial owner identity against sanctions watchlists.',
                 methods: ['POST'],
                 networks: ['algorand:mainnet', 'algorand:testnet'],
+                tag: 'x402-global-challenge',
             },
         ],
     });
 };
 app.get('/.well-known/x402.json', x402MetadataHandler);
 app.get('/.well-known/x402', x402MetadataHandler);
-app.get('/.well-known/agent-card.json', x402MetadataHandler);
+app.get('/.well-known/agent-card.json', (c) => {
+    c.header('Cache-Control', 'public, max-age=3600, s-maxage=86400');
+    const host = c.req.header('host') || 'kya-service.duckdns.org';
+    const baseUrl = host.includes('http') ? host : `https://${host}`;
+    return c.json({
+        name: 'KYA Service — Trust Infrastructure for AI Agents',
+        description: 'On-chain Karma reputation ledgers, pre-flight A2A risk handshakes, zero-knowledge identity assertions, and multi-source sanctions screening gated by x402 micro-payments.',
+        icon: logoUrl,
+        image: logoUrl,
+        iconUrl: logoUrl,
+        avatarUrl: logoUrl,
+        version: '1.0.0',
+        url: baseUrl,
+        supportedInterfaces: [
+            {
+                url: `${baseUrl}/api/v1/karma/{address}`,
+                protocolBinding: 'HTTP',
+                protocolVersion: '1.1',
+            },
+            {
+                url: `${baseUrl}/api/v1/a2a/handshake`,
+                protocolBinding: 'HTTP',
+                protocolVersion: '1.1',
+            },
+            {
+                url: `${baseUrl}/api/v1/verify/zk-proof`,
+                protocolBinding: 'HTTP',
+                protocolVersion: '1.1',
+            },
+            {
+                url: `${baseUrl}/api/v1/screen`,
+                protocolBinding: 'HTTP',
+                protocolVersion: '1.1',
+            },
+        ],
+        capabilities: {
+            streaming: false,
+            pushNotifications: false,
+        },
+        defaultInputModes: ['application/json'],
+        defaultOutputModes: ['application/json'],
+        skills: [
+            {
+                id: 'kya_karma_query',
+                name: 'Query Agent Karma Profile',
+                description: 'Query dynamic agent reputation score, risk flags, and event history.',
+                tags: ['reputation', 'karma', 'ai-agents', 'x402-global-challenge'],
+                examples: ['Get karma score for agent address AAAA...'],
+            },
+            {
+                id: 'kya_a2a_handshake',
+                name: 'Execute A2A Risk Handshake',
+                description: 'Execute pre-flight risk evaluation and retrieve signed W3C Verifiable Credential trust passport.',
+                tags: ['a2a', 'trust', 'passport', 'x402-global-challenge'],
+                examples: ['Run A2A handshake before dispatching bounty payment to target agent.'],
+            },
+            {
+                id: 'kya_zk_proof',
+                name: 'Submit ZK Identity Proof',
+                description: 'Submit Groth16 Zero-Knowledge identity proof to upgrade verification tier without revealing PII.',
+                tags: ['zkp', 'privacy', 'identity', 'x402-global-challenge'],
+                examples: ['Submit Groth16 zk-SNARK proof payload.'],
+            },
+            {
+                id: 'kya_sanctions_screening',
+                name: 'Screen Wallet Sanctions',
+                description: 'Screen wallet address or beneficial owner against OFAC SDN sanctions watchlists.',
+                tags: ['ofac', 'sanctions', 'screening', 'x402-global-challenge'],
+                examples: ['Screen wallet address AAAA... against sanctions list.'],
+            },
+        ],
+    });
+});
 // Mount x402 payment gate over /api/v1/*
-app.use('/api/v1/*', x402PaymentGate({ priceMicroAlgo: 1000, receiverAddress: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' }));
+app.use('/api/v1/*', x402PaymentGate({ priceMicroAlgo: 1000, receiverAddress: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA', tag: 'x402-global-challenge' }));
 app.route('/api/v1', screeningApp);
 app.route('/api/v1', walletAnalysisApp);
 app.route('/api/v1', karmaApp);

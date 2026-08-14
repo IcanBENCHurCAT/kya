@@ -5,6 +5,7 @@ export interface X402Options {
   receiverAddress?: string;
   treasuryAddress?: string;
   ttlSeconds?: number;
+  tag?: string;
 }
 
 export interface X402Receipt {
@@ -30,6 +31,7 @@ export function x402PaymentGate(options: X402Options = {}): MiddlewareHandler {
   const price = options.priceMicroAlgo || 1000;
   const receiver = options.receiverAddress || 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
   const ttl = options.ttlSeconds || 300;
+  const tag = options.tag || 'x402-global-challenge';
 
   return async (c, next) => {
     const path = c.req.path;
@@ -37,7 +39,8 @@ export function x402PaymentGate(options: X402Options = {}): MiddlewareHandler {
       path === '/health' ||
       path === '/api/v1/health' ||
       path.includes('/health') ||
-      path.includes('/x402')
+      path.includes('/x402') ||
+      path.includes('.well-known')
     ) {
       return await next();
     }
@@ -53,11 +56,13 @@ export function x402PaymentGate(options: X402Options = {}): MiddlewareHandler {
             priceMicroAlgo: price,
             receiverAddress: receiver,
             expiresInSeconds: ttl,
+            tag: tag,
             instructions: 'Submit payment transaction to receiverAddress and include transaction ID in X-Payment header.',
           },
           priceMicroAlgo: price,
           receiverAddress: receiver,
           expiresInSeconds: ttl,
+          tag: tag,
         },
         402
       );

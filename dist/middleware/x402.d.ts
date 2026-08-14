@@ -4,6 +4,7 @@ export interface X402Options {
     receiverAddress?: string;
     treasuryAddress?: string;
     ttlSeconds?: number;
+    tag?: string;
 }
 export interface X402Receipt {
     receiptId: string;
