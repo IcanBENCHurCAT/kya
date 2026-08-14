@@ -32,6 +32,26 @@ describe('Phase 4 Deployment & Gateway Ingress Tests', () => {
     });
   });
 
+  describe('x402 Merchant Metadata & Bazaar Discovery Endpoints', () => {
+    it('should serve x402 merchant discovery metadata on /.well-known/x402.json', async () => {
+      const res = await app.request('/.well-known/x402.json');
+      expect(res.status).toBe(200);
+      expect(res.headers.get('Cache-Control')).toContain('public');
+      const data = await res.json();
+      expect(data.merchant).toBeDefined();
+      expect(data.merchant.name).toContain('KYA Service');
+      expect(data.resources).toBeInstanceOf(Array);
+      expect(data.resources.length).toBeGreaterThan(0);
+    });
+
+    it('should serve agent card metadata on /.well-known/agent-card.json', async () => {
+      const res = await app.request('/.well-known/agent-card.json');
+      expect(res.status).toBe(200);
+      const data = await res.json();
+      expect(data.merchant.contact).toBe('support@kya.network');
+    });
+  });
+
   describe('Environment Variable Validation & Defaults', () => {
     it('should validate default PORT environment configuration', () => {
       const port = parseInt(process.env.PORT || '3000', 10);

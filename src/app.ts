@@ -48,6 +48,65 @@ const app = new Hono();
 app.get('/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString() }));
 app.get('/api/v1/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString() }));
 
+// ─── x402 Merchant Metadata & Bazaar Discovery Endpoints ───────────────
+const logoUrl = 'https://raw.githubusercontent.com/IcanBENCHurCAT/kya/main/docs/kya_architecture_infographic.jpg';
+
+const x402MetadataHandler = (c: any) => {
+  c.header('Cache-Control', 'public, max-age=3600, s-maxage=86400');
+  const host = c.req.header('host') || 'kya-service.duckdns.org';
+  const baseUrl = host.includes('http') ? host : `https://${host}`;
+
+  return c.json({
+    merchant: {
+      name: 'KYA Service — Trust Infrastructure for AI Agents',
+      description: 'On-chain Karma reputation ledgers, pre-flight A2A risk handshakes, zero-knowledge identity assertions, and multi-source sanctions screening gated by x402 micro-payments.',
+      icon: logoUrl,
+      image: logoUrl,
+      iconUrl: logoUrl,
+      icon_url: logoUrl,
+      avatar: logoUrl,
+      avatarUrl: logoUrl,
+      contact: 'support@kya.network',
+    },
+    image: logoUrl,
+    icon: logoUrl,
+    resources: [
+      {
+        path: '/api/v1/karma/:address',
+        url: `${baseUrl}/api/v1/karma/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA`,
+        description: 'Query agent Karma score, tier, risk flags, and event history.',
+        methods: ['GET'],
+        networks: ['algorand:mainnet', 'algorand:testnet'],
+      },
+      {
+        path: '/api/v1/a2a/handshake',
+        url: `${baseUrl}/api/v1/a2a/handshake`,
+        description: 'Execute machine-to-machine pre-flight risk evaluation and issue Ed25519-signed W3C Verifiable Credentials.',
+        methods: ['POST'],
+        networks: ['algorand:mainnet', 'algorand:testnet'],
+      },
+      {
+        path: '/api/v1/verify/zk-proof',
+        url: `${baseUrl}/api/v1/verify/zk-proof`,
+        description: 'Submit Groth16 Zero-Knowledge identity proof payloads (zero PII on-chain).',
+        methods: ['POST'],
+        networks: ['algorand:mainnet', 'algorand:testnet'],
+      },
+      {
+        path: '/api/v1/screen',
+        url: `${baseUrl}/api/v1/screen`,
+        description: 'Screen wallet address or beneficial owner identity against sanctions watchlists.',
+        methods: ['POST'],
+        networks: ['algorand:mainnet', 'algorand:testnet'],
+      },
+    ],
+  });
+};
+
+app.get('/.well-known/x402.json', x402MetadataHandler);
+app.get('/.well-known/x402', x402MetadataHandler);
+app.get('/.well-known/agent-card.json', x402MetadataHandler);
+
 // Mount x402 payment gate over /api/v1/*
 app.use('/api/v1/*', x402PaymentGate({ priceMicroAlgo: 1000, receiverAddress: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' }));
 
