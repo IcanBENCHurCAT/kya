@@ -144,6 +144,8 @@ For OCI Container Registry (OCIR) and GitHub Actions automation, you only need t
 | `OCIR_REGION_ENDPOINT` | OCI Registry Endpoint | `iad.ocir.io` (Ashburn) or `phx.ocir.io` |
 | `DUCKDNS_SUBDOMAIN` | DuckDNS subdomain | `kya-service` |
 | `DUCKDNS_TOKEN` | DuckDNS API token | `12345678-abcd...` |
+| `SUPABASE_URL` | Supabase Project URL | `https://your-project.supabase.co` |
+| `SUPABASE_KEY` | Supabase Service Role Key | `eyJhbGciOiJIUzI1NiIsInR5cCI6...` |
 
 > [!TIP]
 > **Minimal Secret Pattern**: If using OCI Native Workload Identity / API signing authentication or OCIR Token auth, you do NOT need to store static PEM keys or database password strings in GitHub if using secrets manager or dynamic instance principal delegation.
