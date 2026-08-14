@@ -48,7 +48,7 @@ variable "ssh_public_key" {
 variable "container_image" {
   type        = string
   default     = "iad.ocir.io/kya/kya-service:latest"
-  description = "Docker image URL for OCI Container Instance"
+  description = "Docker image URL for OCI Container Instance (Multi-Arch AMD64/ARM64)"
 }
 
 variable "container_ocpus" {
@@ -59,7 +59,7 @@ variable "container_ocpus" {
 
 variable "container_memory_in_gbs" {
   type        = number
-  default     = 2
+  default     = 4
   description = "RAM in GBs for Container Instance"
 }
 
@@ -139,7 +139,7 @@ resource "oci_core_route_table" "kya_rt" {
   }
 }
 
-# Security List (Allows SSH 22, HTTP 80, HTTPS 443, App 3000)
+# Security List (Allows SSH 22, HTTP 80, HTTPS 443, App 3000, App 4021)
 resource "oci_core_security_list" "kya_sl" {
   compartment_id = var.compartment_ocid
   vcn_id         = oci_core_vcn.kya_vcn.id
@@ -185,6 +185,16 @@ resource "oci_core_security_list" "kya_sl" {
       max = 3000
     }
   }
+
+  # Backend Health Probe port
+  ingress_security_rules {
+    protocol = "6" # TCP
+    source   = "0.0.0.0/0"
+    tcp_options {
+      min = 4021
+      max = 4021
+    }
+  }
 }
 
 # Subnet
@@ -198,6 +208,47 @@ resource "oci_core_subnet" "kya_subnet" {
   security_list_ids = [oci_core_security_list.kya_sl.id]
 }
 
+# Flexible Load Balancer (Public HTTPS / Ingress)
+resource "oci_load_balancer_load_balancer" "kya_lb" {
+  compartment_id = var.compartment_ocid
+  display_name   = "kya-service-lb"
+  shape          = "flexible"
+  subnet_ids     = [oci_core_subnet.kya_subnet.id]
+
+  shape_details {
+    minimum_bandwidth_in_mbps = 10
+    maximum_bandwidth_in_mbps = 10
+  }
+
+  is_private = false
+}
+
+# Load Balancer Backend Set
+resource "oci_load_balancer_backend_set" "kya_backend_set" {
+  name             = "kya-backend-set"
+  load_balancer_id = oci_load_balancer_load_balancer.kya_lb.id
+  policy           = "ROUND_ROBIN"
+
+  health_checker {
+    protocol            = "HTTP"
+    port                = 3000
+    url_path            = "/api/v1/health"
+    return_code         = 200
+    interval_ms         = 10000
+    timeout_in_millis   = 3000
+    retries             = 3
+  }
+}
+
+# Load Balancer Listener (HTTP 80)
+resource "oci_load_balancer_listener" "kya_listener_http" {
+  load_balancer_id = oci_load_balancer_load_balancer.kya_lb.id
+  name             = "kya-http-listener"
+  default_backend_set_name = oci_load_balancer_backend_set.kya_backend_set.name
+  port             = 80
+  protocol         = "HTTP"
+}
+
 variable "availability_domain_index" {
   type        = number
   default     = 0
@@ -206,8 +257,8 @@ variable "availability_domain_index" {
 
 variable "instance_shape" {
   type        = string
-  default     = "VM.Standard.E2.1.Micro"
-  description = "OCI Compute Shape"
+  default     = "VM.Standard.A1.Flex"
+  description = "OCI Compute Shape (Always Free ARM64)"
 }
 
 # Availability Domains Data
@@ -215,7 +266,7 @@ data "oci_identity_availability_domains" "ads" {
   compartment_id = var.compartment_ocid
 }
 
-# Fetch Ubuntu 24.04 Image
+# Fetch Ubuntu 24.04 ARM64 Image
 data "oci_core_images" "ubuntu_images" {
   compartment_id           = var.compartment_ocid
   operating_system         = "Canonical Ubuntu"
@@ -223,12 +274,12 @@ data "oci_core_images" "ubuntu_images" {
   shape                    = var.instance_shape
 }
 
-# OCI Container Instance (Serverless 0-to-N Scaling Container)
+# OCI Container Instance (Always Free CI.Standard.A1.Flex - ARM64 Ampere Altra)
 resource "oci_container_instances_container_instance" "kya_container_instance" {
   compartment_id      = var.compartment_ocid
   availability_domain = data.oci_identity_availability_domains.ads.availability_domains[var.availability_domain_index].name
   display_name        = "kya-service-container"
-  shape               = "CI.Standard.E4.Flex"
+  shape               = "CI.Standard.A1.Flex"
 
   shape_config {
     ocpus         = var.container_ocpus
@@ -266,10 +317,35 @@ resource "oci_container_instances_container_instance" "kya_container_instance" {
     }
   }
 
+  # DuckDNS Sidecar container with explicit Load Balancer IP parameter
+  containers {
+    display_name = "duckdns-updater"
+    image_url    = "alpine:latest"
+    entrypoint   = ["/bin/sh", "-c"]
+    arguments    = ["while true; do wget -qO- \"https://www.duckdns.org/update?domains=${var.duckdns_subdomain}&token=${var.duckdns_token}&ip=${oci_load_balancer_load_balancer.kya_lb.ip_address_details[0].ip_address}\"; sleep 300; done"]
+
+    resource_config {
+      memory_limit_in_gbs = 0.5
+      vcpus_limit         = 0.5
+    }
+  }
+
   graceful_shutdown_timeout_in_seconds = 30
 }
 
-# Compute Instance (VM Fallback)
+# Auto-register Container Instance IP into Load Balancer Backend Set
+resource "oci_load_balancer_backend" "kya_container_backend" {
+  load_balancer_id = oci_load_balancer_load_balancer.kya_lb.id
+  backendset_name  = oci_load_balancer_backend_set.kya_backend_set.name
+  ip_address       = oci_container_instances_container_instance.kya_container_instance.vnics[0].private_ip_address
+  port             = 3000
+  backup           = false
+  drain            = false
+  offline          = false
+  weight           = 1
+}
+
+# Compute Instance (VM Fallback - Always Free ARM64)
 resource "oci_core_instance" "kya_vm" {
   compartment_id      = var.compartment_ocid
   availability_domain = data.oci_identity_availability_domains.ads.availability_domains[var.availability_domain_index].name
@@ -303,6 +379,7 @@ resource "oci_core_instance" "kya_vm" {
       iptables -I INPUT 6 -m state --state NEW -p tcp --dport 80 -j ACCEPT
       iptables -I INPUT 6 -m state --state NEW -p tcp --dport 443 -j ACCEPT
       iptables -I INPUT 6 -m state --state NEW -p tcp --dport 3000 -j ACCEPT
+      iptables -I INPUT 6 -m state --state NEW -p tcp --dport 4021 -j ACCEPT
       netfilter-persistent save || true
     EOF
     , "\r", ""))
@@ -318,6 +395,11 @@ output "container_instance_id" {
   description = "OCID of the deployed OCI Container Instance"
 }
 
+output "load_balancer_ip" {
+  value       = oci_load_balancer_load_balancer.kya_lb.ip_address_details[0].ip_address
+  description = "Public IP address of the Flexible Load Balancer"
+}
+
 output "public_ip" {
   value       = oci_core_instance.kya_vm.public_ip
   description = "Public IP address of the deployed Gateway VM"
@@ -325,7 +407,7 @@ output "public_ip" {
 
 output "gateway_url" {
   value       = "https://${var.duckdns_subdomain}.duckdns.org"
-  description = "HTTPS Gateway URL with Caddy & DuckDNS TLS"
+  description = "HTTPS Gateway URL with Load Balancer & DuckDNS TLS"
 }
 
 output "notification_topic_ocid" {

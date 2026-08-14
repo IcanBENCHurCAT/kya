@@ -1,10 +1,20 @@
-name: CI Quality Gate
+name: CI Quality Gate & Docker Build
 
 on:
   push:
     branches: [ main, feature/* ]
+    paths-ignore:
+      - 'docs/**'
+      - 'sdks/**'
+      - 'examples/**'
+      - '**.md'
   pull_request:
     branches: [ main ]
+    paths-ignore:
+      - 'docs/**'
+      - 'sdks/**'
+      - 'examples/**'
+      - '**.md'
 
 jobs:
   ci-quality-gate:
@@ -36,3 +46,28 @@ jobs:
 
       - name: Run Vitest Test Suite
         run: npm test
+
+  build-multiarch-docker:
+    name: Multi-Arch Docker Build (AMD64 / ARM64)
+    runs-on: ubuntu-latest
+    needs: ci-quality-gate
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/feature/')
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU (for multi-arch ARM64 build)
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Multi-Arch Container Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: false
+          tags: kya-service:latest
