@@ -298,7 +298,8 @@ resource "oci_container_instances_container_instance" "kya_container_instance" {
   containers {
     display_name = "kya-service"
     image_url    = "node:20-alpine"
-    command      = ["sh", "-c", "rm -rf /kyacode && git clone https://github.com/IcanBENCHurCAT/kya.git /kyacode && cd /kyacode && npm ci --omit=dev && mkdir -p /kyacode/data && npm start"]
+    command      = ["sh", "-c", "apk add --no-cache git && rm -rf /kyacode && git clone https://github.com/IcanBENCHurCAT/kya.git /kyacode && cd /kyacode && npm ci --omit=dev && mkdir -p /kyacode/data && npm start"]
+
 
 
 
