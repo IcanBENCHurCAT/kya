@@ -251,15 +251,18 @@ resource "oci_load_balancer_listener" "kya_listener_http" {
 
 variable "availability_domain_index" {
   type        = number
-  default     = 0
-  description = "Index of availability domain (0, 1, or 2)"
+  default     = 2
+  description = "Index of availability domain (0, 1, or 2 for Ashburn AD-1, AD-2, AD-3)"
 }
+
+
 
 variable "instance_shape" {
   type        = string
-  default     = "VM.Standard.E2.1.Micro"
-  description = "OCI Compute Shape (VM.Standard.E2.1.Micro for guaranteed capacity, or VM.Standard.A1.Flex for ARM)"
+  default     = "VM.Standard.A1.Flex"
+  description = "OCI Compute Shape (Always Free ARM64 Ampere)"
 }
+
 
 # Availability Domains Data
 data "oci_identity_availability_domains" "ads" {
@@ -274,102 +277,77 @@ data "oci_core_images" "ubuntu_images" {
   shape                    = var.instance_shape
 }
 
-# Compute Instance (Dedicated Gateway VM - Always Free E2.1.Micro / A1.Flex)
-resource "oci_core_instance" "kya_vm" {
+# OCI Container Instance (Always Free CI.Standard.A1.Flex - ARM64 Ampere Altra)
+resource "oci_container_instances_container_instance" "kya_container_instance" {
   compartment_id      = var.compartment_ocid
-  availability_domain = data.oci_identity_availability_domains.ads.availability_domains[var.availability_domain_index].name
-  display_name        = "kya-service-gateway"
-  shape               = var.instance_shape
+  availability_domain = data.oci_identity_availability_domains.ads.availability_domains[0].name
+  display_name        = "kya-service-container"
+  shape               = "CI.Standard.A1.Flex"
 
-  dynamic "shape_config" {
-    for_each = length(regexall("Flex", var.instance_shape)) > 0 ? [1] : []
-    content {
-      ocpus         = 2
-      memory_in_gbs = 12
+  shape_config {
+    ocpus         = var.container_ocpus
+    memory_in_gbs = var.container_memory_in_gbs
+  }
+
+  vnics {
+    subnet_id             = oci_core_subnet.kya_subnet.id
+    is_public_ip_assigned = true
+    display_name          = "kya-ci-vnic"
+  }
+
+  containers {
+    display_name = "kya-service"
+    image_url    = "node:20-alpine"
+    command      = ["sh", "-c", "rm -rf /kyacode && git clone https://github.com/IcanBENCHurCAT/kya.git /kyacode && cd /kyacode && npm ci --omit=dev && mkdir -p /kyacode/data && npm start"]
+
+
+
+
+
+
+    environment_variables = {
+      "PORT"                     = "3000"
+      "NODE_ENV"                 = "production"
+      "SUPABASE_URL"             = var.supabase_url
+      "SUPABASE_ANON_KEY"        = var.supabase_key
+      "SUPABASE_SERVICE_ROLE_KEY"= var.supabase_key
+      "ALGORAND_NETWORK_URL"     = var.algorand_network_url
+      "ALGORAND_API_TOKEN"       = var.algorand_api_token
+      "DUCKDNS_SUBDOMAIN"        = var.duckdns_subdomain
+      "DUCKDNS_TOKEN"            = var.duckdns_token
+      "KYA_TREASURY_ADDRESS"     = "W5IRXJWPSXNUJVSN2MOEJGTDGKUGFKUDVPTR5ZQVMDG5O4KYD5M3QPG3TE"
+      "ESCROW_ADDRESS"           = "W5IRXJWPSXNUJVSN2MOEJGTDGKUGFKUDVPTR5ZQVMDG5O4KYD5M3QPG3TE"
+      "SCREENING_FAIL_THRESHOLD" = "0.85"
+      "SCREENING_FLAG_THRESHOLD" = "0.50"
+      "LOG_LEVEL"                = "info"
+    }
+
+    resource_config {
+      memory_limit_in_gbs = var.container_memory_in_gbs
+      vcpus_limit         = var.container_ocpus
     }
   }
 
-  source_details {
-    source_type = "image"
-    source_id   = data.oci_core_images.ubuntu_images.images[0].id
+  # DuckDNS Sidecar container with explicit Load Balancer IP parameter
+  containers {
+    display_name = "duckdns-updater"
+    image_url    = "alpine:latest"
+    command      = ["sh", "-c", "while true; do wget -qO- \"https://www.duckdns.org/update?domains=${var.duckdns_subdomain}&token=${var.duckdns_token}&ip=${oci_load_balancer_load_balancer.kya_lb.ip_address_details[0].ip_address}\"; sleep 300; done"]
+
+    resource_config {
+      memory_limit_in_gbs = 0.5
+      vcpus_limit         = 0.5
+    }
   }
 
-  create_vnic_details {
-    subnet_id        = oci_core_subnet.kya_subnet.id
-    assign_public_ip = true
-    hostname_label   = "kyaservice"
-  }
-
-  metadata = {
-    ssh_authorized_keys = var.ssh_public_key
-    user_data           = base64encode(replace(<<-EOF
-      #!/bin/bash
-      set -ex
-
-      # Allow Ports 80, 443, 3000 on IPTables
-      iptables -I INPUT 6 -m state --state NEW -p tcp --dport 80 -j ACCEPT
-      iptables -I INPUT 6 -m state --state NEW -p tcp --dport 443 -j ACCEPT
-      iptables -I INPUT 6 -m state --state NEW -p tcp --dport 3000 -j ACCEPT
-      netfilter-persistent save || true
-
-      # Wait for network
-      until curl -fsSL --connect-timeout 5 https://archive.ubuntu.com > /dev/null 2>&1; do
-        sleep 5
-      done
-
-      # 2GB swap file
-      if [ ! -f /swapfile ]; then
-        fallocate -l 2G /swapfile
-        chmod 600 /swapfile
-        mkswap /swapfile
-        swapon /swapfile
-        echo '/swapfile none swap sw 0 0' >> /etc/fstab
-      fi
-
-      # Install Docker & Docker Compose
-      apt-get update -y
-      apt-get install -y ca-certificates curl gnupg git
-      install -m 0755 -d /etc/apt/keyrings
-      curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --batch --yes --dearmor -o /etc/apt/keyrings/docker.gpg
-      chmod a+r /etc/apt/keyrings/docker.gpg
-      echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
-      apt-get update -y
-      apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-
-      # Clone repository
-      mkdir -p /opt
-      cd /opt
-      rm -rf kya
-      git clone https://github.com/IcanBENCHurCAT/kya.git
-      cd kya
-
-      # Write .env file
-      cat <<EOT > .env
-PORT=3000
-NODE_ENV=production
-SUPABASE_URL="${var.supabase_url}"
-SUPABASE_ANON_KEY="${var.supabase_key}"
-SUPABASE_SERVICE_ROLE_KEY="${var.supabase_key}"
-ALGORAND_NETWORK_URL="${var.algorand_network_url}"
-ALGORAND_API_TOKEN="${var.algorand_api_token}"
-DUCKDNS_SUBDOMAIN="${var.duckdns_subdomain}"
-DUCKDNS_TOKEN="${var.duckdns_token}"
-KYA_TREASURY_ADDRESS="W5IRXJWPSXNUJVSN2MOEJGTDGKUGFKUDVPTR5ZQVMDG5O4KYD5M3QPG3TE"
-ESCROW_ADDRESS="W5IRXJWPSXNUJVSN2MOEJGTDGKUGFKUDVPTR5ZQVMDG5O4KYD5M3QPG3TE"
-EOT
-
-      # Build and run docker-compose stack
-      docker compose up -d --build
-    EOF
-    , "\r", ""))
-  }
+  graceful_shutdown_timeout_in_seconds = 30
 }
 
-# Auto-register Gateway VM IP into Load Balancer Backend Set
+# Auto-register Container Instance IP into Load Balancer Backend Set
 resource "oci_load_balancer_backend" "kya_container_backend" {
   load_balancer_id = oci_load_balancer_load_balancer.kya_lb.id
   backendset_name  = oci_load_balancer_backend_set.kya_backend_set.name
-  ip_address       = oci_core_instance.kya_vm.private_ip
+  ip_address       = oci_container_instances_container_instance.kya_container_instance.vnics[0].private_ip
   port             = 3000
   backup           = false
   drain            = false
@@ -377,9 +355,9 @@ resource "oci_load_balancer_backend" "kya_container_backend" {
   weight           = 1
 }
 
-output "vm_public_ip" {
-  value       = oci_core_instance.kya_vm.public_ip
-  description = "Public IP address of the deployed Gateway VM"
+output "container_instance_id" {
+  value       = oci_container_instances_container_instance.kya_container_instance.id
+  description = "OCID of the deployed OCI Container Instance"
 }
 
 output "load_balancer_ip" {
@@ -401,4 +379,5 @@ output "notification_email" {
   value       = var.notification_email
   description = "Subscribed email address for OCI Monitoring alarms"
 }
+
 
