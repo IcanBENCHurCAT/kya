@@ -201,12 +201,15 @@ const PORT = parseInt(process.env.PORT || '3000', 10);
 async function main() {
   console.log('🔍 KYA Service starting...\n');
 
+  // Start HTTP server immediately so health checks pass without delay
+  const server = serve({
+    fetch: app.fetch,
+    port: PORT,
+    hostname: '0.0.0.0',
+  });
+
   // Load audit log from disk
   loadAuditLog();
-
-  // Initialize watchlists
-  console.log('⬇️  Loading sanctions watchlists...');
-  await initializeWatchlist({}, false);
 
   // ─── Initialize Verification Service ───────────────────────────────
   console.log('🔐 Initializing KYA verification service...');
@@ -268,12 +271,10 @@ async function main() {
   const verificationRoutes = createVerificationRoutes(verificationService);
   app.route('/api/v1/verify', verificationRoutes);
 
-  // Start server
-  const server = serve({
-    fetch: app.fetch,
-    port: PORT,
-    hostname: '0.0.0.0',
-  });
+  // Initialize watchlists asynchronously
+  console.log('⬇️  Loading sanctions watchlists...');
+  initializeWatchlist({}, false).catch((err) => console.error('Watchlist init error:', err));
+
 
   console.log(`\n✅ KYA service running on http://0.0.0.0:${PORT}`);
   console.log(`   Endpoints:`);
