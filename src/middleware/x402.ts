@@ -29,7 +29,8 @@ export function getX402Receipts(): X402Receipt[] {
 
 export function x402PaymentGate(options: X402Options = {}): MiddlewareHandler {
   const price = options.priceMicroAlgo || 1000;
-  const receiver = options.receiverAddress || 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
+  const defaultEscrow = 'W5IRXJWPSXNUJVSN2MOEJGTDGKUGFKUDVPTR5ZQVMDG5O4KYD5M3QPG3TE';
+  const receiver = options.receiverAddress || options.treasuryAddress || process.env.KYA_TREASURY_ADDRESS || process.env.ESCROW_ADDRESS || defaultEscrow;
   const ttl = options.ttlSeconds || 300;
   const tag = options.tag || 'x402-global-challenge';
 

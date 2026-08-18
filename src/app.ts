@@ -186,7 +186,9 @@ app.get('/.well-known/agent-card.json', (c) => {
 });
 
 // Mount x402 payment gate over /api/v1/*
-app.use('/api/v1/*', x402PaymentGate({ priceMicroAlgo: 1000, receiverAddress: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA', tag: 'x402-global-challenge' }));
+const defaultEscrowWallet = 'W5IRXJWPSXNUJVSN2MOEJGTDGKUGFKUDVPTR5ZQVMDG5O4KYD5M3QPG3TE';
+const configuredReceiver = process.env.KYA_TREASURY_ADDRESS || process.env.ESCROW_ADDRESS || defaultEscrowWallet;
+app.use('/api/v1/*', x402PaymentGate({ priceMicroAlgo: 1000, receiverAddress: configuredReceiver, tag: 'x402-global-challenge' }));
 
 app.route('/api/v1', screeningApp);
 app.route('/api/v1', walletAnalysisApp);

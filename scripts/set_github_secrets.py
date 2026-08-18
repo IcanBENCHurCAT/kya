@@ -42,7 +42,9 @@ REQUIRED_SECRETS = [
     "DUCKDNS_SUBDOMAIN",
     "DUCKDNS_TOKEN",
     "SUPABASE_URL",
-    "SUPABASE_KEY"
+    "SUPABASE_KEY",
+    "KYA_TREASURY_ADDRESS",
+    "ESCROW_ADDRESS"
 ]
 
 def load_env_file(filepath):
