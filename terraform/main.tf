@@ -113,7 +113,7 @@ provider "oci" {
 # Virtual Cloud Network (VCN)
 resource "oci_core_vcn" "kya_vcn" {
   compartment_id = var.compartment_ocid
-  cidr_block     = "10.0.0.0/16"
+  cidr_block     = "10.1.0.0/16"
   display_name   = "kya-vcn"
   dns_label      = "kyavcn"
 }
@@ -201,7 +201,7 @@ resource "oci_core_security_list" "kya_sl" {
 resource "oci_core_subnet" "kya_subnet" {
   compartment_id    = var.compartment_ocid
   vcn_id            = oci_core_vcn.kya_vcn.id
-  cidr_block        = "10.0.1.0/24"
+  cidr_block        = "10.1.1.0/24"
   display_name      = "kya-subnet"
   dns_label         = "kyasubnet"
   route_table_id    = oci_core_route_table.kya_rt.id
