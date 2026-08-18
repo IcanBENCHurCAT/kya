@@ -55,18 +55,18 @@ resource "oci_monitoring_alarm" "memory_high" {
   body                  = "CRITICAL ALERT: Memory utilization on KYA Service Container Instance has exceeded 85% for 5 minutes."
 }
 
-# Monitoring Alarm: Gateway Compute VM High Disk Utilization (> 85% for 5 mins)
+# Monitoring Alarm: Container Instance High Disk Utilization (> 85% for 5 mins)
 resource "oci_monitoring_alarm" "disk_high" {
   compartment_id        = var.compartment_ocid
   display_name          = "kya-service-disk-utilization-high"
   destinations          = [oci_ons_notification_topic.kya_alerts.id]
   is_enabled            = true
   metric_compartment_id = var.compartment_ocid
-  namespace             = "oci_computeagent"
-  query                 = "DiskUtilization[1m]{resourceId = \"${oci_core_instance.kya_vm.id}\"}.mean() > 85"
+  namespace             = "oci_containerinstances"
+  query                 = "DiskUtilization[1m]{resourceId = \"${oci_container_instances_container_instance.kya_container_instance.id}\"}.mean() > 85"
   severity              = "CRITICAL"
   pending_duration      = "PT5M"
-  body                  = "CRITICAL ALERT: Root disk space utilization on KYA Service Gateway VM has exceeded 85% for 5 minutes."
+  body                  = "CRITICAL ALERT: Disk space utilization on KYA Service Container Instance has exceeded 85% for 5 minutes."
 }
 
 # Monitoring Alarm: Instance Infrastructure Degraded / Unhealthy
@@ -76,11 +76,11 @@ resource "oci_monitoring_alarm" "instance_health" {
   destinations          = [oci_ons_notification_topic.kya_alerts.id]
   is_enabled            = true
   metric_compartment_id = var.compartment_ocid
-  namespace             = "oci_compute_infrastructure_health"
-  query                 = "instance_status[1m]{resourceId = \"${oci_core_instance.kya_vm.id}\"}.mean() != 1"
+  namespace             = "oci_containerinstances"
+  query                 = "ContainerInstanceStatus[1m]{resourceId = \"${oci_container_instances_container_instance.kya_container_instance.id}\"}.mean() != 1"
   severity              = "CRITICAL"
   pending_duration      = "PT2M"
-  body                  = "CRITICAL ALERT: KYA Service host infrastructure status is unhealthy or unresponsive."
+  body                  = "CRITICAL ALERT: KYA Service Container Instance infrastructure status is unhealthy or unresponsive."
 }
 
 # Monitoring Alarm: HTTP Gateway Endpoint Downtime

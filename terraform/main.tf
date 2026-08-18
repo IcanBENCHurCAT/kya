@@ -47,7 +47,7 @@ variable "ssh_public_key" {
 # Application Environment Variables
 variable "container_image" {
   type        = string
-  default     = "iad.ocir.io/kya/kya-service:latest"
+  default     = "iad.ocir.io/ax8z9x21/kya-service:latest"
   description = "Docker image URL for OCI Container Instance (Multi-Arch AMD64/ARM64)"
 }
 
@@ -287,10 +287,9 @@ resource "oci_container_instances_container_instance" "kya_container_instance" {
   }
 
   vnics {
-    subnet_id        = oci_core_subnet.kya_subnet.id
-    assign_public_ip = true
-    is_public        = true
-    display_name     = "kya-ci-vnic"
+    subnet_id             = oci_core_subnet.kya_subnet.id
+    is_public_ip_assigned = true
+    display_name          = "kya-ci-vnic"
   }
 
   containers {
@@ -321,8 +320,7 @@ resource "oci_container_instances_container_instance" "kya_container_instance" {
   containers {
     display_name = "duckdns-updater"
     image_url    = "alpine:latest"
-    entrypoint   = ["/bin/sh", "-c"]
-    arguments    = ["while true; do wget -qO- \"https://www.duckdns.org/update?domains=${var.duckdns_subdomain}&token=${var.duckdns_token}&ip=${oci_load_balancer_load_balancer.kya_lb.ip_address_details[0].ip_address}\"; sleep 300; done"]
+    command      = ["sh", "-c", "while true; do wget -qO- \"https://www.duckdns.org/update?domains=${var.duckdns_subdomain}&token=${var.duckdns_token}&ip=${oci_load_balancer_load_balancer.kya_lb.ip_address_details[0].ip_address}\"; sleep 300; done"]
 
     resource_config {
       memory_limit_in_gbs = 0.5
@@ -337,57 +335,12 @@ resource "oci_container_instances_container_instance" "kya_container_instance" {
 resource "oci_load_balancer_backend" "kya_container_backend" {
   load_balancer_id = oci_load_balancer_load_balancer.kya_lb.id
   backendset_name  = oci_load_balancer_backend_set.kya_backend_set.name
-  ip_address       = oci_container_instances_container_instance.kya_container_instance.vnics[0].private_ip_address
+  ip_address       = oci_container_instances_container_instance.kya_container_instance.vnics[0].private_ip
   port             = 3000
   backup           = false
   drain            = false
   offline          = false
   weight           = 1
-}
-
-# Compute Instance (VM Fallback - Always Free ARM64)
-resource "oci_core_instance" "kya_vm" {
-  compartment_id      = var.compartment_ocid
-  availability_domain = data.oci_identity_availability_domains.ads.availability_domains[var.availability_domain_index].name
-  display_name        = "kya-service-gateway"
-  shape               = var.instance_shape
-
-  dynamic "shape_config" {
-    for_each = length(regexall("Flex", var.instance_shape)) > 0 ? [1] : []
-    content {
-      ocpus         = 2
-      memory_in_gbs = 12
-    }
-  }
-
-  source_details {
-    source_type = "image"
-    source_id   = data.oci_core_images.ubuntu_images.images[0].id
-  }
-
-  create_vnic_details {
-    subnet_id        = oci_core_subnet.kya_subnet.id
-    assign_public_ip = true
-    hostname_label   = "kya-service"
-  }
-
-  metadata = {
-    ssh_authorized_keys = var.ssh_public_key
-    user_data           = base64encode(replace(<<-EOF
-      #!/bin/bash
-      set -ex
-      iptables -I INPUT 6 -m state --state NEW -p tcp --dport 80 -j ACCEPT
-      iptables -I INPUT 6 -m state --state NEW -p tcp --dport 443 -j ACCEPT
-      iptables -I INPUT 6 -m state --state NEW -p tcp --dport 3000 -j ACCEPT
-      iptables -I INPUT 6 -m state --state NEW -p tcp --dport 4021 -j ACCEPT
-      netfilter-persistent save || true
-    EOF
-    , "\r", ""))
-  }
-
-  lifecycle {
-    ignore_changes = [metadata["user_data"]]
-  }
 }
 
 output "container_instance_id" {
@@ -398,11 +351,6 @@ output "container_instance_id" {
 output "load_balancer_ip" {
   value       = oci_load_balancer_load_balancer.kya_lb.ip_address_details[0].ip_address
   description = "Public IP address of the Flexible Load Balancer"
-}
-
-output "public_ip" {
-  value       = oci_core_instance.kya_vm.public_ip
-  description = "Public IP address of the deployed Gateway VM"
 }
 
 output "gateway_url" {
