@@ -63,11 +63,21 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build Multi-Arch Container Image
+      - name: Log in to OCI Container Registry (OCIR)
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.OCIR_REGION_ENDPOINT }}
+          username: ${{ secrets.OCIR_USERNAME }}
+          password: ${{ secrets.OCIR_AUTH_TOKEN }}
+
+      - name: Build and Push Multi-Arch Container Image
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./Dockerfile
           platforms: linux/amd64,linux/arm64
-          push: false
-          tags: kya-service:latest
+          push: true
+          tags: |
+            ${{ secrets.OCIR_REGION_ENDPOINT }}/${{ secrets.OCI_TENANCY_NAMESPACE }}/kya-service:latest
+            ${{ secrets.OCIR_REGION_ENDPOINT }}/${{ secrets.OCI_TENANCY_NAMESPACE }}/kya-service:${{ github.sha }}
+
