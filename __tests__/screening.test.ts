@@ -102,7 +102,7 @@ describe("Screening Engine", () => {
       testList,
     );
     assert(result.match === false, "Should not match");
-    assert(result.status === "PASS", "Status should be PASS");
+    assert(result.status === "NO_MATCH_FOUND", "Status should be PASS");
     assert(result.confidence === 0, "Confidence should be 0");
   });
 
@@ -110,7 +110,7 @@ describe("Screening Engine", () => {
     const entry = buildDefaultData()[0]; // AL-RAZI, Abubakar
     const result = screenSanctions(entry.name, undefined, testList);
     assert(result.match === true, "Should match");
-    assert(result.status === "FAIL", "Status should be FAIL for exact match");
+    assert(result.status === "POTENTIAL_MATCH", "Status should be FAIL for exact match");
     assert(result.confidence === 1.0, "Exact match should have 1.0 confidence");
     assert(result.matchedEntries.length > 0, "Should have matched entries");
   });
@@ -132,7 +132,7 @@ describe("Screening Engine", () => {
       testList,
     );
     assert(result.match === true, "Should match sanctioned beneficial owner");
-    assert(result.status === "FAIL", "Should FAIL");
+    assert(result.status === "POTENTIAL_MATCH", "Should FAIL");
     assert(result.confidence >= 0.85, "Should have high confidence");
   });
 
@@ -156,7 +156,7 @@ describe("Screening Engine", () => {
 
   it("should work with empty lists", () => {
     const result = screenSanctions("anyaddress", undefined, {});
-    assert(result.status === "PASS", "Empty lists should pass");
+    assert(result.status === "NO_MATCH_FOUND", "Empty lists should pass");
     assert(result.match === false, "No match expected");
   });
 
@@ -197,7 +197,7 @@ describe("Screening Engine", () => {
     // Directly create an audit entry to test logging works
     logScreening({
       screened: "TEST-WALLET",
-      status: "PASS",
+      status: "NO_MATCH_FOUND",
       confidence: 0,
       matchedEntries: [],
       matchedListNames: [],
@@ -238,8 +238,8 @@ describe("Bulk Screening", () => {
 
     const results = screenBulk(targets, testList);
     assert(results.length === 2, "Should return results for all targets");
-    assert(results[0].status === "PASS", "First should pass");
-    assert(results[1].status === "PASS", "Second should pass");
+    assert(results[0].status === "NO_MATCH_FOUND", "First should pass");
+    assert(results[1].status === "NO_MATCH_FOUND", "Second should pass");
   });
 
   it("should screen with beneficial owners", () => {
@@ -251,7 +251,7 @@ describe("Bulk Screening", () => {
     const results = screenBulk(targets, testList);
     assert(results.length === 2, "Should return results for all");
     assert(results[0].match === true, "First should match");
-    assert(results[1].status === "PASS", "Second should pass");
+    assert(results[1].status === "NO_MATCH_FOUND", "Second should pass");
   });
 });
 
@@ -335,7 +335,7 @@ describe("Beneficial Owner Resolution", () => {
       { "OFAC-SDN": buildDefaultData() },
     );
 
-    assert(screenResult.status === "FAIL", "Sanctioned wallet should fail");
+    assert(screenResult.status === "POTENTIAL_MATCH", "Sanctioned wallet should fail");
     assert(screenResult.match === true, "Should match");
   });
 });
@@ -350,7 +350,7 @@ describe("Audit Logging", () => {
   it("should log a screening operation", () => {
     const result = {
       screened: "TEST-WALLET",
-      status: "PASS" as const,
+      status: "NO_MATCH_FOUND" as const,
       confidence: 0.0,
       matchedEntries: [],
       matchedListNames: [],
@@ -361,7 +361,7 @@ describe("Audit Logging", () => {
     const entry = logScreening(result);
     assert(entry.id, "Should have an id");
     assert(entry.eventType === "screening");
-    assert(entry.result === "PASS");
+    assert(entry.result === "NO_MATCH_FOUND");
     assert(entry.screenableTarget === "TEST-WALLET");
   });
 
@@ -374,7 +374,7 @@ describe("Audit Logging", () => {
     });
 
     assert(entry.eventType === "update");
-    assert(entry.result === "PASS");
+    assert(entry.result === "NO_MATCH_FOUND");
   });
 
   it("should log an error", () => {
@@ -386,7 +386,7 @@ describe("Audit Logging", () => {
   it("should filter audit log", () => {
     logScreening({
       screened: "PASS-WALLET",
-      status: "PASS",
+      status: "NO_MATCH_FOUND",
       confidence: 0,
       matchedEntries: [],
       matchedListNames: [],
@@ -396,7 +396,7 @@ describe("Audit Logging", () => {
 
     logScreening({
       screened: "FAIL-WALLET",
-      status: "FAIL",
+      status: "POTENTIAL_MATCH",
       confidence: 1.0,
       matchedEntries: [{ name: "Sanctioned" }],
       matchedListNames: ["OFAC-SDN"],
@@ -407,15 +407,15 @@ describe("Audit Logging", () => {
     const all = getAuditLog();
     assert(all.length === 2);
 
-    const passOnly = getAuditLog({ result: "PASS" });
+    const passOnly = getAuditLog({ result: "NO_MATCH_FOUND" });
     assert(passOnly.length === 1);
-    assert(passOnly[0].result === "PASS");
+    assert(passOnly[0].result === "NO_MATCH_FOUND");
   });
 
   it("should generate audit summary", () => {
     logScreening({
       screened: "P1",
-      status: "PASS",
+      status: "NO_MATCH_FOUND",
       confidence: 0,
       matchedEntries: [],
       matchedListNames: [],
@@ -424,7 +424,7 @@ describe("Audit Logging", () => {
     });
     logScreening({
       screened: "F1",
-      status: "FAIL",
+      status: "POTENTIAL_MATCH",
       confidence: 1.0,
       matchedEntries: [{ name: "Sanctioned" }],
       matchedListNames: ["OFAC"],
@@ -435,8 +435,8 @@ describe("Audit Logging", () => {
 
     const summary = getAuditSummary();
     assert(summary.total >= 3, "Should have at least 3 entries");
-    assert(summary.pass >= 1);
-    assert(summary.fail >= 1);
+    assert(summary.noMatchFound >= 1);
+    assert(summary.potentialMatch >= 1);
     assert(summary.errors >= 1);
   });
 
@@ -445,7 +445,7 @@ describe("Audit Logging", () => {
     const defaultPath = `${process.cwd()}/data/audit-log.json`;
     logScreening({
       screened: "DISK-WALLET",
-      status: "PASS",
+      status: "NO_MATCH_FOUND",
       confidence: 0,
       matchedEntries: [],
       matchedListNames: [],
@@ -582,7 +582,7 @@ describe("Integration: Full Screening Flow", () => {
       "OFAC-SDN": buildDefaultData(),
     });
 
-    assert(cleanResult.status === "PASS", "Clean wallet should pass");
+    assert(cleanResult.status === "NO_MATCH_FOUND", "Clean wallet should pass");
     assert(!cleanResult.match, "Clean wallet should not match");
 
     // Step 3: Register sanctioned wallet
@@ -598,7 +598,7 @@ describe("Integration: Full Screening Flow", () => {
       { "OFAC-SDN": buildDefaultData() },
     );
 
-    assert(sancResult.status === "FAIL", "Sanctioned wallet should fail");
+    assert(sancResult.status === "POTENTIAL_MATCH", "Sanctioned wallet should fail");
     assert(sancResult.match, "Should match");
     assert(sancResult.matchedEntries.length > 0, "Should have matches");
 
@@ -629,10 +629,10 @@ describe("Integration: Full Screening Flow", () => {
     );
 
     // Step 6: Verify compliance gates
-    const cleanAction = cleanResult.status === "PASS" ? "ALLOW" : "BLOCK";
+    const cleanAction = cleanResult.status === "NO_MATCH_FOUND" ? "ALLOW" : "BLOCK";
     assert(cleanAction === "ALLOW", "Clean wallet should be allowed");
 
-    const sancAction = sancResult.status === "FAIL" ? "BLOCK" : "ALLOW";
+    const sancAction = sancResult.status === "POTENTIAL_MATCH" ? "BLOCK" : "ALLOW";
     assert(sancAction === "BLOCK", "Sanctioned wallet should be blocked");
   });
 
@@ -643,7 +643,7 @@ describe("Integration: Full Screening Flow", () => {
     });
 
     assert(
-      result.status === "PASS",
+      result.status === "NO_MATCH_FOUND",
       "Unverified wallet should pass if address not on list",
     );
     assert(!result.match, "No match expected");
