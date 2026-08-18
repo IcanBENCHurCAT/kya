@@ -47,7 +47,7 @@ variable "ssh_public_key" {
 # Application Environment Variables
 variable "container_image" {
   type        = string
-  default     = "iad.ocir.io/ax8z9x21/kya-service:latest"
+  default     = "iad.ocir.io/id1fbfmorrpo/kya-service:latest"
   description = "Docker image URL for OCI Container Instance (Multi-Arch AMD64/ARM64)"
 }
 
