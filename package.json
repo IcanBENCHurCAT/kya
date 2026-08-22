@@ -21,7 +21,7 @@
     "bcryptjs": "^2.4.3",
     "hono": "^4.13.1",
     "jose": "^5.2.0",
-    "supabase": "^1.190.0"
+    "supabase": "^2.115.0"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
