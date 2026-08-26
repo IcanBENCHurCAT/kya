@@ -10,7 +10,10 @@ export function createA2ARoutes(a2aService: A2AService = defaultA2AService) {
   const a2aApp = new Hono<{ Bindings: A2ABindings }>();
 
   const handleHandshake = async (c: any) => {
-    const body = (await c.req.json().catch(() => ({}))) as A2AHandshakeRequest;
+    const body = (await c.req.json().catch((err: unknown) => {
+      console.error('Failed to parse request JSON body:', err);
+      return {};
+    })) as A2AHandshakeRequest;
     const watchlist = c.env?.WATCHLIST || {};
 
     if (!body.initiatorAddress || !body.targetAddress) {
