@@ -178,5 +178,21 @@ describe('A2A Pre-Flight Handshake & W3C VC Engine', () => {
       expect(json.success).toBe(false);
       expect(json.error).toBe('initiatorAddress and targetAddress are required');
     });
+
+    it('should handle malformed JSON body gracefully and return HTTP 400', async () => {
+      const res = await app.request('/api/v1/a2a/handshake', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Payment': 'tx_a2a_handshake_malformed',
+        },
+        body: '{ malformed_json: ',
+      });
+
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json.success).toBe(false);
+      expect(json.error).toBe('initiatorAddress and targetAddress are required');
+    });
   });
 });
