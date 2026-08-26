@@ -154,6 +154,16 @@ app.post('/api/v1/screen/bulk', async (c) => {
     return c.json({ error: 'Maximum 100 targets per request' }, 400);
   }
 
+  const MAX_STRING_LENGTH = 255;
+  for (const t of targets) {
+    if (!t || typeof t.address !== 'string' || t.address.trim().length === 0 || t.address.length > MAX_STRING_LENGTH) {
+      return c.json({ error: `Invalid target address: must be a non-empty string of max ${MAX_STRING_LENGTH} characters` }, 400);
+    }
+    if (t.beneficialOwner !== undefined && t.beneficialOwner !== null && (typeof t.beneficialOwner !== 'string' || t.beneficialOwner.length > MAX_STRING_LENGTH)) {
+      return c.json({ error: `Invalid target beneficialOwner: must be a string of max ${MAX_STRING_LENGTH} characters` }, 400);
+    }
+  }
+
   const config = { ...SCREENING_CONFIG, ...body.config };
 
   // Resolve beneficial owners for each target
