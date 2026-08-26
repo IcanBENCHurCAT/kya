@@ -71,6 +71,42 @@ describe('Algorand 77-Byte Box Storage Encoder & Serializer', () => {
     expect(() => decodeKarmaBox(invalidBuf)).toThrow(/Invalid buffer/);
   });
 
+  it('should throw error when encoding box with invalid owner_identity_hash length', () => {
+    const invalidBox: OnChainKarmaBox = {
+      karma_score: 100n,
+      stake_amount: 1000n,
+      risk_flags: 0,
+      ver_level: 1,
+      registered_at: 1000n,
+      last_updated: 1000n,
+      owner_identity_hash: new Uint8Array(16), // Invalid length (16 bytes instead of 32)
+      total_queries_paid: 0n,
+    };
+
+    expect(() => encodeKarmaBox(invalidBox)).toThrow(
+      /owner_identity_hash must be exactly 32 bytes/
+    );
+  });
+
+  it('should encode OnChainKarmaBox when owner_identity_hash is provided as a 32-byte hex string', () => {
+    const hexString = '01'.repeat(32); // 64 hex characters = 32 bytes
+    const boxWithHex: OnChainKarmaBox = {
+      karma_score: 500n,
+      stake_amount: 10000n,
+      risk_flags: 0,
+      ver_level: 1,
+      registered_at: 1000n,
+      last_updated: 1000n,
+      owner_identity_hash: hexString,
+      total_queries_paid: 5n,
+    };
+
+    const encoded = encodeKarmaBox(boxWithHex);
+    expect(encoded.length).toBe(KARMA_BOX_SIZE);
+    const decoded = decodeKarmaBox(encoded);
+    expect(decoded.owner_identity_hash).toEqual(new Uint8Array(Buffer.from(hexString, 'hex')));
+  });
+
   it('should generate 34-byte box key with k_ prefix for valid Algorand address', () => {
     // Valid Algorand address with valid checksum
     const testAddress = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
@@ -78,5 +114,21 @@ describe('Algorand 77-Byte Box Storage Encoder & Serializer', () => {
 
     expect(boxKey.length).toBe(34);
     expect(String.fromCharCode(boxKey[0], boxKey[1])).toBe('k_');
+  });
+
+  it('should fallback to padded address buffer for invalid/non-base32 Algorand address in getKarmaBoxKey', () => {
+    const invalidAddress = 'invalid_algorand_address_string';
+    const boxKey = getKarmaBoxKey(invalidAddress);
+
+    expect(boxKey.length).toBe(34);
+    expect(String.fromCharCode(boxKey[0], boxKey[1])).toBe('k_');
+
+    // Verify key contains prefix + 32-byte padded buffer of the address string
+    const keyBuf = Buffer.from(boxKey);
+    const prefixStr = keyBuf.subarray(0, 2).toString('utf-8');
+    const pubKeyBuf = keyBuf.subarray(2);
+
+    expect(prefixStr).toBe('k_');
+    expect(pubKeyBuf.subarray(0, invalidAddress.length).toString('utf-8')).toBe(invalidAddress);
   });
 });
