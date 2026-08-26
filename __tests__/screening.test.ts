@@ -253,6 +253,59 @@ describe("Bulk Screening", () => {
     assert(results[0].match === true, "First should match");
     assert(results[1].status === "NO_MATCH_FOUND", "Second should pass");
   });
+
+  it("should validate bulk screening API input string lengths via Hono route", async () => {
+    const app = (await import("../src/routes/screening.js")).default;
+    const longAddress = "A".repeat(256);
+    const validAddress = "A".repeat(50);
+    const longOwner = "B".repeat(256);
+
+    // Test address exceeds max length (255)
+    const res1 = await app.request(
+      "/api/v1/screen/bulk",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          targets: [{ address: longAddress }],
+        }),
+      },
+      { WATCHLIST: testList },
+    );
+    expect(res1.status).toBe(400);
+    const body1 = await res1.json();
+    expect(body1.error).toContain("Invalid target address");
+
+    // Test beneficialOwner exceeds max length (255)
+    const res2 = await app.request(
+      "/api/v1/screen/bulk",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          targets: [{ address: validAddress, beneficialOwner: longOwner }],
+        }),
+      },
+      { WATCHLIST: testList },
+    );
+    expect(res2.status).toBe(400);
+    const body2 = await res2.json();
+    expect(body2.error).toContain("Invalid target beneficialOwner");
+
+    // Test valid targets are accepted
+    const res3 = await app.request(
+      "/api/v1/screen/bulk",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          targets: [{ address: validAddress, beneficialOwner: "Valid Owner" }],
+        }),
+      },
+      { WATCHLIST: testList },
+    );
+    expect(res3.status).toBe(200);
+  });
 });
 
 // ─── Beneficial Owner Resolution Tests ─────────────────────────────
