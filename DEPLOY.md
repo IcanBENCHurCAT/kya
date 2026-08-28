@@ -1,6 +1,6 @@
-# KYA Service — Deployment Guide (Oracle Cloud Infrastructure)
+# KYA Service — Deployment Guide (Oracle Cloud Infrastructure & Docker)
 
-**KYA (Know Your Agent)** — Sanctions Screening Microservice for agent identity and compliance.
+**KYA (Know Your Agent)** — Trust Infrastructure for AI Agents — Verifiable Evidence & Risk Signals on Algorand.
 
 ---
 
@@ -11,10 +11,11 @@
 3. [OCI Setup](#oci-setup)
 4. [Deploying the Container](#deploying-the-container)
 5. [DNS & TLS Setup](#dns--tls-setup)
-6. [Reverse Proxy with nginx](#reverse-proxy-with-nginx)
+6. [Reverse Proxy Configuration](#reverse-proxy-configuration)
 7. [OCI Functions (Edge) Deployment](#oci-functions-edge-deployment)
 8. [Monitoring & Maintenance](#monitoring--maintenance)
 9. [Troubleshooting](#troubleshooting)
+10. [Quick Reference](#quick-reference)
 
 ---
 
@@ -27,22 +28,22 @@
                           │
                     [OCI Load Balancer]
                           │
-                    [nginx Reverse Proxy]
-                    (TLS termination, security headers)
+              [Reverse Proxy (nginx / Caddy)]
+             (TLS termination, security headers)
                           │
                     [KYA Hono Container]
                     (port 3000, internal only)
                           │
-              ┌───────────┼───────────┐
-              │           │           │
-        [Supabase]  [Algorand]  [OFAC/
-         API SDK]    REST      Watchlists]
+         ┌────────────────┼────────────────┐
+         │                │                │
+   [Supabase]       [Algorand]       [OFAC/Watchlist
+ (Auth & Storage)  (Algod/Indexer)      Sources Disk]
 ```
 
-The KYA service runs as a containerized Hono HTTP application behind an nginx reverse proxy with TLS termination. On OCI, this can be deployed via:
+The KYA service runs as a containerized Hono HTTP application behind a reverse proxy with TLS termination. Deployment options include:
 
-- **OCI Container Instance** — simple single-container deployment (recommended for most use cases)
-- **OCI Functions (Fn Project)** — serverless edge deployment (for scale-free, pay-per-use)
+- **Docker Compose / Container Instance** — Recommended standard container deployment
+- **OCI Functions (Fn Project)** — Serverless edge deployment
 
 ---
 
@@ -50,33 +51,20 @@ The KYA service runs as a containerized Hono HTTP application behind an nginx re
 
 ### OCI Account & Access
 
-1. **OCI Compartment** — Create a compartment named `kya-service` (or your preferred name)
+1. **OCI Compartment** — Create a compartment named `kya-service` (or preferred name).
 2. **OCI CLI** — Install and configure:
    ```bash
-   # Install OCI CLI
    pip install oci-cli
-
-   # Configure (follow prompts for API key upload)
    oci setup setup
    ```
-3. **OCI CLI config** should have a profile that grants access to:
-   - Compute Instances (for Container Instances)
-   - Networking (VCN, Subnets, Load Balancers)
-   - Object Storage (for container image storage)
-   - DNS (optional, for domain management)
+3. Ensure OCI CLI profile has permission for Compute, Networking, Object Storage, and DNS.
 
-### Domain Name
+### Domain Name & Hostname
 
-You'll need a domain name pointing to the service:
-
+Set up an A record or CNAME pointing to your server/load balancer:
 ```
 kya.yourdomain.com  →  <your-oci-ip-or-dns>
 ```
-
-For testing, you can use:
-- A subdomain on a domain you own
-- DuckDNS free dynamic DNS
-- OCI DNS zones
 
 ---
 
@@ -85,7 +73,7 @@ For testing, you can use:
 ### 1. Create VCN and Networking
 
 ```bash
-# Create a Virtual Cloud Network (VCN)
+# Create Virtual Cloud Network (VCN)
 oci network vcn create \
   --display-name "kya-vcn" \
   --compartment-id <YOUR_COMPARTMENT_OCID> \
@@ -93,13 +81,10 @@ oci network vcn create \
   --dns-label "kyanvasn" \
   --domain-name "kya-vcn.oraclevcn.com"
 
-# Note the VCN OCID from the output — you'll need it for subnet creation
+# Note the returned VCN OCID
 VCN_ID="<output_vcn_ocid>"
-```
 
-Create a public subnet:
-
-```bash
+# Create Public Subnet
 oci network subnet create \
   --compartment-id <YOUR_COMPARTMENT_OCID> \
   --display-name "kya-public-subnet" \
@@ -109,27 +94,12 @@ oci network subnet create \
   --dhcp-options-id "default"
 ```
 
-### 2. Set Up SSH Keys
+### 2. Configure OCIR Container Registry
 
 ```bash
-# Generate SSH key if you don't have one
-ssh-keygen -t rsa -b 4096 -f ~/.ssh/kya_oci -N "" -q
-
-# Upload public key to OCI (or use your existing key's fingerprint)
-oci compute key create \
-  --compartment-id <YOUR_COMPARTMENT_OCID> \
-  --public-key-file ~/.ssh/kya_oci.pub \
-  --display-name "kya-deploy-key"
-```
-
-### 3. Create OCI Registry (OCIR) Namespace
-
-```bash
-# Get your tenancy OCID
 TENANCY_ID=$(oci iam region-subscription list --all --query 'data[0].regionInfo[0].tenantId' --raw-output)
-REGION="us-ashburn-1"  # Adjust to your region
+REGION="us-ashburn-1"
 
-# Create a private registry namespace (or use existing)
 oci artifacts container-registry namespace create \
   --compartment-id "$TENANCY_ID" \
   --display-name "kya"
@@ -139,41 +109,23 @@ oci artifacts container-registry namespace create \
 
 ## Deploying the Container
 
-### Option A: OCI Container Instance (Recommended)
-
-#### 1. Build and Push the Docker Image
+### 1. Build and Push Docker Image
 
 ```bash
-cd /path/to/kya-service
-
-# Build the production image
+# Build production image
 docker build -t kya-service:latest .
 
-# Tag for OCI Registry
-OCIR_ENDPOINT="iad.ocir.io"  # Adjust for your region (see below)
+# Tag for OCIR
+OCIR_ENDPOINT="iad.ocir.io"  # Adjust for your region
 IMAGE_TAG="$OCIR_ENDPOINT/<your-namespace>/kya-service:latest"
 docker tag kya-service:latest "$IMAGE_TAG"
 
-# Login to OCIR (use username as tenancy/user)
-# Username format: tenancy-namespace/username (e.g., company_acme/john.doe)
+# Login and push
 docker login "$OCIR_ENDPOINT"
-
-# Push the image
 docker push "$IMAGE_TAG"
 ```
 
-**Region-specific OCIR endpoints:**
-
-| Region | Endpoint |
-|--------|----------|
-| US Ashburn (iad) | `iad.ocir.io` |
-| US Phoenix (phx) | `phx.ocir.io` |
-| EU Frankfurt (fra) | `fra.ocir.io` |
-| UK London (lhr) | `lhr.ocir.io` |
-| AP Sydney (syd) | `syd.ocir.io` |
-| AP Tokyo (nrt) | `nrt.ocir.io` |
-
-#### 2. Create Container Instance
+### 2. Create OCI Container Instance
 
 ```bash
 oci compute container-instance create \
@@ -194,244 +146,42 @@ oci compute container-instance create \
         "PORT": "3000",
         "NODE_ENV": "production",
         "SUPABASE_URL": "<your-supabase-url>",
-        "SUPABASE_ANON_KEY": "<your-anon-key>",
-        "ALGORAND_NETWORK_URL": "<your-algo-rpc>",
-        "ALGORAND_API_TOKEN": "<your-algo-token>",
-        "SCREENING_FAIL_THRESHOLD": "0.85",
-        "SCREENING_FLAG_THRESHOLD": "0.50",
-        "LOG_LEVEL": "info"
+        "SUPABASE_SERVICE_ROLE_KEY": "<your-service-role-key>",
+        "KYA_PRIVATE_KEY": "<your-ed25519-private-key-pem>",
+        "ALGORAND_NETWORK_URL": "https://mainnet-api.algonode.cloud",
+        "ALGORAND_INDEXER_URL": "https://mainnet-indexer.algonode.cloud",
+        "X402_PRICE_MICROALGO": "1000",
+        "KYA_TREASURY_ADDRESS": "<your-treasury-address>"
       }
     }
   ] \
   --vcn-id "$VCN_ID" \
   --subnet-id <YOUR_SUBNET_OCID> \
-  --assign-public-ip true \
-  --shape-config-memory-in-gbs 2 \
-  --assign-private-vip true
-```
-
-#### 3. Get the Public IP
-
-```bash
-# Find the container instance
-INSTANCE_ID=$(oci compute container-instance list \
-  --compartment-id <YOUR_COMPARTMENT_OCID> \
-  --display-name "kya-container" \
-  --raw-output --query 'data[0].id')
-
-# Get the public IP
-PUBLIC_IP=$(oci compute container-instance get \
-  --container-instance-id "$INSTANCE_ID" \
-  --raw-output --query 'data."public-ip"')
-
-echo "KYA Service Public IP: $PUBLIC_IP"
-```
-
-### Option B: OCI Functions (Edge Deployment)
-
-For a serverless edge deployment, you can deploy the KYA service as an OCI Function. This requires:
-
-1. **Install Fn Project CLI** and initialize your environment
-2. **Create a Dockerfile for edge-runtime** (see [OCI Functions (Edge) Deployment](#oci-functions-edge-deployment) section)
-3. **Deploy with Fn**:
-   ```bash
-   fn init --runtime node --trigger http kya-func
-   cd kya-func
-   fn deploy --app kya-app --registry iad.ocir.io/<your-namespace>/
-   ```
-
-The edge deployment uses OCI's serverless compute with automatic scaling, pay-per-use pricing, and built-in DDoS protection.
-
----
-
-## DNS & TLS Setup
-
-### 1. Configure DNS
-
-#### Using OCI DNS Zone
-
-```bash
-# Create DNS zone (if not exists)
-oci dns zone create \
-  --compartment-id <YOUR_COMPARTMENT_OCID> \
-  --display-name "yourdomain.com" \
-  --zone-type "PRIMARY" \
-  --retry-after "PT1H"
-
-# Create A record for kya service
-oci dns record-set create \
-  --zone-name "yourdomain.com" \
-  --zone-name-and-type-query '{"zoneNameAndType": {"name": "yourdomain.com", "type": "A"}}' \
-  --item '{"name": "kya.yourdomain.com", "type": "A", "ttl": 300, "rdata": {"address": "'"$PUBLIC_IP"'"}}'
-```
-
-#### Using External DNS (Cloudflare, Route 53, etc.)
-
-Create an A record pointing to the public IP:
-
-```
-Type: A
-Name: kya
-Value: <PUBLIC_IP_FROM_STEP_ABOVE>
-TTL: 300 (5 min)
-Proxy: On (if using Cloudflare)
-```
-
-### 2. TLS Certificate
-
-#### Let's Encrypt (Production)
-
-Use the included `ssl-setup.sh` script:
-
-```bash
-./ssl-setup.sh --domain kya.yourdomain.com --mode letsencrypt
-```
-
-This installs certbot and obtains a Let's Encrypt certificate.
-
-For automated renewal, the script sets up certbot's built-in renewal cron.
-
-#### Self-Signed (Development / Testing)
-
-```bash
-./ssl-setup.sh --domain localhost --mode selfsigned
-```
-
-#### OCI Managed Certificates
-
-For production workloads on OCI Load Balancers:
-
-```bash
-# Upload certificate to OCI Vault/Secrets Manager
-oci vault secret create ...
-
-# Reference the secret in your Load Balancer TLS config
-oci network load-balancer update ...
+  --assign-public-ip true
 ```
 
 ---
 
-## Reverse Proxy with nginx
+## Reverse Proxy Configuration
 
-### Production Setup
+### Nginx
 
-The nginx reverse proxy is included in the deployment stack. For a standalone nginx deployment:
-
-#### 1. Install nginx on your OCI instance
+Copy `nginx.conf` to `/etc/nginx/nginx.conf` and update your hostname and TLS certificate paths:
 
 ```bash
-# Oracle Linux / RHEL
-sudo yum install -y nginx
-
-# Ubuntu / Debian
-sudo apt-get install -y nginx
-```
-
-#### 2. Configure nginx
-
-Copy `nginx.conf` from the project and customize:
-
-```bash
-sudo cp /path/to/kya-service/nginx.conf /etc/nginx/nginx.conf
-sudo sed -i "s/\${SERVER_NAME:-localhost}/kya.yourdomain.com/" /etc/nginx/nginx.conf
-```
-
-#### 3. Place TLS certificates
-
-```bash
-sudo mkdir -p /etc/nginx/certs
-sudo cp /etc/letsencrypt/live/kya.yourdomain.com/fullchain.pem /etc/nginx/certs/fullchain.pem
-sudo cp /etc/letsencrypt/live/kya.yourdomain.com/privkey.pem /etc/nginx/certs/privkey.pem
-sudo chmod 600 /etc/nginx/certs/privkey.pem
-```
-
-#### 4. Test and start nginx
-
-```bash
+sudo cp nginx.conf /etc/nginx/nginx.conf
 sudo nginx -t && sudo systemctl restart nginx
-sudo systemctl enable nginx
 ```
 
-### Docker Compose Setup (Alternative)
+### Caddy Alternative
 
-If you prefer Docker Compose for simpler management:
+Use the provided `Caddyfile` for automated Let's Encrypt TLS management:
 
-```bash
-# Clone the repo
-git clone <your-kya-repo> && cd kya-service
-
-# Copy env file
-cp .env.example .env
-# Edit .env with your actual values
-
-# Start with nginx proxy
-docker compose up -d --build
+```caddy
+kya-service.duckdns.org {
+    reverse_proxy localhost:3000
+}
 ```
-
----
-
-## OCI Functions (Edge) Deployment
-
-For a serverless edge deployment that works on OCI's edge/runtime environment:
-
-### 1. Create an Edge-Compatible Dockerfile
-
-```dockerfile
-# Dockerfile.edge — OCI Functions compatible
-FROM node:22-alpine AS build
-
-WORKDIR /app
-
-COPY package.json package-lock.json tsconfig.json ./
-RUN npm ci --omit=dev
-
-COPY src/ ./src/
-RUN npm run build
-
-# OCI Functions expects a specific structure
-FROM node:22-alpine AS runtime
-
-WORKDIR /function
-
-COPY --from=build /app/package.json ./
-RUN npm ci --omit=dev --production
-
-COPY --from=build /app/dist/ ./dist/
-
-# OCI Functions entry point pattern
-CMD ["node", "dist/index.js"]
-```
-
-### 2. Build and Deploy
-
-```bash
-# Build with edge runtime
-docker build -f Dockerfile.edge -t kya-edge:latest .
-
-# Tag and push
-docker tag kya-edge:latest iad.ocir.io/<namespace>/kya-edge:latest
-docker push iad.ocir.io/<namespace>/kya-edge:latest
-
-# Deploy with Fn CLI
-fn deploy --app kya-app --name kya-service --registry iad.ocir.io/<namespace>/
-```
-
-### 3. Configure Environment Variables
-
-```bash
-# Set env vars for the function
-fn update function --env PORT=3000 --env NODE_ENV=production kya-app kya-service
-```
-
-### 4. Access the Edge Endpoint
-
-The function will be available at:
-
-```
-https://<your-fn-domain>/kya-service
-```
-
-OCI Functions provides automatic scaling, built-in HTTPS, and edge caching.
 
 ---
 
@@ -439,44 +189,25 @@ OCI Functions provides automatic scaling, built-in HTTPS, and edge caching.
 
 ### Health Checks
 
-The KYA service exposes a health endpoint:
+Un-gated health endpoints respond immediately:
 
 ```bash
-# Direct (internal)
+# Direct HTTP
+curl http://localhost:3000/health
 curl http://localhost:3000/api/v1/health
 
-# Through nginx (external)
-curl -k https://kya.yourdomain.com/health
-
-# Expected response:
-# {"status":"ok","timestamp":"2025-01-01T00:00:00.000Z"}
+# Via Reverse Proxy
+curl https://kya.yourdomain.com/health
 ```
 
-### Log Access
-
-#### Container Instance logs
-
-```bash
-# View container logs
-oci compute container-instance logs get \
-  --container-instance-id <INSTANCE_ID> \
-  --stream STDOUT
-
-# Follow logs
-oci compute container-instance logs get \
-  --container-instance-id <INSTANCE_ID> \
-  --stream STDOUT --follow
+Expected output:
+```json
+{"status":"ok","timestamp":"2026-08-12T00:00:00.000Z"}
 ```
 
-#### Docker Compose logs
+### Watchlist Refresh
 
-```bash
-docker compose logs -f kya
-```
-
-### Watchlist Updates
-
-Watchlists should refresh automatically when the container starts. For manual updates:
+Trigger manual sanctions list refresh:
 
 ```bash
 curl -X POST https://kya.yourdomain.com/api/v1/watchlist/refresh \
@@ -484,112 +215,40 @@ curl -X POST https://kya.yourdomain.com/api/v1/watchlist/refresh \
   -d '{"force": true}'
 ```
 
-### Database/Storage Maintenance
-
-If using Supabase or Algorand, monitor:
-
-```bash
-# Supabase project health
-# Algorand indexer status
-# Watchlist cache size in /app/data
-```
-
 ---
 
 ## Troubleshooting
 
-### Container Won't Start
+### Container Health Check Fails
+- Verify port 3000 is open internally.
+- Inspect container startup logs for initialization errors.
+- Confirm environment variables (`KYA_TREASURY_ADDRESS`, `ALGORAND_NETWORK_URL`) are populated.
 
-```bash
-# Check container logs
-docker compose logs kya
-
-# Check if port is in use
-ss -tlnp | grep 3000
-
-# Rebuild from scratch
-docker compose down --rmi all --volumes
-docker compose up --build
-```
-
-### TLS Errors
-
-```bash
-# Check certificate files exist
-ls -la /etc/nginx/certs/
-
-# Test nginx config
-nginx -t
-
-# Check cert permissions
-ls -la /etc/letsencrypt/live/kya.yourdomain.com/
-```
-
-### Connection Refused
-
-```bash
-# Test from inside the container
-docker exec -it kya-app wget http://localhost:3000/api/v1/health
-
-# Check network connectivity
-telnet kya.yourdomain.com 443
-
-# Check OCI security lists
-oci network security-list list --compartment-id <OCID>
-```
-
-### High Memory Usage
-
-```bash
-# Check container resource usage
-docker stats kya-app
-
-# Increase shape resources if needed
-oci compute instance update ...
-```
-
-### Watchlist Download Fails
-
-```bash
-# Check network access from container
-docker exec -it kya-app wget --spider https://www.treasury.gov/ofac/downloads/sdn.csv
-
-# Force refresh
-curl -X POST https://kya.yourdomain.com/api/v1/watchlist/refresh -d '{"force": true}'
-```
+### TLS / Reverse Proxy Issues
+- Verify `/health` is excluded from payment middleware and proxied correctly.
+- Check certificate expiration with `openssl x509 -in /etc/nginx/certs/fullchain.pem -text -noout`.
 
 ---
 
 ## Quick Reference
 
-### Commands
-
-| Action | Command |
-|--------|---------|
-| Build image | `docker build -t kya-service .` |
-| Local test | `docker compose up --build` |
-| Push to OCIR | `docker push iad.ocir.io/<ns>/kya-service:latest` |
-| Deploy to OCI | `oci compute container-instance create ...` |
-| Get logs | `docker compose logs -f kya` |
-| Health check | `curl https://kya.yourdomain.com/health` |
-| Refresh watchlists | `curl -X POST .../api/v1/watchlist/refresh` |
-
 ### Environment Variables
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `PORT` | No | `3000` | HTTP server port |
-| `NODE_ENV` | No | `production` | Node environment |
-| `SUPABASE_URL` | No | — | Supabase project URL |
-| `SUPABASE_ANON_KEY` | No | — | Supabase anon key |
-| `ALGORAND_NETWORK_URL` | No | — | Algorand RPC endpoint |
-| `ALGORAND_API_TOKEN` | No | — | Algorand API token |
-| `SCREENING_FAIL_THRESHOLD` | No | `0.85` | FAIL confidence threshold |
-| `SCREENING_FLAG_THRESHOLD` | No | `0.50` | FLAGGED confidence threshold |
-| `LOG_LEVEL` | No | `info` | Log level |
+| `PORT` | No | `3000` | HTTP server listening port |
+| `NODE_ENV` | No | `development` | Environment mode (`production`, `development`, `test`) |
+| `SUPABASE_URL` | No | — | Supabase URL (falls back to in-memory mode if omitted) |
+| `SUPABASE_SERVICE_ROLE_KEY` | No | — | Supabase service key |
+| `KYA_PRIVATE_KEY` | No | — | Ed25519 private key for claims & VC passports (generates ephemeral key if omitted) |
+| `KYA_KEY_ID` | No | `default-key` | Key identifier string |
+| `ALGORAND_NETWORK_URL` | No | `https://testnet-api.algonode.cloud` | Algod RPC endpoint |
+| `ALGORAND_INDEXER_URL` | No | `https://testnet-indexer.algonode.cloud` | Algorand Indexer endpoint |
+| `X402_PRICE_MICROALGO` | No | `1000` | Base price in microALGOs per request |
+| `KYA_TREASURY_ADDRESS` | No | — | Algorand receiver wallet for micro-payments |
 
 ---
 
 ## License
 
-KYA Service is licensed under **AGPL-3.0**. See the [LICENSE](LICENSE) file for the full license text.
+AGPL-3.0 — See [LICENSE](LICENSE) file for full text.
