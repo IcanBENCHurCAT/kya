@@ -174,6 +174,24 @@ describe('WalletGraph', () => {
       expect(related.length).toBe(2);
       expect(related.map((e) => e.target)).toEqual(['ADDR_3', 'ADDR_2']);
     });
+
+    it('should cache outgoing edges and invalidate cache when new edge is added', () => {
+      const initial = graph.getOutgoingEdges('ADDR_1');
+      expect(initial.length).toBe(2);
+      expect(initial[0].target).toBe('ADDR_3');
+
+      // Verify cached reference is returned on second call
+      const cached = graph.getOutgoingEdges('ADDR_1');
+      expect(cached).toBe(initial);
+
+      // Add new edge for ADDR_1, which should invalidate outgoingEdgesCache
+      graph.addEdge('ADDR_1', 'ADDR_5', 20, 'associated', 500, 1, 10);
+      const updated = graph.getOutgoingEdges('ADDR_1');
+      expect(updated.length).toBe(3);
+      expect(updated[0].target).toBe('ADDR_5');
+      expect(updated[0].weight).toBe(20);
+      expect(updated).not.toBe(initial);
+    });
   });
 
   describe('Path Finding (findPath)', () => {
