@@ -162,7 +162,6 @@ export function parseOFACCSV(csvText: string): SanctionedEntry[] {
 
     if (parts.length < 5) continue;
 
-    const recordType = parts[0] || 'I';
     const lastName = parts[1] || '';
     const firstName = parts[2] || '';
     const name = [lastName, firstName].filter(Boolean).join(', ');
