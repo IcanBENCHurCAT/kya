@@ -52,6 +52,21 @@ app.use('*', cors());
 app.get('/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString() }));
 app.get('/api/v1/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString() }));
 
+// Root developer landing page
+app.get('/', (c) => {
+  if (c.req.header('accept')?.includes('application/json')) {
+    return c.json({ name: 'KYA Service — Trust Infrastructure for AI Agents', status: 'ok', discovery: { x402: '/.well-known/x402.json', agentCard: '/.well-known/agent-card.json', health: '/health' } });
+  }
+  return c.html(`<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>KYA Service</title><style>
+body{font-family:system-ui,-apple-system,sans-serif;background:#0f172a;color:#f8fafc;margin:0;padding:2rem 1rem;line-height:1.5}main{max-width:680px;margin:0 auto;background:#1e293b;padding:2rem;border-radius:.75rem;border:1px solid #334155}
+h1{color:#38bdf8;margin:0 0 .5rem;display:flex;align-items:center;justify-content:space-between;font-size:1.5rem}a{color:#38bdf8;text-decoration:none;font-weight:500}a:hover{text-decoration:underline}
+a:focus-visible{outline:2px solid #38bdf8;outline-offset:3px;border-radius:.25rem}.badge{background:#166534;color:#4ade80;font-size:.75rem;padding:.2rem .5rem;border-radius:99px;font-weight:600}
+ul{padding-left:1.25rem}li{margin-bottom:.5rem}footer{margin-top:1.5rem;border-top:1px solid #334155;padding-top:1rem;color:#94a3b8;font-size:.875rem}
+</style></head><body><main><header><h1>KYA Service <span class="badge" role="status" aria-label="System status: Operational">● Operational</span></h1><p>Trust Infrastructure for AI Agents — On-chain Karma, ZK Identity & Sanctions Screening.</p></header>
+<section aria-label="Discovery & System Links"><h2 style="font-size:1.1rem;color:#94a3b8">Discovery Links</h2><ul><li><a href="/health" aria-label="View health check status">/health</a> — Service Health & Timestamp</li><li><a href="/.well-known/x402.json" aria-label="View x402 merchant discovery metadata">/.well-known/x402.json</a> — x402 Merchant Metadata</li><li><a href="/.well-known/agent-card.json" aria-label="View A2A Agent Card manifest">/.well-known/agent-card.json</a> — Agent Card Capabilities Manifest</li></ul></section>
+<footer><p>Protected by x402 micro-payments on Algorand. Built with Hono & TypeScript.</p></footer></main></body></html>`);
+});
+
 // ─── x402 Merchant Metadata & Bazaar Discovery Endpoints ───────────────
 const logoUrl = 'https://raw.githubusercontent.com/IcanBENCHurCAT/kya/main/docs/kya_architecture_infographic.jpg';
 
