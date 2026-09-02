@@ -18,7 +18,7 @@ import { AttemptStore } from "../attempt-store.js";
 import { ClaimStore } from "../claim-store.js";
 import { InMemoryAttemptStore } from "../in-memory-store.js";
 import { verifyAndSignClaim } from "../../utils/crypto.js";
-import { VerificationSuccess, VerificationError } from "../types.js";
+import { VerificationSuccess } from "../types.js";
 
 export interface EmailProviderOptions {
   /** Attempt store for OTP persistence */
