@@ -7,7 +7,7 @@
  * Returns: screening evidence, confidence score, and matched list details.
  */
 
-import { SanctionedEntry, SanctionsList } from './ofac.js';
+import { SanctionedEntry } from './ofac.js';
 
 export interface ScreeningResult {
   screened: string;
