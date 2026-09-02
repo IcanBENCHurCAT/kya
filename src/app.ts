@@ -17,6 +17,7 @@
  */
 
 import { Hono } from 'hono';
+import { cors } from 'hono/cors';
 import { serve } from '@hono/node-server';
 import screeningApp from './routes/screening.js';
 import walletAnalysisApp from './routes/wallet-analysis.js';
@@ -43,6 +44,9 @@ import { VerificationService } from './verification/service.js';
 
 // Mount all apps into a single router
 const app = new Hono();
+
+// Apply CORS middleware globally
+app.use('*', cors());
 
 // Global health check routes (exempt)
 app.get('/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString() }));
