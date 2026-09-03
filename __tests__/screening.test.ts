@@ -306,6 +306,122 @@ describe("Bulk Screening", () => {
     );
     expect(res3.status).toBe(200);
   });
+
+  it("should validate single screening API input types, empty values, and string lengths", async () => {
+    const app = (await import("../src/routes/screening.js")).default;
+    const longAddress = "A".repeat(256);
+    const validAddress = "A".repeat(50);
+    const longOwner = "B".repeat(256);
+
+    // Test missing address / non-string address
+    const res1 = await app.request(
+      "/api/v1/screen",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address: 12345 }),
+      },
+      { WATCHLIST: testList },
+    );
+    expect(res1.status).toBe(400);
+    const body1 = await res1.json();
+    expect(body1.error).toContain("Invalid address");
+
+    // Test empty address
+    const res2 = await app.request(
+      "/api/v1/screen",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address: "   " }),
+      },
+      { WATCHLIST: testList },
+    );
+    expect(res2.status).toBe(400);
+
+    // Test address exceeding max length
+    const res3 = await app.request(
+      "/api/v1/screen",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address: longAddress }),
+      },
+      { WATCHLIST: testList },
+    );
+    expect(res3.status).toBe(400);
+
+    // Test invalid beneficialOwner type or length
+    const res4 = await app.request(
+      "/api/v1/screen",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address: validAddress, beneficialOwner: longOwner }),
+      },
+      { WATCHLIST: testList },
+    );
+    expect(res4.status).toBe(400);
+    const body4 = await res4.json();
+    expect(body4.error).toContain("Invalid beneficialOwner");
+
+    // Test valid input
+    const res5 = await app.request(
+      "/api/v1/screen",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address: validAddress, beneficialOwner: "John Doe" }),
+      },
+      { WATCHLIST: testList },
+    );
+    expect(res5.status).toBe(200);
+  });
+
+  it("should validate register API input types, empty values, and string lengths", async () => {
+    const app = (await import("../src/routes/screening.js")).default;
+    const validAddress = "A".repeat(50);
+    const longAddress = "A".repeat(256);
+    const validOwner = "John Doe";
+    const longOwner = "B".repeat(256);
+
+    // Test invalid address
+    const res1 = await app.request(
+      "/api/v1/register",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address: longAddress, ownerName: validOwner }),
+      },
+    );
+    expect(res1.status).toBe(400);
+    const body1 = await res1.json();
+    expect(body1.error).toContain("Invalid address");
+
+    // Test invalid ownerName
+    const res2 = await app.request(
+      "/api/v1/register",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address: validAddress, ownerName: longOwner }),
+      },
+    );
+    expect(res2.status).toBe(400);
+    const body2 = await res2.json();
+    expect(body2.error).toContain("Invalid ownerName");
+
+    // Test valid registration
+    const res3 = await app.request(
+      "/api/v1/register",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address: validAddress, ownerName: validOwner }),
+      },
+    );
+    expect(res3.status).toBe(200);
+  });
 });
 
 // ─── Beneficial Owner Resolution Tests ─────────────────────────────
