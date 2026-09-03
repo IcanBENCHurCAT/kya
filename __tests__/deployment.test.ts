@@ -7,6 +7,31 @@ describe('Phase 4 Deployment & Gateway Ingress Tests', () => {
     resetX402Receipts();
   });
 
+  describe('Developer Landing Page Endpoint Status', () => {
+    it('should return HTML landing page for GET / with default headers', async () => {
+      const res = await app.request('/');
+      expect(res.status).toBe(200);
+      expect(res.headers.get('content-type')).toContain('text/html');
+      const html = await res.text();
+      expect(html).toContain('<main>');
+      expect(html).toContain('KYA Service');
+      expect(html).toContain('aria-label=');
+      expect(html).toContain('role="status"');
+    });
+
+    it('should return JSON service info for GET / when Accept: application/json', async () => {
+      const res = await app.request('/', {
+        headers: { Accept: 'application/json' },
+      });
+      expect(res.status).toBe(200);
+      expect(res.headers.get('content-type')).toContain('application/json');
+      const data = await res.json();
+      expect(data.status).toBe('ok');
+      expect(data.name).toContain('KYA Service');
+      expect(data.discovery).toBeDefined();
+    });
+  });
+
   describe('Healthcheck Endpoint Status', () => {
     it('should return HTTP 200 OK for root /health', async () => {
       const res = await app.request('/health');
