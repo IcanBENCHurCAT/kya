@@ -17,6 +17,7 @@ import { screenSanctions } from '../services/screening.js';
 import { resolveWalletIdentity, registerWalletIdentity, hasVerifiedOwner } from '../services/resolution.js';
 import { logScreening, getAuditLog, getAuditSummary } from '../services/audit.js';
 import { refreshWatchlists, getSummary as getWatchlistSummary } from '../services/watchlist-updater.js';
+const MAX_STRING_LENGTH = 255;
 const app = new Hono();
 /**
  * Health check endpoint.
@@ -73,12 +74,17 @@ app.post('/api/v1/watchlist/refresh', async (c) => {
  */
 app.post('/api/v1/screen', async (c) => {
     const { WATCHLIST, SCREENING_CONFIG } = c.env;
-    const body = await c.req.json();
+    const body = await c.req.json().catch(() => ({}));
     const address = body.address;
-    if (!address) {
-        return c.json({ error: 'address is required' }, 400);
+    if (typeof address !== 'string' || address.trim().length === 0 || address.length > MAX_STRING_LENGTH) {
+        return c.json({ error: `Invalid address: must be a non-empty string of max ${MAX_STRING_LENGTH} characters` }, 400);
     }
     const beneficialOwner = body.beneficialOwner;
+    if (beneficialOwner !== undefined && beneficialOwner !== null) {
+        if (typeof beneficialOwner !== 'string' || beneficialOwner.length > MAX_STRING_LENGTH) {
+            return c.json({ error: `Invalid beneficialOwner: must be a string of max ${MAX_STRING_LENGTH} characters` }, 400);
+        }
+    }
     const config = { ...SCREENING_CONFIG, ...body.config };
     // Check if wallet has a verified owner
     let resolvedOwner = beneficialOwner;
@@ -126,6 +132,14 @@ app.post('/api/v1/screen/bulk', async (c) => {
     }
     if (targets.length > 100) {
         return c.json({ error: 'Maximum 100 targets per request' }, 400);
+    }
+    for (const t of targets) {
+        if (!t || typeof t.address !== 'string' || t.address.trim().length === 0 || t.address.length > MAX_STRING_LENGTH) {
+            return c.json({ error: `Invalid target address: must be a non-empty string of max ${MAX_STRING_LENGTH} characters` }, 400);
+        }
+        if (t.beneficialOwner !== undefined && t.beneficialOwner !== null && (typeof t.beneficialOwner !== 'string' || t.beneficialOwner.length > MAX_STRING_LENGTH)) {
+            return c.json({ error: `Invalid target beneficialOwner: must be a string of max ${MAX_STRING_LENGTH} characters` }, 400);
+        }
     }
     const config = { ...SCREENING_CONFIG, ...body.config };
     // Resolve beneficial owners for each target
@@ -200,11 +214,14 @@ app.get('/api/v1/audit/summary', (c) => {
  * }
  */
 app.post('/api/v1/register', async (c) => {
-    const body = await c.req.json();
+    const body = await c.req.json().catch(() => ({}));
     const address = body.address;
     const ownerName = body.ownerName;
-    if (!address || !ownerName) {
-        return c.json({ error: 'address and ownerName are required' }, 400);
+    if (typeof address !== 'string' || address.trim().length === 0 || address.length > MAX_STRING_LENGTH) {
+        return c.json({ error: `Invalid address: must be a non-empty string of max ${MAX_STRING_LENGTH} characters` }, 400);
+    }
+    if (typeof ownerName !== 'string' || ownerName.trim().length === 0 || ownerName.length > MAX_STRING_LENGTH) {
+        return c.json({ error: `Invalid ownerName: must be a non-empty string of max ${MAX_STRING_LENGTH} characters` }, 400);
     }
     const identity = registerWalletIdentity(address, ownerName, {
         nationality: body.nationality,

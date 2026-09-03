@@ -9,11 +9,13 @@ export class WalletGraph {
     edges;
     adjacencyList;
     cache;
+    outgoingEdgesCache;
     constructor() {
         this.nodes = new Map();
         this.edges = new Map();
         this.adjacencyList = new Map();
         this.cache = new InMemoryCache(600_000, 10_000);
+        this.outgoingEdgesCache = new Map();
     }
     /**
      * Add or update a node in the graph
@@ -100,6 +102,7 @@ export class WalletGraph {
             // Update adjacency list
             this.adjacencyList.get(source).add(target);
         }
+        this.outgoingEdgesCache.delete(source);
         this.updateSiblingCount(source);
     }
     /**
@@ -137,10 +140,15 @@ export class WalletGraph {
      * Get all edges from a specific address
      */
     getOutgoingEdges(address) {
+        const cached = this.outgoingEdgesCache.get(address);
+        if (cached)
+            return cached;
         const sourceEdges = this.edges.get(address);
         if (!sourceEdges)
             return [];
-        return Array.from(sourceEdges.values()).sort((a, b) => b.weight - a.weight);
+        const sorted = Array.from(sourceEdges.values()).sort((a, b) => b.weight - a.weight);
+        this.outgoingEdgesCache.set(address, sorted);
+        return sorted;
     }
     /**
      * Get all edges to a specific address
@@ -323,6 +331,7 @@ export class WalletGraph {
         this.edges.clear();
         this.adjacencyList.clear();
         this.cache.clear();
+        this.outgoingEdgesCache.clear();
     }
     updateSiblingCount(address) {
         const node = this.nodes.get(address);
