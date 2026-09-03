@@ -1,0 +1,3 @@
+## 2025-03-03 - Optimize Fuzzy Screening String Normalization & Levenshtein Allocations
+**Learning:** In hot loops processing tens of thousands of sanctions entries (e.g., OFAC SDN watchlists), repeated calls to `.toLowerCase()`, 2D matrix allocations (`number[][]`) in Levenshtein DP, and temporary `scores[]` arrays create severe CPU and garbage collection bottlenecks.
+**Action:** Pre-lowercase target/candidate strings before similarity loops, replace 2D DP matrices in Levenshtein with dual 1D `Int32Array` row buffers, and track best scores directly using scalar primitives instead of allocating arrays.
