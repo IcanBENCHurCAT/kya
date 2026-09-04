@@ -28,6 +28,8 @@ describe('Phase 4 Deployment & Gateway Ingress Tests', () => {
       expect(html).toContain('aria-live="polite"');
       expect(html).toContain('aria-label="Copy cURL health check command"');
       expect(html).toContain('focus-visible');
+      expect(html).toContain('Failed to copy command to clipboard');
+      expect(html).toContain('Command copied to clipboard');
     });
 
     it('should return JSON service info for GET / when Accept: application/json', async () => {
