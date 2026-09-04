@@ -13,10 +13,21 @@ describe('Phase 4 Deployment & Gateway Ingress Tests', () => {
       expect(res.status).toBe(200);
       expect(res.headers.get('content-type')).toContain('text/html');
       const html = await res.text();
-      expect(html).toContain('<main>');
+      expect(html).toContain('<main');
       expect(html).toContain('KYA Service');
       expect(html).toContain('aria-label=');
       expect(html).toContain('role="status"');
+    });
+
+    it('should include accessibility features (skip link, focus styles, aria-live status) and Quick Start copy button', async () => {
+      const res = await app.request('/');
+      expect(res.status).toBe(200);
+      const html = await res.text();
+      expect(html).toContain('href="#main-content"');
+      expect(html).toContain('id="main-content"');
+      expect(html).toContain('aria-live="polite"');
+      expect(html).toContain('aria-label="Copy cURL health check command"');
+      expect(html).toContain('focus-visible');
     });
 
     it('should return JSON service info for GET / when Accept: application/json', async () => {

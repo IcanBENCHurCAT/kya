@@ -74,38 +74,49 @@ function jaroWinklerSimilarity(a, b) {
 }
 /**
  * Normalized Levenshtein similarity.
+ * Optimized using 1D Int32Array row buffers to avoid 2D array allocations.
  */
 function levenshteinSimilarity(a, b) {
     if (a === b)
         return 1.0;
-    if (a.length === 0 || b.length === 0)
+    const lenA = a.length;
+    const lenB = b.length;
+    if (lenA === 0 || lenB === 0)
         return 0.0;
-    const matrix = [];
-    for (let i = 0; i <= b.length; i++) {
-        matrix[i] = [i];
+    let prev = new Int32Array(lenA + 1);
+    let curr = new Int32Array(lenA + 1);
+    for (let j = 0; j <= lenA; j++) {
+        prev[j] = j;
     }
-    for (let j = 0; j <= a.length; j++) {
-        matrix[0][j] = j;
-    }
-    for (let i = 1; i <= b.length; i++) {
-        for (let j = 1; j <= a.length; j++) {
-            if (b[i - 1] === a[j - 1]) {
-                matrix[i][j] = matrix[i - 1][j - 1];
-            }
-            else {
-                matrix[i][j] = Math.min(matrix[i - 1][j - 1] + 1, matrix[i][j - 1] + 1, matrix[i - 1][j] + 1);
-            }
+    for (let i = 1; i <= lenB; i++) {
+        curr[0] = i;
+        const charB = b.charCodeAt(i - 1);
+        for (let j = 1; j <= lenA; j++) {
+            const cost = charB === a.charCodeAt(j - 1) ? 0 : 1;
+            curr[j] = Math.min(prev[j - 1] + cost, curr[j - 1] + 1, prev[j] + 1);
         }
+        const temp = prev;
+        prev = curr;
+        curr = temp;
     }
-    const maxLen = Math.max(a.length, b.length);
-    return 1.0 - (matrix[b.length][a.length] / maxLen);
+    const maxLen = Math.max(lenA, lenB);
+    return 1.0 - (prev[lenA] / maxLen);
 }
 /**
  * Combined similarity score.
  */
-function combinedSimilarity(a, b) {
-    const jw = jaroWinklerSimilarity(a.toLowerCase(), b.toLowerCase());
-    const lv = levenshteinSimilarity(a.toLowerCase(), b.toLowerCase());
+export function combinedSimilarity(a, b) {
+    return combinedSimilarityLower(a.toLowerCase(), b.toLowerCase());
+}
+/**
+ * Optimized combined similarity score for pre-lowercased inputs.
+ * Avoids redundant string lowercasing in hot loops.
+ */
+function combinedSimilarityLower(aLower, bLower) {
+    if (aLower === bLower)
+        return 1.0;
+    const jw = jaroWinklerSimilarity(aLower, bLower);
+    const lv = levenshteinSimilarity(aLower, bLower);
     // Jaro-Winkler weights name matching more (prefix matters)
     // Levenshtein catches typographical errors
     return jw * 0.7 + lv * 0.3;
@@ -141,12 +152,16 @@ function partialNameMatch(a, b) {
 export function screenSanctions(target, beneficialOwner, lists = {}, config = {}) {
     const settings = { ...DEFAULT_CONFIG, ...config };
     const results = [];
+    // Performance optimization: Pre-lowercase target string and beneficialOwner string once
+    const targetLower = target.toLowerCase();
+    const targetTrimmedLower = targetLower.trim();
     // Screen the wallet address itself (check nationalId fields)
     if (settings.matchNationalIds) {
         for (const [listName, entries] of Object.entries(lists)) {
             for (const entry of entries) {
                 for (const natId of entry.nationalIds) {
-                    if (exactMatch(target, natId)) {
+                    const natIdTrimmedLower = natId.toLowerCase().trim();
+                    if (targetTrimmedLower === natIdTrimmedLower) {
                         results.push({
                             sanctionedId: entry.id,
                             name: entry.name,
@@ -157,16 +172,20 @@ export function screenSanctions(target, beneficialOwner, lists = {}, config = {}
                             reason: `Wallet address ${target} found in sanctions nationalId`,
                         });
                     }
-                    else if (settings.fuzzyMatch && combinedSimilarity(target, natId) >= settings.fuzzyTolerance) {
-                        results.push({
-                            sanctionedId: entry.id,
-                            name: entry.name,
-                            matchField: 'nationalId',
-                            matchScore: combinedSimilarity(target, natId),
-                            program: entry.program,
-                            source: entry.source,
-                            reason: `Wallet address ${target} fuzzy-matches sanctions nationalId`,
-                        });
+                    else if (settings.fuzzyMatch) {
+                        // Compute similarity once and reuse score instead of calling twice
+                        const score = combinedSimilarityLower(targetTrimmedLower, natIdTrimmedLower);
+                        if (score >= settings.fuzzyTolerance) {
+                            results.push({
+                                sanctionedId: entry.id,
+                                name: entry.name,
+                                matchField: 'nationalId',
+                                matchScore: score,
+                                program: entry.program,
+                                source: entry.source,
+                                reason: `Wallet address ${target} fuzzy-matches sanctions nationalId`,
+                            });
+                        }
                     }
                 }
             }
@@ -176,36 +195,38 @@ export function screenSanctions(target, beneficialOwner, lists = {}, config = {}
     if (settings.fuzzyMatch) {
         for (const [listName, entries] of Object.entries(lists)) {
             for (const entry of entries) {
-                const scores = [];
-                // Compare against main name
-                scores.push(combinedSimilarity(target, entry.name));
+                // Track best score and field directly to avoid array allocations & redundant calculations
+                let bestScore = combinedSimilarityLower(targetLower, entry.name.toLowerCase());
+                let bestField = 'name';
                 // Compare against aliases
                 if (settings.matchAliases) {
                     for (const alias of entry.aliases) {
-                        scores.push(combinedSimilarity(target, alias));
+                        const score = combinedSimilarityLower(targetLower, alias.toLowerCase());
+                        if (score > bestScore) {
+                            bestScore = score;
+                            bestField = 'alias';
+                        }
                     }
                 }
                 // Compare against addresses
                 if (settings.matchAddresses) {
                     for (const addr of entry.addresses) {
-                        scores.push(combinedSimilarity(target, addr));
+                        const score = combinedSimilarityLower(targetLower, addr.toLowerCase());
+                        if (score > bestScore) {
+                            bestScore = score;
+                            bestField = 'address';
+                        }
                     }
                 }
-                const maxScore = Math.max(...scores, 0);
-                if (maxScore >= settings.fuzzyTolerance) {
-                    const matchField = maxScore === combinedSimilarity(target, entry.name)
-                        ? 'name'
-                        : settings.matchAliases && scores.includes(maxScore)
-                            ? 'alias'
-                            : 'address';
+                if (bestScore >= settings.fuzzyTolerance) {
                     results.push({
                         sanctionedId: entry.id,
                         name: entry.name,
-                        matchField,
-                        matchScore: maxScore,
+                        matchField: bestField,
+                        matchScore: bestScore,
                         program: entry.program,
                         source: entry.source,
-                        reason: `${target} fuzzy-matches sanctions data (${matchField})`,
+                        reason: `${target} fuzzy-matches sanctions data (${bestField})`,
                     });
                 }
             }
@@ -213,17 +234,20 @@ export function screenSanctions(target, beneficialOwner, lists = {}, config = {}
     }
     // Screen beneficial owner name if provided
     if (beneficialOwner && beneficialOwner.trim()) {
+        const boTrimmedLower = beneficialOwner.toLowerCase().trim();
+        const boLower = beneficialOwner.toLowerCase();
         for (const [listName, entries] of Object.entries(lists)) {
             for (const entry of entries) {
                 let score = 0;
                 let matchField = 'name';
-                if (exactMatch(beneficialOwner, entry.name)) {
+                const entryNameLower = entry.name.toLowerCase();
+                if (boTrimmedLower === entryNameLower.trim()) {
                     score = 1.0;
                     matchField = 'name';
                 }
                 else if (settings.fuzzyMatch) {
-                    // Try Jaro-Winkler
-                    const jw = jaroWinklerSimilarity(beneficialOwner, entry.name);
+                    // Try Jaro-Winkler with lowercased inputs
+                    const jw = jaroWinklerSimilarity(boLower, entryNameLower);
                     if (jw >= settings.fuzzyTolerance) {
                         score = jw;
                         matchField = 'name';
@@ -231,7 +255,7 @@ export function screenSanctions(target, beneficialOwner, lists = {}, config = {}
                     // Try alias matching
                     if (settings.matchAliases && !score) {
                         for (const alias of entry.aliases) {
-                            const aw = jaroWinklerSimilarity(beneficialOwner, alias);
+                            const aw = jaroWinklerSimilarity(boLower, alias.toLowerCase());
                             if (aw >= settings.fuzzyTolerance && aw > score) {
                                 score = aw;
                                 matchField = 'alias';
