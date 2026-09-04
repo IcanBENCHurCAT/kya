@@ -48,6 +48,10 @@ export interface ScreeningConfig {
     fuzzyTolerance: number;
 }
 /**
+ * Combined similarity score.
+ */
+export declare function combinedSimilarity(a: string, b: string): number;
+/**
  * Screen a wallet address or identity against sanctions lists.
  *
  * @param target — The wallet address or identity name to screen

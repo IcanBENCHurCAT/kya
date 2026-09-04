@@ -9,6 +9,7 @@ export declare class WalletGraph {
     private edges;
     private adjacencyList;
     private cache;
+    private outgoingEdgesCache;
     constructor();
     /**
      * Add or update a node in the graph
