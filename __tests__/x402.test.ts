@@ -38,7 +38,8 @@ describe('x402 Payment Gate Middleware', () => {
 
   describe('Payment Verification & Receipts', () => {
     it('should pass through gated routes and attach X-Payment-Receipt when X-Payment is valid', async () => {
-      const res = await app.request('/api/v1/karma/AGENT_VERIFIED_123', {
+      const validAddress = 'KBWP7FHVYOKPNQOH7X3MLL6BHRK33WUNPHP3ZLY4JWPEGNXLNB3SNPBY6E';
+      const res = await app.request(`/api/v1/karma/${validAddress}`, {
         headers: {
           'X-Payment': 'tx_valid_verification_1001',
         },
@@ -52,9 +53,10 @@ describe('x402 Payment Gate Middleware', () => {
   describe('Replay Protection', () => {
     it('should reject duplicate transaction ID with HTTP 400 Bad Request', async () => {
       const txid = 'tx_replay_test_9999';
+      const validAddress = 'KBWP7FHVYOKPNQOH7X3MLL6BHRK33WUNPHP3ZLY4JWPEGNXLNB3SNPBY6E';
 
       // First request should succeed
-      const res1 = await app.request('/api/v1/karma/AGENT_REPLAY_TEST', {
+      const res1 = await app.request(`/api/v1/karma/${validAddress}`, {
         headers: {
           'X-Payment': txid,
         },
@@ -62,7 +64,7 @@ describe('x402 Payment Gate Middleware', () => {
       expect(res1.status).toBe(200);
 
       // Second request with same txid should be rejected
-      const res2 = await app.request('/api/v1/karma/AGENT_REPLAY_TEST', {
+      const res2 = await app.request(`/api/v1/karma/${validAddress}`, {
         headers: {
           'X-Payment': txid,
         },

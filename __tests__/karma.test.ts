@@ -121,7 +121,8 @@ describe('Karma Ledger & KarmaService', () => {
     });
 
     it('should retrieve profile on GET /api/v1/karma/:address with valid X-Payment header', async () => {
-      const res = await app.request('/api/v1/karma/TEST_AGENT_REST_1', {
+      const validAddress = 'KBWP7FHVYOKPNQOH7X3MLL6BHRK33WUNPHP3ZLY4JWPEGNXLNB3SNPBY6E';
+      const res = await app.request(`/api/v1/karma/${validAddress}`, {
         headers: {
           'X-Payment': 'tx_karma_get_123',
         },
@@ -130,11 +131,24 @@ describe('Karma Ledger & KarmaService', () => {
       expect(res.status).toBe(200);
       const json = await res.json();
       expect(json.success).toBe(true);
-      expect(json.karma.agentAddress).toBe('TEST_AGENT_REST_1');
+      expect(json.karma.agentAddress).toBe(validAddress);
       expect(json.score).toBe(100);
     });
 
+    it('should return HTTP 400 on GET /api/v1/karma/:address for invalid address format', async () => {
+      const res = await app.request('/api/v1/karma/INVALID_ALGORAND_ADDRESS', {
+        headers: {
+          'X-Payment': 'tx_karma_get_invalid',
+        },
+      });
+
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json.error).toBe('Invalid Algorand address format');
+    });
+
     it('should record event on POST /api/v1/karma/event with valid X-Payment header', async () => {
+      const validAddress = 'KBWP7FHVYOKPNQOH7X3MLL6BHRK33WUNPHP3ZLY4JWPEGNXLNB3SNPBY6E';
       const res = await app.request('/api/v1/karma/event', {
         method: 'POST',
         headers: {
@@ -142,7 +156,7 @@ describe('Karma Ledger & KarmaService', () => {
           'X-Payment': 'tx_karma_post_123',
         },
         body: JSON.stringify({
-          agentAddress: 'TEST_AGENT_REST_POST',
+          agentAddress: validAddress,
           eventType: 'credit',
           amount: 500,
           reason: 'Rest event test',
