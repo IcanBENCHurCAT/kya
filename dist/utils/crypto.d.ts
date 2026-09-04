@@ -58,4 +58,4 @@ export declare function verifyAndSignClaim(params: {
 /**
  * Verify that an existing claim's signature is valid.
  */
-export declare function verifyExistingClaim(claim: VerificationClaim): Promise<boolean>;
+export declare function verifyExistingClaim(claim: VerificationClaim, publicKey?: string): Promise<boolean>;

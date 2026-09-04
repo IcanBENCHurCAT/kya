@@ -150,8 +150,17 @@ export async function verifyAndSignClaim(params: {
  * Verify that an existing claim's signature is valid.
  */
 export async function verifyExistingClaim(
-  claim: VerificationClaim
+  claim: VerificationClaim,
+  publicKey?: string
 ): Promise<boolean> {
-  // In production, look up the key by keyId; for now return true
-  return true;
+  if (!publicKey || !claim.signature) {
+    return false;
+  }
+  return verifyClaimSignature({
+    walletAddress: claim.walletAddress,
+    identityHash: claim.identityHash,
+    verifiedAt: claim.verifiedAt,
+    signature: claim.signature,
+    publicKey,
+  });
 }

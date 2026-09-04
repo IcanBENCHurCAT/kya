@@ -95,7 +95,15 @@ export async function verifyAndSignClaim(params) {
 /**
  * Verify that an existing claim's signature is valid.
  */
-export async function verifyExistingClaim(claim) {
-    // In production, look up the key by keyId; for now return true
-    return true;
+export async function verifyExistingClaim(claim, publicKey) {
+    if (!publicKey || !claim.signature) {
+        return false;
+    }
+    return verifyClaimSignature({
+        walletAddress: claim.walletAddress,
+        identityHash: claim.identityHash,
+        verifiedAt: claim.verifiedAt,
+        signature: claim.signature,
+        publicKey,
+    });
 }
