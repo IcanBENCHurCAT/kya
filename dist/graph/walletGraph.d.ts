@@ -7,9 +7,11 @@ import type { WalletGraphEdge, WalletGraphNode, SiblingWallet, CounterpartyStats
 export declare class WalletGraph {
     private nodes;
     private edges;
+    private incomingEdges;
     private adjacencyList;
     private cache;
     private outgoingEdgesCache;
+    private incomingEdgesCache;
     constructor();
     /**
      * Add or update a node in the graph
@@ -21,6 +23,7 @@ export declare class WalletGraph {
     addEdge(source: string, target: string, weight: number, relationshipType: WalletGraphEdge['relationshipType'], totalValueTransferred: number, firstInteractionRound: number, lastInteractionRound: number, metadata?: Record<string, unknown>): void;
     /**
      * Query: what wallets are related to address X?
+     * Performance: O(E_out + E_in) map lookups using direct edge maps instead of O(V) full graph scan.
      */
     getRelatedWallets(address: string): WalletGraphEdge[];
     /**
@@ -29,6 +32,8 @@ export declare class WalletGraph {
     getOutgoingEdges(address: string): WalletGraphEdge[];
     /**
      * Get all edges to a specific address
+     * Performance: O(1) map lookup + O(E_in log E_in) sort (cached),
+     * replacing the previous O(V) scan across all nodes in the graph.
      */
     getIncomingEdges(address: string): WalletGraphEdge[];
     /**
@@ -61,6 +66,7 @@ export declare class WalletGraph {
     getConnectedComponents(): string[][];
     /**
      * Calculate degree centrality for all nodes
+     * Performance: O(1) lookup per node using adjacency and incoming edge maps, avoiding full graph traversal.
      */
     getDegreeCentrality(): Map<string, number>;
     /**

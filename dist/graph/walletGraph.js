@@ -7,15 +7,21 @@ import { InMemoryCache } from '../cache/inMemoryCache.js';
 export class WalletGraph {
     nodes;
     edges;
+    // Reverse index for incoming edges: target -> (source -> edge)
+    // Optimization: Allows O(1) lookup of incoming edges without full O(V) graph scans.
+    incomingEdges;
     adjacencyList;
     cache;
     outgoingEdgesCache;
+    incomingEdgesCache;
     constructor() {
         this.nodes = new Map();
         this.edges = new Map();
+        this.incomingEdges = new Map();
         this.adjacencyList = new Map();
         this.cache = new InMemoryCache(600_000, 10_000);
         this.outgoingEdgesCache = new Map();
+        this.incomingEdgesCache = new Map();
     }
     /**
      * Add or update a node in the graph
@@ -59,11 +65,16 @@ export class WalletGraph {
         if (!this.nodes.has(target)) {
             this.addNode(target, 0, 0, 0, firstInteractionRound, lastInteractionRound);
         }
-        // Get or create the target's edge map
+        // Get or create source outgoing edge map
         if (!this.edges.has(source)) {
             this.edges.set(source, new Map());
         }
+        // Get or create target incoming edge map
+        if (!this.incomingEdges.has(target)) {
+            this.incomingEdges.set(target, new Map());
+        }
         const sourceEdges = this.edges.get(source);
+        const targetIncoming = this.incomingEdges.get(target);
         const existing = sourceEdges.get(target);
         if (existing) {
             // Update existing edge (increment weight if it's the same relationship)
@@ -89,7 +100,7 @@ export class WalletGraph {
             }
         }
         else {
-            sourceEdges.set(target, {
+            const newEdge = {
                 source,
                 target,
                 weight,
@@ -98,15 +109,19 @@ export class WalletGraph {
                 lastInteractionRound,
                 totalValueTransferred,
                 metadata,
-            });
+            };
+            sourceEdges.set(target, newEdge);
+            targetIncoming.set(source, newEdge);
             // Update adjacency list
             this.adjacencyList.get(source).add(target);
         }
         this.outgoingEdgesCache.delete(source);
+        this.incomingEdgesCache.delete(target);
         this.updateSiblingCount(source);
     }
     /**
      * Query: what wallets are related to address X?
+     * Performance: O(E_out + E_in) map lookups using direct edge maps instead of O(V) full graph scan.
      */
     getRelatedWallets(address) {
         // Check cache first
@@ -126,10 +141,10 @@ export class WalletGraph {
             }
         }
         // Incoming edges (these wallets sent to address)
-        for (const [, targetEdges] of this.edges) {
-            const incoming = targetEdges.get(address);
-            if (incoming) {
-                edges.push(incoming);
+        const incoming = this.incomingEdges.get(address);
+        if (incoming) {
+            for (const [, edge] of incoming) {
+                edges.push(edge);
             }
         }
         // Sort by weight (descending)
@@ -152,17 +167,19 @@ export class WalletGraph {
     }
     /**
      * Get all edges to a specific address
+     * Performance: O(1) map lookup + O(E_in log E_in) sort (cached),
+     * replacing the previous O(V) scan across all nodes in the graph.
      */
     getIncomingEdges(address) {
-        const edges = [];
-        for (const [, targetEdges] of this.edges) {
-            const incoming = targetEdges.get(address);
-            if (incoming) {
-                edges.push(incoming);
-            }
-        }
-        edges.sort((a, b) => b.weight - a.weight);
-        return edges;
+        const cached = this.incomingEdgesCache.get(address);
+        if (cached)
+            return cached;
+        const targetIncoming = this.incomingEdges.get(address);
+        if (!targetIncoming)
+            return [];
+        const sorted = Array.from(targetIncoming.values()).sort((a, b) => b.weight - a.weight);
+        this.incomingEdgesCache.set(address, sorted);
+        return sorted;
     }
     /**
      * Get a specific edge between two addresses
@@ -250,7 +267,7 @@ export class WalletGraph {
                     continue;
                 visited.add(current);
                 component.push(current);
-                // Add neighbors
+                // Add outgoing neighbors
                 const outgoing = this.adjacencyList.get(current);
                 if (outgoing) {
                     for (const neighbor of outgoing) {
@@ -259,10 +276,13 @@ export class WalletGraph {
                         }
                     }
                 }
-                // Also check incoming edges
-                for (const [, targetEdges] of this.edges) {
-                    if (targetEdges.has(current) && !visited.has(current)) {
-                        // This is backwards — we need to find nodes that have edges TO current
+                // Add incoming neighbors via reverse index
+                const incoming = this.incomingEdges.get(current);
+                if (incoming) {
+                    for (const sender of incoming.keys()) {
+                        if (!visited.has(sender)) {
+                            queue.push(sender);
+                        }
                     }
                 }
             }
@@ -274,22 +294,18 @@ export class WalletGraph {
     }
     /**
      * Calculate degree centrality for all nodes
+     * Performance: O(1) lookup per node using adjacency and incoming edge maps, avoiding full graph traversal.
      */
     getDegreeCentrality() {
         const centrality = new Map();
         const n = this.nodes.size;
         if (n <= 1)
             return centrality;
-        const incomingCounts = new Map();
-        for (const [, targetEdges] of this.edges) {
-            for (const target of targetEdges.keys()) {
-                incomingCounts.set(target, (incomingCounts.get(target) || 0) + 1);
-            }
-        }
         for (const [address] of this.nodes) {
             const outgoing = this.adjacencyList.get(address);
             const outgoingCount = outgoing ? outgoing.size : 0;
-            const incomingCount = incomingCounts.get(address) || 0;
+            const incoming = this.incomingEdges.get(address);
+            const incomingCount = incoming ? incoming.size : 0;
             centrality.set(address, (outgoingCount + incomingCount) / (n - 1));
         }
         return centrality;
@@ -329,9 +345,11 @@ export class WalletGraph {
     clear() {
         this.nodes.clear();
         this.edges.clear();
+        this.incomingEdges.clear();
         this.adjacencyList.clear();
         this.cache.clear();
         this.outgoingEdgesCache.clear();
+        this.incomingEdgesCache.clear();
     }
     updateSiblingCount(address) {
         const node = this.nodes.get(address);
