@@ -83,6 +83,7 @@ describe('Groth16 ZK-KYC Proof Verifier & REST Routes', () => {
     });
 
     it('should process valid ZK proof and return HTTP 200 with X-Payment header', async () => {
+      const validAddress = 'KBWP7FHVYOKPNQOH7X3MLL6BHRK33WUNPHP3ZLY4JWPEGNXLNB3SNPBY6E';
       const res = await app.request('/api/v1/verify/zk-proof', {
         method: 'POST',
         headers: {
@@ -91,7 +92,7 @@ describe('Groth16 ZK-KYC Proof Verifier & REST Routes', () => {
         },
         body: JSON.stringify({
           ...validProofPayload,
-          agentAddress: 'ZK_REST_AGENT_1',
+          agentAddress: validAddress,
         }),
       });
 
@@ -102,7 +103,27 @@ describe('Groth16 ZK-KYC Proof Verifier & REST Routes', () => {
       expect(json.result.verificationLevel).toBe('Tier 2');
     });
 
+    it('should return HTTP 400 if agentAddress has invalid Algorand address format', async () => {
+      const res = await app.request('/api/v1/verify/zk-proof', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Payment': 'tx_zk_proof_invalid_addr',
+        },
+        body: JSON.stringify({
+          ...validProofPayload,
+          agentAddress: 'INVALID_ADDRESS',
+        }),
+      });
+
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json.success).toBe(false);
+      expect(json.error).toBe('Invalid Algorand address format');
+    });
+
     it('should return HTTP 400 when invalid ZK proof is submitted', async () => {
+      const validAddress = 'KBWP7FHVYOKPNQOH7X3MLL6BHRK33WUNPHP3ZLY4JWPEGNXLNB3SNPBY6E';
       const res = await app.request('/api/v1/verify/zk-proof', {
         method: 'POST',
         headers: {
@@ -111,6 +132,7 @@ describe('Groth16 ZK-KYC Proof Verifier & REST Routes', () => {
         },
         body: JSON.stringify({
           ...validProofPayload,
+          agentAddress: validAddress,
           publicSignals: ['0x00'],
         }),
       });

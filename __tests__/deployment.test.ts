@@ -118,7 +118,8 @@ describe('Phase 4 Deployment & Gateway Ingress Tests', () => {
 
   describe('Caddy & x402 Header Forwardings', () => {
     it('should return 402 challenge when accessing protected API without payment header', async () => {
-      const res = await app.request('/api/v1/karma/DEPL_AGENT_001', {
+      const validAddress = 'KBWP7FHVYOKPNQOH7X3MLL6BHRK33WUNPHP3ZLY4JWPEGNXLNB3SNPBY6E';
+      const res = await app.request(`/api/v1/karma/${validAddress}`, {
         headers: {
           'Host': 'kya-service.duckdns.org',
           'X-Forwarded-Proto': 'https',
@@ -151,7 +152,8 @@ describe('Phase 4 Deployment & Gateway Ingress Tests', () => {
 
     it('should honor X-Payment and return X-Payment-Receipt in response headers when valid', async () => {
       const paymentTx = 'tx_deploy_caddy_test_100';
-      const res = await app.request('/api/v1/karma/DEPL_AGENT_002', {
+      const validAddress = 'KBWP7FHVYOKPNQOH7X3MLL6BHRK33WUNPHP3ZLY4JWPEGNXLNB3SNPBY6E';
+      const res = await app.request(`/api/v1/karma/${validAddress}`, {
         headers: {
           'Host': 'kya-service.duckdns.org',
           'X-Forwarded-Proto': 'https',

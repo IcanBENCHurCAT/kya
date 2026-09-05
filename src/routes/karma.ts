@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { isValidAddress } from 'algosdk';
 import { defaultKarmaService, KarmaService } from '../services/karma.js';
 
 export type { KarmaRecord, KarmaEvent, AgentProfile } from '../services/karma.js';
@@ -10,6 +11,9 @@ export function createKarmaRoutes(karmaService: KarmaService = defaultKarmaServi
     const address = c.req.param('address');
     if (!address) {
       return c.json({ error: 'Address parameter is required' }, 400);
+    }
+    if (!isValidAddress(address)) {
+      return c.json({ error: 'Invalid Algorand address format' }, 400);
     }
     const record = await karmaService.getProfile(address);
     return c.json({
@@ -29,6 +33,7 @@ export function createKarmaRoutes(karmaService: KarmaService = defaultKarmaServi
 
     if (
       !agentAddress ||
+      !isValidAddress(agentAddress) ||
       !eventType ||
       typeof amount !== 'number' ||
       !['credit', 'debit', 'emit', 'CREDIT', 'DEBIT', 'EMIT'].includes(eventType)
