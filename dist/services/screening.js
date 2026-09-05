@@ -16,31 +16,45 @@ const DEFAULT_CONFIG = {
     fuzzyMatch: true,
     fuzzyTolerance: 0.8,
 };
+// Optimization: Reusable Int8Array buffers for match tracking to prevent array GC allocations in hot screening loops.
+let jwMatchFlagsA = new Uint8Array(256);
+let jwMatchFlagsB = new Uint8Array(256);
+function ensureJwBufferCapacity(lenA, lenB) {
+    if (lenA > jwMatchFlagsA.length) {
+        jwMatchFlagsA = new Uint8Array(Math.max(lenA, jwMatchFlagsA.length * 2));
+    }
+    if (lenB > jwMatchFlagsB.length) {
+        jwMatchFlagsB = new Uint8Array(Math.max(lenB, jwMatchFlagsB.length * 2));
+    }
+}
 /**
  * Jaro-Winkler similarity for fuzzy name matching.
  * Returns a score from 0.0 (no match) to 1.0 (exact match).
+ *
+ * Performance optimization:
+ * Uses pre-allocated Uint8Array buffers and charCodeAt comparison to eliminate object/array
+ * allocations when evaluating tens of thousands of sanctions candidates per request.
  */
 function jaroWinklerSimilarity(a, b) {
     if (a === b)
         return 1.0;
-    if (a.length === 0 || b.length === 0)
-        return 0.0;
     const lenA = a.length;
     const lenB = b.length;
+    if (lenA === 0 || lenB === 0)
+        return 0.0;
+    ensureJwBufferCapacity(lenA, lenB);
+    jwMatchFlagsA.fill(0, 0, lenA);
+    jwMatchFlagsB.fill(0, 0, lenB);
     const maxDist = Math.max(lenA, lenB) / 2 - 1;
-    const charsA = new Array(lenA).fill(null);
-    const charsB = new Array(lenB).fill(null);
     let matches = 0;
-    const start = Math.min(4, Math.min(lenA, lenB));
     for (let i = 0; i < lenA; i++) {
-        const lowerBound = Math.max(0, i - maxDist);
-        const upperBound = Math.min(lenB - 1, i + maxDist);
-        for (let j = lowerBound; j <= upperBound; j++) {
-            if (charsB[j] !== null)
-                continue;
-            if (a[i] === b[j]) {
-                charsA[i] = b[j];
-                charsB[j] = a[i];
+        const start = Math.max(0, i - maxDist);
+        const end = Math.min(lenB - 1, i + maxDist);
+        const charCodeA = a.charCodeAt(i);
+        for (let j = start; j <= end; j++) {
+            if (jwMatchFlagsB[j] === 0 && charCodeA === b.charCodeAt(j)) {
+                jwMatchFlagsA[i] = 1;
+                jwMatchFlagsB[j] = 1;
                 matches++;
                 break;
             }
@@ -51,21 +65,22 @@ function jaroWinklerSimilarity(a, b) {
     let transpositions = 0;
     let k = 0;
     for (let i = 0; i < lenA; i++) {
-        while (charsA[i] === null)
-            i++;
-        while (charsB[k] === null)
+        if (jwMatchFlagsA[i] === 1) {
+            while (k < lenB && jwMatchFlagsB[k] === 0)
+                k++;
+            if (a.charCodeAt(i) !== b.charCodeAt(k))
+                transpositions++;
             k++;
-        if (a[i] !== b[k])
-            transpositions++;
-        k++;
+        }
     }
     const jaro = (matches / lenA +
         matches / lenB +
         (matches - transpositions / 2) / matches) / 3;
     // Winkler prefix bonus
+    const prefixLimit = Math.min(4, Math.min(lenA, lenB));
     let prefix = 0;
-    for (let i = 0; i < start; i++) {
-        if (a[i] === b[i])
+    for (let i = 0; i < prefixLimit; i++) {
+        if (a.charCodeAt(i) === b.charCodeAt(i))
             prefix++;
         else
             break;
