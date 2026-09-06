@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { KarmaService, defaultKarmaService } from './karma.js';
 import { screenSanctions } from './screening.js';
 import { generateSigningKey, signClaim, verifyClaimSignature } from '../utils/crypto.js';
@@ -135,7 +136,8 @@ export class A2AService {
     }
 
     // 4. Construct W3C Verifiable Credential JSON-LD Passport
-    const vcId = `urn:uuid:${Math.random().toString(36).substring(2, 10)}-${Date.now()}`;
+    // Use cryptographically secure randomUUID for verifiable credential identifiers
+    const vcId = `urn:uuid:${randomUUID()}`;
     const verifiedAtUnix = Math.floor(Date.now() / 1000);
 
     const credentialSubject = {
