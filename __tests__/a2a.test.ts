@@ -161,7 +161,7 @@ describe('A2A Pre-Flight Handshake & W3C VC Engine', () => {
       expect(json.verifiableCredential).toBeDefined();
     });
 
-    it('should return HTTP 400 if required fields are missing', async () => {
+    it('should return HTTP 400 if required fields are missing or invalid type/length', async () => {
       const res = await app.request('/api/v1/a2a/handshake', {
         method: 'POST',
         headers: {
@@ -177,6 +177,44 @@ describe('A2A Pre-Flight Handshake & W3C VC Engine', () => {
       const json = await res.json();
       expect(json.success).toBe(false);
       expect(json.error).toBe('initiatorAddress and targetAddress are required');
+
+      const longAddress = 'a'.repeat(256);
+      const resLong = await app.request('/api/v1/a2a/handshake', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Payment': 'tx_a2a_handshake_long',
+        },
+        body: JSON.stringify({
+          initiatorAddress: 'INITIATOR_REST',
+          targetAddress: longAddress,
+        }),
+      });
+
+      expect(resLong.status).toBe(400);
+      const jsonLong = await resLong.json();
+      expect(jsonLong.success).toBe(false);
+      expect(jsonLong.error).toBe('initiatorAddress and targetAddress are required');
+    });
+
+    it('should return HTTP 400 if minKarmaScore is not a number', async () => {
+      const res = await app.request('/api/v1/a2a/handshake', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Payment': 'tx_a2a_handshake_bad_score',
+        },
+        body: JSON.stringify({
+          initiatorAddress: 'INITIATOR_REST',
+          targetAddress: 'TARGET_REST',
+          minKarmaScore: 'not_a_number',
+        }),
+      });
+
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json.success).toBe(false);
+      expect(json.error).toBe('minKarmaScore must be a number if provided');
     });
 
     it('should handle malformed JSON body gracefully and return HTTP 400', async () => {
