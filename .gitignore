@@ -10,3 +10,5 @@ dist
 *.tfvars
 .terraform/
 .gitleaks.json
+__pycache__/
+*.pyc
