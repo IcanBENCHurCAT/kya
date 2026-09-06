@@ -45,6 +45,33 @@ describe('Phase 4 Deployment & Gateway Ingress Tests', () => {
     });
   });
 
+  describe('404 Custom Not Found Handler Status', () => {
+    it('should return custom accessible HTML 404 page for unknown routes with default headers', async () => {
+      const res = await app.request('/unknown-route-test');
+      expect(res.status).toBe(404);
+      expect(res.headers.get('content-type')).toContain('text/html');
+      const html = await res.text();
+      expect(html).toContain('<main id="main-content">');
+      expect(html).toContain('404 — Page Not Found');
+      expect(html).toContain('href="#main-content"');
+      expect(html).toContain('focus-visible');
+      expect(html).toContain('Return to Landing Page');
+    });
+
+    it('should return JSON error response for unknown routes when Accept: application/json', async () => {
+      const res = await app.request('/unknown-route-test', {
+        headers: { Accept: 'application/json' },
+      });
+      expect(res.status).toBe(404);
+      expect(res.headers.get('content-type')).toContain('application/json');
+      const data = await res.json();
+      expect(data.error).toBe('Not Found');
+      expect(data.message).toBe('The requested endpoint does not exist.');
+      expect(data.discovery).toBeDefined();
+      expect(data.discovery.landing).toBe('/');
+    });
+  });
+
   describe('Healthcheck Endpoint Status', () => {
     it('should return HTTP 200 OK for root /health', async () => {
       const res = await app.request('/health');

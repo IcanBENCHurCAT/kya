@@ -72,8 +72,30 @@ ul{padding-left:1.25rem}li{margin-bottom:.5rem}
 footer{margin-top:1.5rem;border-top:1px solid #334155;padding-top:1rem;color:#94a3b8;font-size:.875rem}
 </style></head><body><a href="#main-content" class="sr-only">Skip to main content</a><main id="main-content"><header><h1>KYA Service <span class="badge" role="status" aria-label="System status: Operational">● Operational</span></h1><p>Trust Infrastructure for AI Agents — On-chain Karma, ZK Identity & Sanctions Screening.</p></header>
 <section aria-label="Discovery & System Links"><h2 style="font-size:1.1rem;color:#94a3b8">Discovery Links</h2><ul><li><a href="/health" aria-label="View health check status">/health</a> — Service Health & Timestamp</li><li><a href="/.well-known/x402.json" aria-label="View x402 merchant discovery metadata">/.well-known/x402.json</a> — x402 Merchant Metadata</li><li><a href="/.well-known/agent-card.json" aria-label="View A2A Agent Card manifest">/.well-known/agent-card.json</a> — Agent Card Capabilities Manifest</li></ul></section>
-<section aria-label="Quick Start API Example"><h2 style="font-size:1.1rem;color:#94a3b8;margin-top:1.5rem">Quick Start Command</h2><div class="code-box"><code id="curl-cmd" style="color:#e2e8f0;font-size:.875rem;word-break:break-all">curl -s /health</code><button id="copy-btn" type="button" onclick="copyCmd()" aria-label="Copy cURL health check command" class="copy-btn">Copy</button></div><div id="copy-status" class="sr-only" aria-live="polite"></div></section>
+<section aria-label="Quick Start API Example"><h2 style="font-size:1.1rem;color:#94a3b8;margin-top:1.5rem">Quick Start Command</h2><div class="code-box"><code id="curl-cmd" style="color:#e2e8f0;font-size:.875rem;word-break:break-all">curl -s /health</code><button id="copy-btn" type="button" onclick="copyCmd()" title="Copy cURL health check command" aria-label="Copy cURL health check command" class="copy-btn">Copy</button></div><div id="copy-status" class="sr-only" aria-live="polite"></div></section>
 <footer><p>Protected by x402 micro-payments on Algorand. Built with Hono & TypeScript.</p></footer></main><script>function copyCmd(){var cmd=document.getElementById('curl-cmd')?document.getElementById('curl-cmd').innerText:'';var btn=document.getElementById('copy-btn');var status=document.getElementById('copy-status');if(!navigator.clipboard||!navigator.clipboard.writeText){if(btn){btn.innerText='Failed';setTimeout(function(){btn.innerText='Copy';},2000);}if(status){status.innerText='Failed to copy command to clipboard';}return;}navigator.clipboard.writeText(cmd).then(function(){if(btn){btn.innerText='Copied!';setTimeout(function(){btn.innerText='Copy';},2000);}if(status){status.innerText='Command copied to clipboard';}}).catch(function(){if(btn){btn.innerText='Failed';setTimeout(function(){btn.innerText='Copy';},2000);}if(status){status.innerText='Failed to copy command to clipboard';}});}</script></body></html>`);
+});
+
+// Custom 404 handler with content negotiation and accessibility landmarks
+app.notFound((c) => {
+  if (c.req.header('accept')?.includes('application/json')) {
+    return c.json({
+      error: 'Not Found',
+      message: 'The requested endpoint does not exist.',
+      discovery: { landing: '/', health: '/health' },
+    }, 404);
+  }
+  return c.html(`<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>404 — Page Not Found | KYA Service</title><style>
+body{font-family:system-ui,-apple-system,sans-serif;background:#0f172a;color:#f8fafc;margin:0;padding:2rem 1rem;line-height:1.5}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border-width:0}
+.sr-only:focus{position:static;width:auto;height:auto;padding:.5rem;background:#38bdf8;color:#0f172a;font-weight:600;border-radius:.25rem;display:inline-block;margin-bottom:1rem}
+main{max-width:540px;margin:4rem auto 0;background:#1e293b;padding:2rem;border-radius:.75rem;border:1px solid #334155;text-align:center}
+h1{color:#38bdf8;margin:0 0 .5rem;font-size:1.75rem}
+p{color:#94a3b8;margin-bottom:1.5rem}
+a{color:#0f172a;background:#38bdf8;padding:.6rem 1.2rem;border-radius:.375rem;text-decoration:none;font-weight:600;display:inline-block;transition:background 0.15s ease}
+a:hover{background:#7dd3fc}
+a:focus-visible{outline:2px solid #38bdf8;outline-offset:3px}
+</style></head><body><a href="#main-content" class="sr-only">Skip to main content</a><main id="main-content"><h1>404 — Page Not Found</h1><p>The requested endpoint or page does not exist on this service.</p><a href="/" aria-label="Return to KYA Service landing page">Return to Landing Page</a></main></body></html>`, 404);
 });
 
 // ─── x402 Merchant Metadata & Bazaar Discovery Endpoints ───────────────
