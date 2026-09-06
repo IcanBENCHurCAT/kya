@@ -104,23 +104,24 @@ export class KarmaService {
   public async getProfile(address: string): Promise<KarmaRecord> {
     if (this.supabase) {
       try {
-        const profileRes = await withTimeout<any>(
-          this.supabase
-            .from('agent_profiles')
-            .select('*')
-            .eq('agent_address', address)
-            .single(),
-          1000
-        );
-
-        const eventsRes = await withTimeout<any>(
-          this.supabase
-            .from('karma_events')
-            .select('*')
-            .eq('agent_address', address)
-            .order('timestamp', { ascending: true }),
-          1000
-        );
+        const [profileRes, eventsRes] = await Promise.all([
+          withTimeout<any>(
+            this.supabase
+              .from('agent_profiles')
+              .select('*')
+              .eq('agent_address', address)
+              .single(),
+            1000
+          ),
+          withTimeout<any>(
+            this.supabase
+              .from('karma_events')
+              .select('*')
+              .eq('agent_address', address)
+              .order('timestamp', { ascending: true }),
+            1000
+          ),
+        ]);
 
         const profile = profileRes?.data;
         const events = eventsRes?.data;
@@ -214,28 +215,29 @@ export class KarmaService {
 
     if (this.supabase) {
       try {
-        await withTimeout<any>(
-          this.supabase.from('karma_events').insert({
-            id: event.id,
-            agent_address: agentAddress,
-            event_type: normalizedType,
-            amount,
-            reason: event.reason,
-            txid,
-            timestamp: now,
-          }),
-          1000
-        );
-
-        await withTimeout<any>(
-          this.supabase.from('agent_profiles').upsert({
-            agent_address: agentAddress,
-            karma_score: newScore,
-            tier: newTier,
-            last_updated: now,
-          }),
-          1000
-        );
+        await Promise.all([
+          withTimeout<any>(
+            this.supabase.from('karma_events').insert({
+              id: event.id,
+              agent_address: agentAddress,
+              event_type: normalizedType,
+              amount,
+              reason: event.reason,
+              txid,
+              timestamp: now,
+            }),
+            1000
+          ),
+          withTimeout<any>(
+            this.supabase.from('agent_profiles').upsert({
+              agent_address: agentAddress,
+              karma_score: newScore,
+              tier: newTier,
+              last_updated: now,
+            }),
+            1000
+          ),
+        ]);
       } catch {
         // Fallback to in-memory store
       }
