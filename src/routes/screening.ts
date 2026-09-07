@@ -149,7 +149,7 @@ app.post('/api/v1/screen', async (c) => {
  */
 app.post('/api/v1/screen/bulk', async (c) => {
   const { WATCHLIST, SCREENING_CONFIG } = c.env;
-  const body = await c.req.json();
+  const body = await c.req.json().catch(() => ({}));
 
   const targets = body.targets as { address: string; beneficialOwner?: string }[];
   if (!Array.isArray(targets) || targets.length === 0) {

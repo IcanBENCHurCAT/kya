@@ -305,6 +305,20 @@ describe("Bulk Screening", () => {
       { WATCHLIST: testList },
     );
     expect(res3.status).toBe(200);
+
+    // Test malformed JSON body returns HTTP 400 Bad Request
+    const res4 = await app.request(
+      "/api/v1/screen/bulk",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{ invalid json ",
+      },
+      { WATCHLIST: testList },
+    );
+    expect(res4.status).toBe(400);
+    const body4 = await res4.json();
+    expect(body4.error).toContain("targets array is required");
   });
 
   it("should validate single screening API input types, empty values, and string lengths", async () => {
