@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 export interface AgentProfile {
@@ -204,7 +205,8 @@ export class KarmaService {
     const now = new Date().toISOString();
 
     const event: KarmaEvent = {
-      id: `evt_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      // Use cryptographically secure randomUUID for event identifiers
+      id: `evt_${Date.now()}_${randomUUID()}`,
       agentAddress,
       eventType: normalizedType,
       amount,
