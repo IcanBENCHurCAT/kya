@@ -13,3 +13,7 @@
 ## 2025-03-05 - Single-Pass Wallet Transaction History Aggregation
 **Learning:** Multi-pass iteration across transactions (separate loops for incoming/outgoing filter, reducing sums, building counterparty maps, tracking asset stats) combined with `Math.min(...txs.map(t => t.round))` spread operations creates $O(N)$ memory overhead and runs risk of V8 maximum call stack size errors on large transaction sets (~50k+ entries).
 **Action:** Consolidate filtering, accumulation, counterparty/asset map tracking, and min/max round comparisons into a single `for` loop over `transactions`, reducing aggregation runtime by ~45% and preventing call stack overflow.
+
+## 2025-03-06 - Direct Map.size in Graph Helpers & Key Re-Insertion in Map Caches
+**Learning:** Calling query functions like `getIncomingEdges()` inside node update routines (like `updateSiblingCount`) triggers $O(E_{in} \log E_{in})$ array allocations and sorting operations on every node/edge insertion, alongside query cache pollution. Furthermore, in bounded `Map` caches, setting an existing key when size equals `maxSize` without deleting the key first triggers premature eviction of valid keys and shrinks effective cache capacity.
+**Action:** Use direct $O(1)$ `Map.size` lookups for count calculations in internal graph metrics, and delete existing keys prior to re-setting in bounded `Map` caches to refresh insertion order without triggering eviction.

@@ -169,6 +169,7 @@ export class WalletGraph {
     this.outgoingEdgesCache.delete(source);
     this.incomingEdgesCache.delete(target);
     this.updateSiblingCount(source);
+    this.updateSiblingCount(target);
   }
 
   /**
@@ -487,8 +488,10 @@ export class WalletGraph {
   private updateSiblingCount(address: string): void {
     const node = this.nodes.get(address);
     if (node) {
+      // Performance optimization: Direct O(1) Map.size lookup for incoming edge count
+      // avoids O(E_in log E_in) array allocations, sorting, and cache pollution in getIncomingEdges().
       node.siblingCount = (this.adjacencyList.get(address)?.size ?? 0) + 
-        this.getIncomingEdges(address).length;
+        (this.incomingEdges.get(address)?.size ?? 0);
     }
   }
 }
