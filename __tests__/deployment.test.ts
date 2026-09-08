@@ -58,6 +58,9 @@ describe('Phase 4 Deployment & Gateway Ingress Tests', () => {
       expect(html).toContain('href="#main-content"');
       expect(html).toContain('focus-visible');
       expect(html).toContain('Return to Landing Page');
+      expect(html).toContain('aria-label="Active discovery endpoints"');
+      expect(html).toContain('href="/health"');
+      expect(html).toContain('href="/.well-known/x402.json"');
     });
 
     it('should return JSON error response for unknown routes when Accept: application/json', async () => {

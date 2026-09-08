@@ -94,10 +94,16 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#0f172a;color:#f8
 main{max-width:540px;margin:4rem auto 0;background:#1e293b;padding:2rem;border-radius:.75rem;border:1px solid #334155;text-align:center}
 h1{color:#38bdf8;margin:0 0 .5rem;font-size:1.75rem}
 p{color:#94a3b8;margin-bottom:1.5rem}
-a{color:#0f172a;background:#38bdf8;padding:.6rem 1.2rem;border-radius:.375rem;text-decoration:none;font-weight:600;display:inline-block;transition:background 0.15s ease}
-a:hover{background:#7dd3fc}
+.btn-primary{color:#0f172a;background:#38bdf8;padding:.6rem 1.2rem;border-radius:.375rem;text-decoration:none;font-weight:600;display:inline-block;transition:background 0.15s ease}
+.btn-primary:hover{background:#7dd3fc}
 a:focus-visible{outline:2px solid #38bdf8;outline-offset:3px}
-</style></head><body><a href="#main-content" class="sr-only">Skip to main content</a><main id="main-content"><h1>404 — Page Not Found</h1><p>The requested endpoint or page does not exist on this service.</p><a href="/" aria-label="Return to KYA Service landing page">Return to Landing Page</a></main></body></html>`, 404);
+.discovery-nav{margin-top:1.5rem;text-align:left;border-top:1px solid #334155;padding-top:1rem}
+.discovery-nav h2{font-size:.875rem;color:#94a3b8;margin:0 0 .5rem;font-weight:600}
+.discovery-nav ul{padding-left:1.25rem;margin:0;color:#94a3b8;font-size:.875rem}
+.discovery-nav li{margin-bottom:.25rem}
+.discovery-nav a{color:#38bdf8;text-decoration:none;font-weight:500}
+.discovery-nav a:hover{text-decoration:underline}
+</style></head><body><a href="#main-content" class="sr-only">Skip to main content</a><main id="main-content"><h1>404 — Page Not Found</h1><p>The requested endpoint or page does not exist on this service.</p><a href="/" aria-label="Return to KYA Service landing page" class="btn-primary">Return to Landing Page</a><nav aria-label="Active discovery endpoints" class="discovery-nav"><h2>Quick discovery endpoints:</h2><ul><li><a href="/health" aria-label="View health check status">/health</a> — Service Health</li><li><a href="/.well-known/x402.json" aria-label="View x402 merchant discovery metadata">/.well-known/x402.json</a> — x402 Merchant Metadata</li></ul></nav></main></body></html>`, 404);
 });
 
 // ─── x402 Merchant Metadata & Bazaar Discovery Endpoints ───────────────
