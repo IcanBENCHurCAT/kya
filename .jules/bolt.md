@@ -17,3 +17,7 @@
 ## 2025-03-06 - Direct Map.size in Graph Helpers & Key Re-Insertion in Map Caches
 **Learning:** Calling query functions like `getIncomingEdges()` inside node update routines (like `updateSiblingCount`) triggers $O(E_{in} \log E_{in})$ array allocations and sorting operations on every node/edge insertion, alongside query cache pollution. Furthermore, in bounded `Map` caches, setting an existing key when size equals `maxSize` without deleting the key first triggers premature eviction of valid keys and shrinks effective cache capacity.
 **Action:** Use direct $O(1)$ `Map.size` lookups for count calculations in internal graph metrics, and delete existing keys prior to re-setting in bounded `Map` caches to refresh insertion order without triggering eviction.
+
+## 2025-03-07 - Secondary Indexing for In-Memory Stores to Avoid Full Map Scans
+**Learning:** In-memory store implementations (such as `InMemoryClaimStore`) that rely on `Array.from(map.values()).filter(...)` or `.some(...)` for lookups incur an $O(N)$ linear scan and $O(N)$ heap allocation overhead on every query. As store size grows, repeated lookups during verification or screening workflows degrade throughput and trigger frequent V8 GC pauses.
+**Action:** Maintain secondary index maps (`Map<string, Set<Item>>`) for heavily queried keys (e.g. `walletAddress`, `identityHash`). Update indices on insertion and clear on reset to turn $O(N)$ full scans into $O(1)$ lookups.
