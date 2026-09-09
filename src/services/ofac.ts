@@ -34,6 +34,11 @@ export interface SanctionedEntry {
   nationalIds: string[];
   birthdates: string[];
   lastUpdated: string;
+  // Performance optimization: Cached lowercased variants for zero-allocation screening loops
+  nameLower?: string;
+  aliasesLower?: string[];
+  addressesLower?: string[];
+  nationalIdsLower?: string[];
 }
 
 export interface SanctionsList {

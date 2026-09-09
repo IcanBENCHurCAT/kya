@@ -261,8 +261,10 @@ export function screenSanctions(
   if (settings.matchNationalIds) {
     for (const [listName, entries] of Object.entries(lists)) {
       for (const entry of entries) {
-        for (const natId of entry.nationalIds) {
-          const natIdTrimmedLower = natId.toLowerCase().trim();
+        // Optimization: Lazy-cache lowercased nationalIds array to eliminate allocations across calls
+        const nationalIdsLower = (entry.nationalIdsLower ??= entry.nationalIds.map(id => id.toLowerCase().trim()));
+        for (let i = 0; i < nationalIdsLower.length; i++) {
+          const natIdTrimmedLower = nationalIdsLower[i];
           if (targetTrimmedLower === natIdTrimmedLower) {
             results.push({
               sanctionedId: entry.id,
@@ -297,14 +299,18 @@ export function screenSanctions(
   if (settings.fuzzyMatch) {
     for (const [listName, entries] of Object.entries(lists)) {
       for (const entry of entries) {
+        // Optimization: Lazy-cache lowercased string properties to prevent string lowercasing allocations in hot loops
+        const entryNameLower = (entry.nameLower ??= entry.name.toLowerCase());
+
         // Track best score and field directly to avoid array allocations & redundant calculations
-        let bestScore = combinedSimilarityLower(targetLower, entry.name.toLowerCase());
+        let bestScore = combinedSimilarityLower(targetLower, entryNameLower);
         let bestField = 'name';
 
         // Compare against aliases
         if (settings.matchAliases) {
-          for (const alias of entry.aliases) {
-            const score = combinedSimilarityLower(targetLower, alias.toLowerCase());
+          const aliasesLower = (entry.aliasesLower ??= entry.aliases.map(a => a.toLowerCase()));
+          for (let i = 0; i < aliasesLower.length; i++) {
+            const score = combinedSimilarityLower(targetLower, aliasesLower[i]);
             if (score > bestScore) {
               bestScore = score;
               bestField = 'alias';
@@ -314,8 +320,9 @@ export function screenSanctions(
 
         // Compare against addresses
         if (settings.matchAddresses) {
-          for (const addr of entry.addresses) {
-            const score = combinedSimilarityLower(targetLower, addr.toLowerCase());
+          const addressesLower = (entry.addressesLower ??= entry.addresses.map(a => a.toLowerCase()));
+          for (let i = 0; i < addressesLower.length; i++) {
+            const score = combinedSimilarityLower(targetLower, addressesLower[i]);
             if (score > bestScore) {
               bestScore = score;
               bestField = 'address';
@@ -347,7 +354,7 @@ export function screenSanctions(
       for (const entry of entries) {
         let score = 0;
         let matchField: string = 'name';
-        const entryNameLower = entry.name.toLowerCase();
+        const entryNameLower = (entry.nameLower ??= entry.name.toLowerCase());
 
         if (boTrimmedLower === entryNameLower.trim()) {
           score = 1.0;
@@ -362,8 +369,9 @@ export function screenSanctions(
 
           // Try alias matching
           if (settings.matchAliases && !score) {
-            for (const alias of entry.aliases) {
-              const aw = jaroWinklerSimilarity(boLower, alias.toLowerCase());
+            const aliasesLower = (entry.aliasesLower ??= entry.aliases.map(a => a.toLowerCase()));
+            for (let i = 0; i < aliasesLower.length; i++) {
+              const aw = jaroWinklerSimilarity(boLower, aliasesLower[i]);
               if (aw >= settings.fuzzyTolerance && aw > score) {
                 score = aw;
                 matchField = 'alias';
