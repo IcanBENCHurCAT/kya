@@ -186,5 +186,65 @@ describe('Karma Ledger & KarmaService', () => {
       const json = await res.json();
       expect(json.error).toBe('Invalid parameters');
     });
+
+    it('should reject non-positive or non-finite amount on POST /api/v1/karma/event', async () => {
+      const validAddress = 'KBWP7FHVYOKPNQOH7X3MLL6BHRK33WUNPHP3ZLY4JWPEGNXLNB3SNPBY6E';
+
+      const invalidAmounts = [-100, 0, NaN, Infinity];
+      for (const amount of invalidAmounts) {
+        const res = await app.request('/api/v1/karma/event', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Payment': `tx_karma_invalid_amount_${amount}`,
+          },
+          body: JSON.stringify({
+            agentAddress: validAddress,
+            eventType: 'credit',
+            amount,
+          }),
+        });
+
+        expect(res.status).toBe(400);
+        const json = await res.json();
+        expect(json.error).toBe('Invalid parameters');
+      }
+    });
+
+    it('should reject oversized or non-string reason/txid on POST /api/v1/karma/event', async () => {
+      const validAddress = 'KBWP7FHVYOKPNQOH7X3MLL6BHRK33WUNPHP3ZLY4JWPEGNXLNB3SNPBY6E';
+
+      // Oversized reason
+      const resOversizedReason = await app.request('/api/v1/karma/event', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Payment': 'tx_karma_oversized_reason',
+        },
+        body: JSON.stringify({
+          agentAddress: validAddress,
+          eventType: 'credit',
+          amount: 100,
+          reason: 'a'.repeat(256),
+        }),
+      });
+      expect(resOversizedReason.status).toBe(400);
+
+      // Non-string txid
+      const resBadTxid = await app.request('/api/v1/karma/event', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Payment': 'tx_karma_bad_txid',
+        },
+        body: JSON.stringify({
+          agentAddress: validAddress,
+          eventType: 'credit',
+          amount: 100,
+          txid: 12345,
+        }),
+      });
+      expect(resBadTxid.status).toBe(400);
+    });
   });
 });
