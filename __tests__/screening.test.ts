@@ -15,6 +15,7 @@ import fs from "node:fs";
 import {
   buildDefaultData,
   parseOFACCSV,
+  parseOFACJSON,
   SanctionedEntry,
 } from "../src/services/ofac.js";
 import {
@@ -81,6 +82,23 @@ I,SMITH,JANE,Entity,LAX,LAX,CA,US,987-65-4321,1985-05-15`;
   it("should handle empty CSV", () => {
     const entries = parseOFACCSV("");
     assert(entries.length === 0, "Empty CSV should return empty array");
+  });
+
+  it("should parse OFAC JSON and generate secure UUID fallback IDs when missing uid/id", () => {
+    const jsonInput = [
+      {
+        name: "Test Entity Without ID",
+        entityType: "Entity",
+        type: ["SDN"],
+      },
+    ];
+
+    const entries = parseOFACJSON(jsonInput);
+    expect(entries.length).toBe(1);
+    expect(entries[0].name).toBe("Test Entity Without ID");
+    expect(entries[0].id).toMatch(
+      /^unknown-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    );
   });
 });
 

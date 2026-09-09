@@ -21,6 +21,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { randomUUID } from 'node:crypto';
 
 export interface SanctionedEntry {
   id: string;
@@ -247,7 +248,7 @@ export function parseOFACJSON(data: any): SanctionedEntry[] {
 
   for (const item of list) {
     entries.push({
-      id: item.uid || item.id || `unknown-${Math.random().toString(36).slice(2)}`,
+      id: item.uid || item.id || `unknown-${randomUUID()}`,
       name: item.name || '',
       type: (item.entityType || 'Individual').toLowerCase() === 'entity' ? 'entity'
         : (item.entityType || 'Individual').toLowerCase().includes('vessel') ? 'vessel'
