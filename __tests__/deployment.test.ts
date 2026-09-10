@@ -30,6 +30,8 @@ describe('Phase 4 Deployment & Gateway Ingress Tests', () => {
       expect(html).toContain('focus-visible');
       expect(html).toContain('.copy-btn.copied');
       expect(html).toContain('btn.setAttribute(\'aria-label\',\'Command copied to clipboard\')');
+      expect(html).toContain('btn.setAttribute(\'title\',\'Command copied to clipboard\')');
+      expect(html).toContain('fallbackCopy');
       expect(html).toContain('Failed to copy command to clipboard');
       expect(html).toContain('Command copied to clipboard');
     });
