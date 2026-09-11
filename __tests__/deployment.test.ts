@@ -199,4 +199,29 @@ describe('Phase 4 Deployment & Gateway Ingress Tests', () => {
       expect(res.headers.get('X-Payment-Receipt')).toContain(`receipt_${paymentTx}`);
     });
   });
+
+  describe('Verification Endpoint Input Validation', () => {
+    it('should return 400 when completing verification with an invalid wallet address format', async () => {
+      const { createVerificationRoutes } = await import('../src/routes/verification-routes.js');
+      const { VerificationService } = await import('../src/verification/service.js');
+      const service = new VerificationService({});
+      const verificationApp = createVerificationRoutes(service);
+
+      const res = await verificationApp.request('/verify/email/complete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          attemptId: 'att_123',
+          code: '123456',
+          walletAddress: 'INVALID_WALLET_ADDRESS',
+        }),
+      });
+
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json.error).toBe('Invalid wallet address format (expected Algorand base32)');
+    });
+  });
 });
