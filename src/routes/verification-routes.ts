@@ -11,6 +11,7 @@
  */
 
 import { Hono } from "hono";
+import { isValidAddress } from "algosdk";
 import { VerificationService } from "../verification/service.js";
 import { VerificationError } from "../verification/types.js";
 
@@ -38,8 +39,8 @@ export function createVerificationRoutes(
         );
       }
 
-      // Validate wallet address format (Algorand base32, 58 chars)
-      if (!/^[RPXAZ][23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{56}$/.test(body.walletAddress)) {
+      // Validate wallet address format
+      if (!isValidAddress(body.walletAddress)) {
         return c.json(
           { error: "Invalid wallet address format (expected Algorand base32)" },
           400
@@ -90,6 +91,14 @@ export function createVerificationRoutes(
         return c.json({ error: "Code must be a 6-digit number" }, 400);
       }
 
+      // Validate wallet address format
+      if (!isValidAddress(body.walletAddress)) {
+        return c.json(
+          { error: "Invalid wallet address format (expected Algorand base32)" },
+          400
+        );
+      }
+
       const result = await verificationService.completeVerification({
         attemptId: body.attemptId,
         code: body.code,
@@ -114,10 +123,7 @@ export function createVerificationRoutes(
     try {
       const walletAddress = c.req.param("address");
 
-      if (
-        !walletAddress ||
-        !/^[RPXAZ][23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{56}$/.test(walletAddress)
-      ) {
+      if (!walletAddress || !isValidAddress(walletAddress)) {
         return c.json({ error: "Invalid wallet address format" }, 400);
       }
 
