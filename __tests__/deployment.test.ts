@@ -29,6 +29,7 @@ describe('Phase 4 Deployment & Gateway Ingress Tests', () => {
       expect(html).toContain('aria-label="Copy cURL health check command"');
       expect(html).toContain('focus-visible');
       expect(html).toContain('.copy-btn.copied');
+      expect(html).toContain('.copy-btn.failed');
       expect(html).toContain('btn.setAttribute(\'aria-label\',\'Command copied to clipboard\')');
       expect(html).toContain('btn.setAttribute(\'title\',\'Command copied to clipboard\')');
       expect(html).toContain('fallbackCopy');
