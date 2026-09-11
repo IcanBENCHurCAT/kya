@@ -197,17 +197,42 @@ function levenshteinSimilarity(a: string, b: string): number {
 /**
  * Combined similarity score.
  */
-export function combinedSimilarity(a: string, b: string): number {
-  return combinedSimilarityLower(a.toLowerCase(), b.toLowerCase());
+export function combinedSimilarity(a: string, b: string, threshold: number = 0): number {
+  return combinedSimilarityLower(a.toLowerCase(), b.toLowerCase(), threshold);
 }
 
 /**
  * Optimized combined similarity score for pre-lowercased inputs.
- * Avoids redundant string lowercasing in hot loops.
+ * Avoids redundant string lowercasing in hot loops and prunes calculations
+ * via length ratio bounds and Jaro score thresholding.
  */
-function combinedSimilarityLower(aLower: string, bLower: string): number {
+function combinedSimilarityLower(aLower: string, bLower: string, threshold: number = 0): number {
   if (aLower === bLower) return 1.0;
+  const lenA = aLower.length;
+  const lenB = bLower.length;
+  if (lenA === 0 || lenB === 0) return 0.0;
+
+  if (threshold > 0) {
+    const minLen = lenA < lenB ? lenA : lenB;
+    const maxLen = lenA > lenB ? lenA : lenB;
+    const ratio = minLen / maxLen;
+    // Theoretical upper bound on combined similarity.
+    // If first characters don't match, prefix bonus is 0, giving tighter bound: (1.6 * ratio + 1.4) / 3.
+    const maxBound = (aLower.charCodeAt(0) === bLower.charCodeAt(0))
+      ? (0.44 * ratio + 0.56)
+      : ((1.6 * ratio + 1.4) / 3);
+    if (maxBound < threshold) {
+      return 0.0;
+    }
+  }
+
   const jw = jaroWinklerSimilarity(aLower, bLower);
+  // If Jaro-Winkler alone cannot reach threshold even with perfect Levenshtein (1.0),
+  // skip the expensive Levenshtein DP matrix calculation entirely.
+  if (threshold > 0 && jw * 0.7 + 0.3 < threshold) {
+    return jw * 0.7; // < threshold
+  }
+
   const lv = levenshteinSimilarity(aLower, bLower);
   // Jaro-Winkler weights name matching more (prefix matters)
   // Levenshtein catches typographical errors
@@ -257,11 +282,15 @@ export function screenSanctions(
   const targetLower = target.toLowerCase();
   const targetTrimmedLower = targetLower.trim();
 
-  // Screen the wallet address itself (check nationalId fields)
-  if (settings.matchNationalIds) {
-    for (const [listName, entries] of Object.entries(lists)) {
-      for (const entry of entries) {
-        // Optimization: Lazy-cache lowercased nationalIds array to eliminate allocations across calls
+  const hasBo = !!(beneficialOwner && beneficialOwner.trim());
+  const boTrimmedLower = hasBo ? beneficialOwner!.toLowerCase().trim() : '';
+  const boLower = hasBo ? beneficialOwner!.toLowerCase() : '';
+
+  // Single pass through all entries across lists
+  for (const [listName, entries] of Object.entries(lists)) {
+    for (const entry of entries) {
+      // 1. Screen wallet address against national IDs
+      if (settings.matchNationalIds) {
         const nationalIdsLower = (entry.nationalIdsLower ??= entry.nationalIds.map(id => id.toLowerCase().trim()));
         for (let i = 0; i < nationalIdsLower.length; i++) {
           const natIdTrimmedLower = nationalIdsLower[i];
@@ -276,8 +305,7 @@ export function screenSanctions(
               reason: `Wallet address ${target} found in sanctions nationalId`,
             });
           } else if (settings.fuzzyMatch) {
-            // Compute similarity once and reuse score instead of calling twice
-            const score = combinedSimilarityLower(targetTrimmedLower, natIdTrimmedLower);
+            const score = combinedSimilarityLower(targetTrimmedLower, natIdTrimmedLower, settings.fuzzyTolerance);
             if (score >= settings.fuzzyTolerance) {
               results.push({
                 sanctionedId: entry.id,
@@ -292,25 +320,18 @@ export function screenSanctions(
           }
         }
       }
-    }
-  }
 
-  // Screen the wallet address as a name
-  if (settings.fuzzyMatch) {
-    for (const [listName, entries] of Object.entries(lists)) {
-      for (const entry of entries) {
-        // Optimization: Lazy-cache lowercased string properties to prevent string lowercasing allocations in hot loops
+      // 2. Screen wallet address as a name/alias/address
+      if (settings.fuzzyMatch) {
         const entryNameLower = (entry.nameLower ??= entry.name.toLowerCase());
-
-        // Track best score and field directly to avoid array allocations & redundant calculations
-        let bestScore = combinedSimilarityLower(targetLower, entryNameLower);
+        let bestScore = combinedSimilarityLower(targetLower, entryNameLower, settings.fuzzyTolerance);
         let bestField = 'name';
 
-        // Compare against aliases
         if (settings.matchAliases) {
           const aliasesLower = (entry.aliasesLower ??= entry.aliases.map(a => a.toLowerCase()));
           for (let i = 0; i < aliasesLower.length; i++) {
-            const score = combinedSimilarityLower(targetLower, aliasesLower[i]);
+            const thresh = bestScore > settings.fuzzyTolerance ? bestScore : settings.fuzzyTolerance;
+            const score = combinedSimilarityLower(targetLower, aliasesLower[i], thresh);
             if (score > bestScore) {
               bestScore = score;
               bestField = 'alias';
@@ -318,11 +339,11 @@ export function screenSanctions(
           }
         }
 
-        // Compare against addresses
         if (settings.matchAddresses) {
           const addressesLower = (entry.addressesLower ??= entry.addresses.map(a => a.toLowerCase()));
           for (let i = 0; i < addressesLower.length; i++) {
-            const score = combinedSimilarityLower(targetLower, addressesLower[i]);
+            const thresh = bestScore > settings.fuzzyTolerance ? bestScore : settings.fuzzyTolerance;
+            const score = combinedSimilarityLower(targetLower, addressesLower[i], thresh);
             if (score > bestScore) {
               bestScore = score;
               bestField = 'address';
@@ -342,16 +363,9 @@ export function screenSanctions(
           });
         }
       }
-    }
-  }
 
-  // Screen beneficial owner name if provided
-  if (beneficialOwner && beneficialOwner.trim()) {
-    const boTrimmedLower = beneficialOwner.toLowerCase().trim();
-    const boLower = beneficialOwner.toLowerCase();
-
-    for (const [listName, entries] of Object.entries(lists)) {
-      for (const entry of entries) {
+      // 3. Screen beneficial owner name if provided
+      if (hasBo) {
         let score = 0;
         let matchField: string = 'name';
         const entryNameLower = (entry.nameLower ??= entry.name.toLowerCase());
@@ -360,14 +374,12 @@ export function screenSanctions(
           score = 1.0;
           matchField = 'name';
         } else if (settings.fuzzyMatch) {
-          // Try Jaro-Winkler with lowercased inputs
           const jw = jaroWinklerSimilarity(boLower, entryNameLower);
           if (jw >= settings.fuzzyTolerance) {
             score = jw;
             matchField = 'name';
           }
 
-          // Try alias matching
           if (settings.matchAliases && !score) {
             const aliasesLower = (entry.aliasesLower ??= entry.aliases.map(a => a.toLowerCase()));
             for (let i = 0; i < aliasesLower.length; i++) {
@@ -379,8 +391,7 @@ export function screenSanctions(
             }
           }
 
-          // Try partial match
-          if (!score && partialNameMatch(beneficialOwner, entry.name)) {
+          if (!score && partialNameMatch(beneficialOwner!, entry.name)) {
             score = 0.75;
             matchField = 'name';
           }
