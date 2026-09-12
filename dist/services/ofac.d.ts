@@ -30,6 +30,10 @@ export interface SanctionedEntry {
     nationalIds: string[];
     birthdates: string[];
     lastUpdated: string;
+    nameLower?: string;
+    aliasesLower?: string[];
+    addressesLower?: string[];
+    nationalIdsLower?: string[];
 }
 export interface SanctionsList {
     name: string;

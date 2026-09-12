@@ -35,8 +35,12 @@ export class InMemoryCache {
      * Set a value in the cache with TTL
      */
     set(key, value, ttl) {
-        // Evict if at capacity
-        if (this.store.size >= this.maxSize) {
+        // Performance optimization: Delete existing key first to refresh insertion order
+        // and prevent premature eviction of valid keys when updating an existing entry at capacity.
+        if (this.store.has(key)) {
+            this.store.delete(key);
+        }
+        else if (this.store.size >= this.maxSize) {
             this.evictOldest();
         }
         this.store.set(key, {

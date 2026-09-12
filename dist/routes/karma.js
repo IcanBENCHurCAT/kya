@@ -1,11 +1,16 @@
 import { Hono } from 'hono';
+import { isValidAddress } from 'algosdk';
 import { defaultKarmaService } from '../services/karma.js';
+const MAX_STRING_LENGTH = 255;
 export function createKarmaRoutes(karmaService = defaultKarmaService) {
     const karmaApp = new Hono();
     const handleGetKarma = async (c) => {
         const address = c.req.param('address');
         if (!address) {
             return c.json({ error: 'Address parameter is required' }, 400);
+        }
+        if (!isValidAddress(address)) {
+            return c.json({ error: 'Invalid Algorand address format' }, 400);
         }
         const record = await karmaService.getProfile(address);
         return c.json({
@@ -21,10 +26,22 @@ export function createKarmaRoutes(karmaService = defaultKarmaService) {
     const handlePostKarmaEvent = async (c) => {
         const body = await c.req.json().catch(() => ({}));
         const { agentAddress, eventType, amount, reason, txid } = body;
+        // Security: Validate required parameters and strictly enforce finite, positive amount
+        // to prevent NaN score corruption, negative credits/debits, and overflow exploits.
         if (!agentAddress ||
+            !isValidAddress(agentAddress) ||
             !eventType ||
             typeof amount !== 'number' ||
+            !Number.isFinite(amount) ||
+            amount <= 0 ||
             !['credit', 'debit', 'emit', 'CREDIT', 'DEBIT', 'EMIT'].includes(eventType)) {
+            return c.json({ error: 'Invalid parameters' }, 400);
+        }
+        // Security: Validate optional reason and txid types and bounds to prevent DoS / payload injection
+        if (reason !== undefined && (typeof reason !== 'string' || reason.length > MAX_STRING_LENGTH)) {
+            return c.json({ error: 'Invalid parameters' }, 400);
+        }
+        if (txid !== undefined && (typeof txid !== 'string' || txid.length > MAX_STRING_LENGTH)) {
             return c.json({ error: 'Invalid parameters' }, 400);
         }
         const record = await karmaService.recordEvent({

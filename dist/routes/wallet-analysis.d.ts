@@ -9,6 +9,6 @@
  *   GET    /api/v1/wallet/graph              — Full graph stats
  *   GET    /api/v1/wallet/health             — Algorand RPC health
  */
-import { Hono } from 'hono';
+import { Hono } from "hono";
 declare const app: Hono<import("hono/types").BlankEnv, import("hono/types").BlankSchema, "/">;
 export default app;

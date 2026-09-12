@@ -50,7 +50,7 @@ export interface ScreeningConfig {
 /**
  * Combined similarity score.
  */
-export declare function combinedSimilarity(a: string, b: string): number;
+export declare function combinedSimilarity(a: string, b: string, threshold?: number): number;
 /**
  * Screen a wallet address or identity against sanctions lists.
  *

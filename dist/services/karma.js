@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 export class InMemoryKarmaStore {
     profiles = new Map();
@@ -63,16 +64,18 @@ export class KarmaService {
     async getProfile(address) {
         if (this.supabase) {
             try {
-                const profileRes = await withTimeout(this.supabase
-                    .from('agent_profiles')
-                    .select('*')
-                    .eq('agent_address', address)
-                    .single(), 1000);
-                const eventsRes = await withTimeout(this.supabase
-                    .from('karma_events')
-                    .select('*')
-                    .eq('agent_address', address)
-                    .order('timestamp', { ascending: true }), 1000);
+                const [profileRes, eventsRes] = await Promise.all([
+                    withTimeout(this.supabase
+                        .from('agent_profiles')
+                        .select('*')
+                        .eq('agent_address', address)
+                        .single(), 1000),
+                    withTimeout(this.supabase
+                        .from('karma_events')
+                        .select('*')
+                        .eq('agent_address', address)
+                        .order('timestamp', { ascending: true }), 1000),
+                ]);
                 const profile = profileRes?.data;
                 const events = eventsRes?.data;
                 if (profile) {
@@ -141,7 +144,8 @@ export class KarmaService {
         const newTier = this.calculateTier(newScore);
         const now = new Date().toISOString();
         const event = {
-            id: `evt_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+            // Use cryptographically secure randomUUID for event identifiers
+            id: `evt_${Date.now()}_${randomUUID()}`,
             agentAddress,
             eventType: normalizedType,
             amount,
@@ -151,21 +155,23 @@ export class KarmaService {
         };
         if (this.supabase) {
             try {
-                await withTimeout(this.supabase.from('karma_events').insert({
-                    id: event.id,
-                    agent_address: agentAddress,
-                    event_type: normalizedType,
-                    amount,
-                    reason: event.reason,
-                    txid,
-                    timestamp: now,
-                }), 1000);
-                await withTimeout(this.supabase.from('agent_profiles').upsert({
-                    agent_address: agentAddress,
-                    karma_score: newScore,
-                    tier: newTier,
-                    last_updated: now,
-                }), 1000);
+                await Promise.all([
+                    withTimeout(this.supabase.from('karma_events').insert({
+                        id: event.id,
+                        agent_address: agentAddress,
+                        event_type: normalizedType,
+                        amount,
+                        reason: event.reason,
+                        txid,
+                        timestamp: now,
+                    }), 1000),
+                    withTimeout(this.supabase.from('agent_profiles').upsert({
+                        agent_address: agentAddress,
+                        karma_score: newScore,
+                        tier: newTier,
+                        last_updated: now,
+                    }), 1000),
+                ]);
             }
             catch {
                 // Fallback to in-memory store

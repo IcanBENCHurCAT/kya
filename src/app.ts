@@ -57,7 +57,7 @@ app.get('/', (c) => {
   if (c.req.header('accept')?.includes('application/json')) {
     return c.json({ name: 'KYA Service — Trust Infrastructure for AI Agents', status: 'ok', discovery: { x402: '/.well-known/x402.json', agentCard: '/.well-known/agent-card.json', health: '/health' } });
   }
-  return c.html(`<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>KYA Service</title><style>
+  return c.html(`<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>KYA Service — Trust Infrastructure for AI Agents</title><style>
 body{font-family:system-ui,-apple-system,sans-serif;background:#0f172a;color:#f8fafc;margin:0;padding:2rem 1rem;line-height:1.5}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border-width:0}
 .sr-only:focus{position:static;width:auto;height:auto;padding:.5rem;background:#38bdf8;color:#0f172a;font-weight:600;border-radius:.25rem;display:inline-block;margin-bottom:1rem}
@@ -104,7 +104,7 @@ a:focus-visible{outline:2px solid #38bdf8;outline-offset:3px}
 .discovery-nav li{margin-bottom:.25rem}
 .discovery-nav a{color:#38bdf8;text-decoration:none;font-weight:500}
 .discovery-nav a:hover{text-decoration:underline}
-</style></head><body><a href="#main-content" class="sr-only">Skip to main content</a><main id="main-content"><h1>404 — Page Not Found</h1><p>The requested endpoint or page does not exist on this service.</p><a href="/" aria-label="Return to KYA Service landing page" class="btn-primary">Return to Landing Page</a><nav aria-label="Active discovery endpoints" class="discovery-nav"><h2>Quick discovery endpoints:</h2><ul><li><a href="/health" aria-label="View health check status">/health</a> — Service Health</li><li><a href="/.well-known/x402.json" aria-label="View x402 merchant discovery metadata">/.well-known/x402.json</a> — x402 Merchant Metadata</li></ul></nav></main></body></html>`, 404);
+</style></head><body><a href="#main-content" class="sr-only">Skip to main content</a><main id="main-content"><h1>404 — Page Not Found</h1><p>The requested endpoint or page does not exist on this service.</p><a href="/" aria-label="Return to KYA Service landing page" class="btn-primary">Return to Landing Page</a><nav aria-label="Active discovery endpoints" class="discovery-nav"><h2>Quick discovery endpoints:</h2><ul><li><a href="/health" aria-label="View health check status">/health</a> — Service Health</li><li><a href="/.well-known/x402.json" aria-label="View x402 merchant discovery metadata">/.well-known/x402.json</a> — x402 Merchant Metadata</li><li><a href="/.well-known/agent-card.json" aria-label="View A2A Agent Card manifest">/.well-known/agent-card.json</a> — Agent Card Manifest</li></ul></nav></main></body></html>`, 404);
 });
 
 // ─── x402 Merchant Metadata & Bazaar Discovery Endpoints ───────────────

@@ -125,7 +125,7 @@ app.post('/api/v1/screen', async (c) => {
  */
 app.post('/api/v1/screen/bulk', async (c) => {
     const { WATCHLIST, SCREENING_CONFIG } = c.env;
-    const body = await c.req.json();
+    const body = await c.req.json().catch(() => ({}));
     const targets = body.targets;
     if (!Array.isArray(targets) || targets.length === 0) {
         return c.json({ error: 'targets array is required and must be non-empty' }, 400);

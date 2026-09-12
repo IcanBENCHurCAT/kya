@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { isValidAddress } from 'algosdk';
 import { defaultZKPVerifierService } from '../services/zkp.js';
 export function createZKProofRoutes(zkpService = defaultZKPVerifierService) {
     const zkApp = new Hono();
@@ -6,6 +7,9 @@ export function createZKProofRoutes(zkpService = defaultZKPVerifierService) {
         const body = (await c.req.json().catch(() => ({})));
         if (!body || !body.agentAddress) {
             return c.json({ success: false, error: 'agentAddress is required' }, 400);
+        }
+        if (!isValidAddress(body.agentAddress)) {
+            return c.json({ success: false, error: 'Invalid Algorand address format' }, 400);
         }
         const result = await zkpService.verifyProof(body);
         if (!result.valid) {
