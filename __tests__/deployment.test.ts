@@ -14,7 +14,7 @@ describe('Phase 4 Deployment & Gateway Ingress Tests', () => {
       expect(res.headers.get('content-type')).toContain('text/html');
       const html = await res.text();
       expect(html).toContain('<main');
-      expect(html).toContain('KYA Service');
+      expect(html).toContain('KYA Service — Trust Infrastructure for AI Agents');
       expect(html).toContain('aria-label=');
       expect(html).toContain('role="status"');
     });
@@ -64,6 +64,7 @@ describe('Phase 4 Deployment & Gateway Ingress Tests', () => {
       expect(html).toContain('aria-label="Active discovery endpoints"');
       expect(html).toContain('href="/health"');
       expect(html).toContain('href="/.well-known/x402.json"');
+      expect(html).toContain('href="/.well-known/agent-card.json"');
     });
 
     it('should return JSON error response for unknown routes when Accept: application/json', async () => {

@@ -10,6 +10,7 @@
  * GET  /verify/methods           — List available verification methods
  */
 import { Hono } from "hono";
+import { isValidAddress } from "algosdk";
 export function createVerificationRoutes(verificationService) {
     const router = new Hono();
     // -----------------------------------------------------------------------
@@ -23,8 +24,8 @@ export function createVerificationRoutes(verificationService) {
             if (!body.email || !body.walletAddress) {
                 return c.json({ error: "email and walletAddress are required" }, 400);
             }
-            // Validate wallet address format (Algorand base32, 58 chars)
-            if (!/^[RPXAZ][23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{56}$/.test(body.walletAddress)) {
+            // Validate wallet address format
+            if (!isValidAddress(body.walletAddress)) {
                 return c.json({ error: "Invalid wallet address format (expected Algorand base32)" }, 400);
             }
             const { attemptId } = await verificationService.initiateVerification({
@@ -58,6 +59,10 @@ export function createVerificationRoutes(verificationService) {
             if (!/^\d{6}$/.test(body.code)) {
                 return c.json({ error: "Code must be a 6-digit number" }, 400);
             }
+            // Validate wallet address format
+            if (!isValidAddress(body.walletAddress)) {
+                return c.json({ error: "Invalid wallet address format (expected Algorand base32)" }, 400);
+            }
             const result = await verificationService.completeVerification({
                 attemptId: body.attemptId,
                 code: body.code,
@@ -80,8 +85,7 @@ export function createVerificationRoutes(verificationService) {
     router.get("/verify/wallet/:address", async (c) => {
         try {
             const walletAddress = c.req.param("address");
-            if (!walletAddress ||
-                !/^[RPXAZ][23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{56}$/.test(walletAddress)) {
+            if (!walletAddress || !isValidAddress(walletAddress)) {
                 return c.json({ error: "Invalid wallet address format" }, 400);
             }
             const result = await verificationService.checkVerification(walletAddress);

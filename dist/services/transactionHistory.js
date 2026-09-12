@@ -108,82 +108,82 @@ export class TransactionHistoryService {
     aggregateTransactions(address, transactions) {
         const incoming = [];
         const outgoing = [];
-        for (const tx of transactions) {
+        let totalReceived = 0;
+        let totalSent = 0;
+        let firstSeenRound = Infinity;
+        let lastSeenRound = -Infinity;
+        const counterpartyMap = new Map();
+        const assetMap = new Map();
+        // Optimization: Single pass through transactions to collect totals, counterparties,
+        // min/max rounds, and asset stats simultaneously instead of multi-pass iteration and Math.min/max spread.
+        for (let i = 0; i < transactions.length; i++) {
+            const tx = transactions[i];
+            if (tx.round < firstSeenRound)
+                firstSeenRound = tx.round;
+            if (tx.round > lastSeenRound)
+                lastSeenRound = tx.round;
             if (tx.type === 'received') {
                 incoming.push(tx);
+                totalReceived += tx.amount;
+                const sender = tx.sender;
+                if (sender !== address) {
+                    const existing = counterpartyMap.get(sender);
+                    if (existing) {
+                        existing.interactionCount++;
+                        existing.totalReceived += tx.amount;
+                        if (tx.round < existing.firstInteractionRound) {
+                            existing.firstInteractionRound = tx.round;
+                        }
+                        if (tx.round > existing.lastInteractionRound) {
+                            existing.lastInteractionRound = tx.round;
+                        }
+                        existing.interactionTypes.received++;
+                    }
+                    else {
+                        counterpartyMap.set(sender, {
+                            address: sender,
+                            interactionCount: 1,
+                            totalReceived: tx.amount,
+                            totalSent: 0,
+                            netFlow: tx.amount,
+                            firstInteractionRound: tx.round,
+                            lastInteractionRound: tx.round,
+                            interactionTypes: { sent: 0, received: 1, assetTransfer: 0 },
+                        });
+                    }
+                }
             }
             else {
                 outgoing.push(tx);
-            }
-        }
-        const totalReceived = incoming.reduce((sum, tx) => sum + tx.amount, 0);
-        const totalSent = outgoing.reduce((sum, tx) => sum + tx.amount, 0);
-        // Compute counterparty stats
-        const counterpartyMap = new Map();
-        for (const tx of incoming) {
-            const sender = tx.sender;
-            if (sender === address)
-                continue; // Skip self-transfers
-            const existing = counterpartyMap.get(sender);
-            if (existing) {
-                existing.interactionCount++;
-                existing.totalReceived += tx.amount;
-                if (tx.round < existing.firstInteractionRound) {
-                    existing.firstInteractionRound = tx.round;
+                totalSent += tx.amount;
+                const receiver = tx.receiver || tx.assetTransfer?.receiver;
+                if (receiver && receiver !== address) {
+                    const existing = counterpartyMap.get(receiver);
+                    if (existing) {
+                        existing.interactionCount++;
+                        existing.totalSent += tx.amount;
+                        if (tx.round < existing.firstInteractionRound) {
+                            existing.firstInteractionRound = tx.round;
+                        }
+                        if (tx.round > existing.lastInteractionRound) {
+                            existing.lastInteractionRound = tx.round;
+                        }
+                        existing.interactionTypes.sent++;
+                    }
+                    else {
+                        counterpartyMap.set(receiver, {
+                            address: receiver,
+                            interactionCount: 1,
+                            totalReceived: 0,
+                            totalSent: tx.amount,
+                            netFlow: -tx.amount,
+                            firstInteractionRound: tx.round,
+                            lastInteractionRound: tx.round,
+                            interactionTypes: { sent: 1, received: 0, assetTransfer: 0 },
+                        });
+                    }
                 }
-                if (tx.round > existing.lastInteractionRound) {
-                    existing.lastInteractionRound = tx.round;
-                }
-                existing.interactionTypes.received++;
             }
-            else {
-                counterpartyMap.set(sender, {
-                    address: sender,
-                    interactionCount: 1,
-                    totalReceived: tx.amount,
-                    totalSent: 0,
-                    netFlow: tx.amount,
-                    firstInteractionRound: tx.round,
-                    lastInteractionRound: tx.round,
-                    interactionTypes: { sent: 0, received: 1, assetTransfer: 0 },
-                });
-            }
-        }
-        for (const tx of outgoing) {
-            const receiver = tx.receiver || tx.assetTransfer?.receiver;
-            if (!receiver || receiver === address)
-                continue;
-            const existing = counterpartyMap.get(receiver);
-            if (existing) {
-                existing.interactionCount++;
-                existing.totalSent += tx.amount;
-                if (tx.round < existing.firstInteractionRound) {
-                    existing.firstInteractionRound = tx.round;
-                }
-                if (tx.round > existing.lastInteractionRound) {
-                    existing.lastInteractionRound = tx.round;
-                }
-                existing.interactionTypes.sent++;
-            }
-            else {
-                counterpartyMap.set(receiver, {
-                    address: receiver,
-                    interactionCount: 1,
-                    totalReceived: 0,
-                    totalSent: tx.amount,
-                    netFlow: -tx.amount,
-                    firstInteractionRound: tx.round,
-                    lastInteractionRound: tx.round,
-                    interactionTypes: { sent: 1, received: 0, assetTransfer: 0 },
-                });
-            }
-        }
-        // Sort by interaction count (descending)
-        const topCounterparties = Array.from(counterpartyMap.values())
-            .sort((a, b) => b.interactionCount - a.interactionCount);
-        // Compute asset stats
-        const assetMap = new Map();
-        for (const tx of transactions) {
             if (tx.assetTransfer) {
                 const assetId = tx.assetTransfer.assetId;
                 const existing = assetMap.get(assetId);
@@ -200,6 +200,13 @@ export class TransactionHistoryService {
                 }
             }
         }
+        if (firstSeenRound === Infinity)
+            firstSeenRound = 0;
+        if (lastSeenRound === -Infinity)
+            lastSeenRound = 0;
+        // Sort by interaction count (descending)
+        const topCounterparties = Array.from(counterpartyMap.values())
+            .sort((a, b) => b.interactionCount - a.interactionCount);
         const topAssets = Array.from(assetMap.values()).sort((a, b) => b.totalTransfers - a.totalTransfers);
         return {
             address,
@@ -209,12 +216,8 @@ export class TransactionHistoryService {
             totalReceived,
             totalSent,
             netBalance: totalReceived - totalSent,
-            firstSeenRound: transactions.length
-                ? Math.min(...transactions.map((tx) => tx.round))
-                : 0,
-            lastSeenRound: transactions.length
-                ? Math.max(...transactions.map((tx) => tx.round))
-                : 0,
+            firstSeenRound,
+            lastSeenRound,
             transactions,
             topCounterparties,
             topAssets,

@@ -9,12 +9,13 @@
  *   GET    /api/v1/wallet/graph              — Full graph stats
  *   GET    /api/v1/wallet/health             — Algorand RPC health
  */
-import { Hono } from 'hono';
-import { AlgorandClient } from '../algorand/client.js';
-import { TransactionHistoryService } from '../services/transactionHistory.js';
-import { SiblingDiscoveryService } from '../services/siblingDiscovery.js';
-import { WalletGraph } from '../graph/walletGraph.js';
-import { InMemoryCache } from '../cache/inMemoryCache.js';
+import { Hono } from "hono";
+import { isValidAddress } from "algosdk";
+import { AlgorandClient } from "../algorand/client.js";
+import { TransactionHistoryService } from "../services/transactionHistory.js";
+import { SiblingDiscoveryService } from "../services/siblingDiscovery.js";
+import { WalletGraph } from "../graph/walletGraph.js";
+import { InMemoryCache } from "../cache/inMemoryCache.js";
 const app = new Hono();
 // Shared instances (initialized lazily)
 let _client = null;
@@ -53,26 +54,31 @@ function getAlgorandCache() {
     return _algorandCache;
 }
 // ─── Health check ──────────────────────────────────────────────────
-app.get('/api/v1/wallet/health', async (c) => {
+const handleWalletHealth = async (c) => {
     try {
         const client = getClient();
         const status = await client.getNetworkParams();
         return c.json({
-            status: 'ok',
+            status: "ok",
             network: client.network,
             lastRound: status.lastRound,
         });
     }
     catch (err) {
         return c.json({
-            status: 'degraded',
+            status: "degraded",
             error: err instanceof Error ? err.message : String(err),
         }, 503);
     }
-});
+};
+app.get("/wallet/health", handleWalletHealth);
+app.get("/api/v1/wallet/health", handleWalletHealth);
 // ─── Wallet info (basic profile) ───────────────────────────────────
-app.get('/api/v1/wallet/:address', async (c) => {
-    const address = c.req.param('address');
+const handleWalletInfo = async (c) => {
+    const address = c.req.param("address");
+    if (!address || !isValidAddress(address)) {
+        return c.json({ error: "Invalid Algorand address format" }, 400);
+    }
     try {
         const client = getClient();
         const info = await client.getAccountInfo(address);
@@ -90,17 +96,23 @@ app.get('/api/v1/wallet/:address', async (c) => {
         });
     }
     catch (err) {
+        console.error(`Error fetching account info for ${address}:`, err);
         return c.json({
             address,
-            error: err instanceof Error ? err.message : String(err),
+            error: "Wallet information not found or unavailable",
         }, 404);
     }
-});
+};
+app.get("/wallet/:address", handleWalletInfo);
+app.get("/api/v1/wallet/:address", handleWalletInfo);
 // ─── Transaction history ───────────────────────────────────────────
-app.get('/api/v1/wallet/:address/txs', async (c) => {
-    const address = c.req.param('address');
-    const limit = parseInt(c.req.query('limit') || '100', 10);
-    const force = c.req.query('force') === 'true';
+const handleWalletTxs = async (c) => {
+    const address = c.req.param("address");
+    if (!address || !isValidAddress(address)) {
+        return c.json({ error: "Invalid Algorand address format" }, 400);
+    }
+    const limit = parseInt(c.req.query("limit") || "100", 10);
+    const force = c.req.query("force") === "true";
     try {
         const service = getHistory();
         const history = await service.getTransactionHistory(address, {
@@ -126,19 +138,27 @@ app.get('/api/v1/wallet/:address/txs', async (c) => {
         });
     }
     catch (err) {
+        console.error(`Error fetching transaction history for ${address}:`, err);
         return c.json({
             address,
-            error: err instanceof Error ? err.message : String(err),
+            error: "Failed to retrieve transaction history",
         }, 500);
     }
-});
+};
+app.get("/wallet/:address/txs", handleWalletTxs);
+app.get("/api/v1/wallet/:address/txs", handleWalletTxs);
 // ─── Sibling discovery ─────────────────────────────────────────────
-app.get('/api/v1/wallet/:address/siblings', async (c) => {
-    const address = c.req.param('address');
+const handleWalletSiblings = async (c) => {
+    const address = c.req.param("address");
+    if (!address || !isValidAddress(address)) {
+        return c.json({ error: "Invalid Algorand address format" }, 400);
+    }
     try {
         // First get transaction history
         const service = getHistory();
-        const history = await service.getTransactionHistory(address, { limit: 500 });
+        const history = await service.getTransactionHistory(address, {
+            limit: 500,
+        });
         // Discover siblings
         const discovery = getDiscovery();
         const siblings = discovery.discoverSiblings(address, history.transactions, history.topCounterparties);
@@ -152,15 +172,21 @@ app.get('/api/v1/wallet/:address/siblings', async (c) => {
         });
     }
     catch (err) {
+        console.error(`Error discovering siblings for ${address}:`, err);
         return c.json({
             address,
-            error: err instanceof Error ? err.message : String(err),
+            error: "Failed to discover sibling wallets",
         }, 500);
     }
-});
+};
+app.get("/wallet/:address/siblings", handleWalletSiblings);
+app.get("/api/v1/wallet/:address/siblings", handleWalletSiblings);
 // ─── Wallet graph query ────────────────────────────────────────────
-app.get('/api/v1/wallet/:address/graph', async (c) => {
-    const address = c.req.param('address');
+const handleWalletGraph = async (c) => {
+    const address = c.req.param("address");
+    if (!address || !isValidAddress(address)) {
+        return c.json({ error: "Invalid Algorand address format" }, 400);
+    }
     try {
         const graph = getGraph();
         const related = graph.getRelatedWallets(address);
@@ -171,13 +197,16 @@ app.get('/api/v1/wallet/:address/graph', async (c) => {
         });
     }
     catch (err) {
+        console.error(`Error querying graph for ${address}:`, err);
         return c.json({
             address,
-            error: err instanceof Error ? err.message : String(err),
+            error: "Failed to query wallet graph",
         }, 500);
     }
-});
-app.get('/api/v1/wallet/graph', async (c) => {
+};
+app.get("/wallet/:address/graph", handleWalletGraph);
+app.get("/api/v1/wallet/:address/graph", handleWalletGraph);
+const handleFullGraph = async (c) => {
     try {
         const graph = getGraph();
         const stats = graph.getStats();
@@ -193,5 +222,7 @@ app.get('/api/v1/wallet/graph', async (c) => {
     catch (err) {
         return c.json({ error: err instanceof Error ? err.message : String(err) }, 500);
     }
-});
+};
+app.get("/wallet/graph", handleFullGraph);
+app.get("/api/v1/wallet/graph", handleFullGraph);
 export default app;

@@ -5,6 +5,8 @@
 import { VerificationClaim } from "./types.js";
 export declare class InMemoryClaimStore {
     private claims;
+    private byWallet;
+    private byIdentityHash;
     createClaim(claim: Omit<VerificationClaim, "id" | "createdAt" | "updatedAt">): Promise<VerificationClaim>;
     findByWallet(walletAddress: string): Promise<VerificationClaim | null>;
     findAllForWallet(walletAddress: string): Promise<VerificationClaim[]>;
