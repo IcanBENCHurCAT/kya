@@ -122,6 +122,9 @@ describe('A2A Pre-Flight Handshake & W3C VC Engine', () => {
   });
 
   describe('REST Endpoint POST /api/v1/a2a/handshake', () => {
+    const validInitiator = 'W5IRXJWPSXNUJVSN2MOEJGTDGKUGFKUDVPTR5ZQVMDG5O4KYD5M3QPG3TE';
+    const validTarget = 'KBWP7FHVYOKPNQOH7X3MLL6BHRK33WUNPHP3ZLY4JWPEGNXLNB3SNPBY6E';
+
     it('should return HTTP 402 Payment Required if X-Payment header is missing', async () => {
       const res = await app.request('/api/v1/a2a/handshake', {
         method: 'POST',
@@ -129,8 +132,8 @@ describe('A2A Pre-Flight Handshake & W3C VC Engine', () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          initiatorAddress: 'INITIATOR_REST',
-          targetAddress: 'TARGET_REST',
+          initiatorAddress: validInitiator,
+          targetAddress: validTarget,
         }),
       });
 
@@ -147,8 +150,8 @@ describe('A2A Pre-Flight Handshake & W3C VC Engine', () => {
           'X-Payment': 'tx_a2a_handshake_123',
         },
         body: JSON.stringify({
-          initiatorAddress: 'INITIATOR_REST',
-          targetAddress: 'TARGET_REST',
+          initiatorAddress: validInitiator,
+          targetAddress: validTarget,
           minKarmaScore: 100,
         }),
       });
@@ -157,7 +160,7 @@ describe('A2A Pre-Flight Handshake & W3C VC Engine', () => {
       const json = await res.json();
       expect(json.success).toBe(true);
       expect(json.decision).toBe('PROCEED');
-      expect(json.targetProfile.agentAddress).toBe('TARGET_REST');
+      expect(json.targetProfile.agentAddress).toBe(validTarget);
       expect(json.verifiableCredential).toBeDefined();
     });
 
@@ -169,7 +172,7 @@ describe('A2A Pre-Flight Handshake & W3C VC Engine', () => {
           'X-Payment': 'tx_a2a_handshake_400',
         },
         body: JSON.stringify({
-          initiatorAddress: 'INITIATOR_REST',
+          initiatorAddress: validInitiator,
         }),
       });
 
@@ -186,7 +189,7 @@ describe('A2A Pre-Flight Handshake & W3C VC Engine', () => {
           'X-Payment': 'tx_a2a_handshake_long',
         },
         body: JSON.stringify({
-          initiatorAddress: 'INITIATOR_REST',
+          initiatorAddress: validInitiator,
           targetAddress: longAddress,
         }),
       });
@@ -197,6 +200,25 @@ describe('A2A Pre-Flight Handshake & W3C VC Engine', () => {
       expect(jsonLong.error).toBe('initiatorAddress and targetAddress are required');
     });
 
+    it('should return HTTP 400 if initiatorAddress or targetAddress is not a valid Algorand address', async () => {
+      const res = await app.request('/api/v1/a2a/handshake', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Payment': 'tx_a2a_handshake_invalid_addr',
+        },
+        body: JSON.stringify({
+          initiatorAddress: validInitiator,
+          targetAddress: 'invalid_algorand_address',
+        }),
+      });
+
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json.success).toBe(false);
+      expect(json.error).toBe('Invalid Algorand address format for initiatorAddress or targetAddress');
+    });
+
     it('should return HTTP 400 if minKarmaScore is not a number', async () => {
       const res = await app.request('/api/v1/a2a/handshake', {
         method: 'POST',
@@ -205,8 +227,8 @@ describe('A2A Pre-Flight Handshake & W3C VC Engine', () => {
           'X-Payment': 'tx_a2a_handshake_bad_score',
         },
         body: JSON.stringify({
-          initiatorAddress: 'INITIATOR_REST',
-          targetAddress: 'TARGET_REST',
+          initiatorAddress: validInitiator,
+          targetAddress: validTarget,
           minKarmaScore: 'not_a_number',
         }),
       });
