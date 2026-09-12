@@ -118,6 +118,10 @@ export function logError(message: string, metadata?: Record<string, unknown>): A
 
 /**
  * Get all audit entries, optionally filtered.
+ *
+ * Performance optimization:
+ * Combines filter criteria into a single pass and replaces localeCompare with fast ISO string
+ * relational comparisons (> / <), avoiding multi-pass array allocations and expensive ICU locale overhead.
  */
 export function getAuditLog(
   options: {
@@ -127,28 +131,32 @@ export function getAuditLog(
     result?: 'NO_MATCH_FOUND' | 'POTENTIAL_MATCH' | 'MATCH_REQUIRES_REVIEW' | 'ERROR';
   } = {},
 ): AuditEntry[] {
-  let entries = [...auditLog];
+  let entries: AuditEntry[];
 
-  if (options.after) {
-    const after = options.after;
-    entries = entries.filter(e => e.timestamp >= after);
-  }
-  if (options.before) {
-    const before = options.before;
-    entries = entries.filter(e => e.timestamp <= before);
-  }
-  if (options.result) {
-    entries = entries.filter(e => e.result === options.result);
+  if (options.after || options.before || options.result) {
+    entries = auditLog.filter(e => {
+      if (options.after && e.timestamp < options.after) return false;
+      if (options.before && e.timestamp > options.before) return false;
+      if (options.result && e.result !== options.result) return false;
+      return true;
+    });
+  } else {
+    entries = [...auditLog];
   }
 
-  // Sort by timestamp descending
-  entries.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+  // Sort by timestamp descending using fast ISO string relational comparisons
+  entries.sort((a, b) => (b.timestamp > a.timestamp ? 1 : b.timestamp < a.timestamp ? -1 : 0));
 
   return entries.slice(0, options.limit || 100);
 }
 
 /**
  * Get audit summary stats.
+ *
+ * Performance optimization:
+ * Single $O(N)$ pass directly over auditLog using ISO string comparison for the 24h cutoff.
+ * Eliminates $O(N \log N)$ localeCompare sorting, repeated .filter() array allocations,
+ * and Date object instantiations per log entry.
  */
 export function getAuditSummary(): {
   total: number;
@@ -158,19 +166,40 @@ export function getAuditSummary(): {
   errors: number;
   recentScreenings: number;
 } {
-  const entries = getAuditLog({ limit: 10000 });
-  const last24h = entries.filter(e => {
-    const ts = new Date(e.timestamp).getTime();
-    return ts > Date.now() - 24 * 60 * 60 * 1000;
-  });
+  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  let total = 0;
+  let noMatchFound = 0;
+  let potentialMatch = 0;
+  let requiresReview = 0;
+  let errors = 0;
+  let recentScreenings = 0;
+
+  for (let i = 0; i < auditLog.length; i++) {
+    const entry = auditLog[i];
+    total++;
+
+    if (entry.result === 'NO_MATCH_FOUND') {
+      noMatchFound++;
+    } else if (entry.result === 'POTENTIAL_MATCH') {
+      potentialMatch++;
+    } else if (entry.result === 'MATCH_REQUIRES_REVIEW') {
+      requiresReview++;
+    } else if (entry.result === 'ERROR') {
+      errors++;
+    }
+
+    if (entry.timestamp >= cutoff && entry.eventType === 'screening') {
+      recentScreenings++;
+    }
+  }
 
   return {
-    total: entries.length,
-    noMatchFound: entries.filter(e => e.result === 'NO_MATCH_FOUND').length,
-    potentialMatch: entries.filter(e => e.result === 'POTENTIAL_MATCH').length,
-    requiresReview: entries.filter(e => e.result === 'MATCH_REQUIRES_REVIEW').length,
-    errors: entries.filter(e => e.result === 'ERROR').length,
-    recentScreenings: last24h.filter(e => e.eventType === 'screening').length,
+    total,
+    noMatchFound,
+    potentialMatch,
+    requiresReview,
+    errors,
+    recentScreenings,
   };
 }
 
