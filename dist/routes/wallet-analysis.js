@@ -65,14 +65,36 @@ const handleWalletHealth = async (c) => {
         });
     }
     catch (err) {
+        console.error("Health check error:", err);
         return c.json({
             status: "degraded",
-            error: err instanceof Error ? err.message : String(err),
+            error: "Algorand node service unavailable",
         }, 503);
     }
 };
 app.get("/wallet/health", handleWalletHealth);
 app.get("/api/v1/wallet/health", handleWalletHealth);
+// ─── Full graph stats ──────────────────────────────────────────────
+const handleFullGraph = async (c) => {
+    try {
+        const graph = getGraph();
+        const stats = graph.getStats();
+        return c.json({
+            nodeCount: stats.nodeCount,
+            edgeCount: stats.edgeCount,
+            components: stats.components,
+            avgDegree: stats.avgDegree,
+            topNodes: graph.getAllNodes().slice(0, 20),
+            topEdges: graph.getAllEdges().slice(0, 20),
+        });
+    }
+    catch (err) {
+        console.error("Error querying full wallet graph:", err);
+        return c.json({ error: "Failed to query wallet graph statistics" }, 500);
+    }
+};
+app.get("/wallet/graph", handleFullGraph);
+app.get("/api/v1/wallet/graph", handleFullGraph);
 // ─── Wallet info (basic profile) ───────────────────────────────────
 const handleWalletInfo = async (c) => {
     const address = c.req.param("address");
@@ -206,23 +228,4 @@ const handleWalletGraph = async (c) => {
 };
 app.get("/wallet/:address/graph", handleWalletGraph);
 app.get("/api/v1/wallet/:address/graph", handleWalletGraph);
-const handleFullGraph = async (c) => {
-    try {
-        const graph = getGraph();
-        const stats = graph.getStats();
-        return c.json({
-            nodeCount: stats.nodeCount,
-            edgeCount: stats.edgeCount,
-            components: stats.components,
-            avgDegree: stats.avgDegree,
-            topNodes: graph.getAllNodes().slice(0, 20),
-            topEdges: graph.getAllEdges().slice(0, 20),
-        });
-    }
-    catch (err) {
-        return c.json({ error: err instanceof Error ? err.message : String(err) }, 500);
-    }
-};
-app.get("/wallet/graph", handleFullGraph);
-app.get("/api/v1/wallet/graph", handleFullGraph);
 export default app;
