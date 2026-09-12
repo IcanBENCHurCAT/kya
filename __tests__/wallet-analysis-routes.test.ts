@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { app } from "../src/app.js";
 import { resetX402Receipts } from "../src/middleware/x402.js";
 
@@ -63,6 +63,28 @@ describe("Algorand Wallet Analysis REST API Security Tests", () => {
       expect(res.status).toBe(200);
       const json = await res.json();
       expect(json.address).toBe(validAddress);
+    });
+  });
+
+  describe("Error Response Sanitization", () => {
+    it("should return sanitized generic error message when graph statistics query fails", async () => {
+      const { WalletGraph } = await import("../src/graph/walletGraph.js");
+      const spy = vi.spyOn(WalletGraph.prototype, "getStats").mockImplementationOnce(() => {
+        throw new Error("Internal DB connection failed: secret_path=/etc/shadow");
+      });
+
+      const res = await app.request("/api/v1/wallet/graph", {
+        method: "GET",
+        headers: { "X-Payment": "tx_wallet_test_err" },
+      });
+
+      expect(res.status).toBe(500);
+      const json = await res.json();
+      expect(json.error).toBe("Failed to query wallet graph statistics");
+      expect(json.error).not.toContain("secret_path");
+      expect(json.error).not.toContain("DB connection failed");
+
+      spy.mockRestore();
     });
   });
 });
