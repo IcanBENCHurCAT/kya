@@ -29,3 +29,7 @@
 ## 2025-03-09 - Single-Pass Audit Summary Aggregation & Fast ISO String Comparisons
 **Learning:** Computing summary stats by delegating to log query routines (`getAuditLog`) forces $O(N \log N)$ `String.prototype.localeCompare` sorting and creates 6+ temporary arrays via `.filter()` and `new Date().getTime()` date parsing per entry. In V8/Node.js, `localeCompare` invokes ICU locale algorithms which are ~30x slower than relational operators (`>` / `<`) on lexicographically orderable ISO 8601 strings.
 **Action:** Compute summary stats in a single $O(N)$ pass over log entries using direct string comparisons for ISO 8601 timestamps, and replace `localeCompare` with relational string operators (`> / <`) when sorting ISO timestamps.
+
+## 2025-03-10 - Secondary Indexing for InMemoryAttemptStore Rate Limit Queries
+**Learning:** `InMemoryAttemptStore.getRecentAttemptCount(identifier)` was performing an $O(N)$ linear scan over all stored verification attempts in `attempts.values()`. During high-volume OTP verification attempts, evaluating rate limit windows triggered repeated full map traversals.
+**Action:** Maintain a `byIdentifier` secondary index (`Map<string, Set<VerificationAttempt>>`) kept synchronized across `createAttempt`, `getAttempt`, `deleteAttempt`, `cleanupExpired`, and `clear`. Reduces `getRecentAttemptCount` lookup runtime from $O(N)$ to $O(1)$.
