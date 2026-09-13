@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { isValidAddress } from 'algosdk';
 import { A2AService, defaultA2AService, A2AHandshakeRequest } from '../services/a2a.js';
 import { ListRegistry } from '../services/watchlist-updater.js';
 
@@ -32,6 +33,16 @@ export function createA2ARoutes(a2aService: A2AService = defaultA2AService) {
         {
           success: false,
           error: 'initiatorAddress and targetAddress are required',
+        },
+        400
+      );
+    }
+
+    if (!isValidAddress(initiatorAddress.trim()) || !isValidAddress(targetAddress.trim())) {
+      return c.json(
+        {
+          success: false,
+          error: 'Invalid Algorand address format for initiatorAddress or targetAddress',
         },
         400
       );
