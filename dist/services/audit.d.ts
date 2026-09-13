@@ -51,6 +51,10 @@ export declare function logUpdate(details: {
 export declare function logError(message: string, metadata?: Record<string, unknown>): AuditEntry;
 /**
  * Get all audit entries, optionally filtered.
+ *
+ * Performance optimization:
+ * Combines filter criteria into a single pass and replaces localeCompare with fast ISO string
+ * relational comparisons (> / <), avoiding multi-pass array allocations and expensive ICU locale overhead.
  */
 export declare function getAuditLog(options?: {
     limit?: number;
@@ -60,6 +64,11 @@ export declare function getAuditLog(options?: {
 }): AuditEntry[];
 /**
  * Get audit summary stats.
+ *
+ * Performance optimization:
+ * Single $O(N)$ pass directly over auditLog using ISO string comparison for the 24h cutoff.
+ * Eliminates $O(N \log N)$ localeCompare sorting, repeated .filter() array allocations,
+ * and Date object instantiations per log entry.
  */
 export declare function getAuditSummary(): {
     total: number;
