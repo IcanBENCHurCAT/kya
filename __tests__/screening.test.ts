@@ -272,10 +272,11 @@ describe("Bulk Screening", () => {
     assert(results[1].status === "NO_MATCH_FOUND", "Second should pass");
   });
 
-  it("should validate bulk screening API input string lengths via Hono route", async () => {
+  it("should validate bulk screening API input string lengths and Algorand address format via Hono route", async () => {
     const app = (await import("../src/routes/screening.js")).default;
     const longAddress = "A".repeat(256);
-    const validAddress = "A".repeat(50);
+    const invalidAddress = "INVALID_ALGORAND_ADDRESS_STRING";
+    const validAddress = "EJV45NV63RXILAMNL4IRRLBJ2XDKDXJ4J4EH5TSGIUCKVDTMBVYQ53PYRU";
     const longOwner = "B".repeat(256);
 
     // Test address exceeds max length (255)
@@ -293,6 +294,22 @@ describe("Bulk Screening", () => {
     expect(res1.status).toBe(400);
     const body1 = await res1.json();
     expect(body1.error).toContain("Invalid target address");
+
+    // Test invalid Algorand address structure/checksum
+    const res1b = await app.request(
+      "/api/v1/screen/bulk",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          targets: [{ address: invalidAddress }],
+        }),
+      },
+      { WATCHLIST: testList },
+    );
+    expect(res1b.status).toBe(400);
+    const body1b = await res1b.json();
+    expect(body1b.error).toContain("Invalid target address");
 
     // Test beneficialOwner exceeds max length (255)
     const res2 = await app.request(
@@ -339,10 +356,11 @@ describe("Bulk Screening", () => {
     expect(body4.error).toContain("targets array is required");
   });
 
-  it("should validate single screening API input types, empty values, and string lengths", async () => {
+  it("should validate single screening API input types, empty values, invalid address format, and string lengths", async () => {
     const app = (await import("../src/routes/screening.js")).default;
     const longAddress = "A".repeat(256);
-    const validAddress = "A".repeat(50);
+    const invalidAddress = "NOT_A_VALID_ALG_ADDRESS";
+    const validAddress = "EJV45NV63RXILAMNL4IRRLBJ2XDKDXJ4J4EH5TSGIUCKVDTMBVYQ53PYRU";
     const longOwner = "B".repeat(256);
 
     // Test missing address / non-string address
@@ -370,6 +388,18 @@ describe("Bulk Screening", () => {
       { WATCHLIST: testList },
     );
     expect(res2.status).toBe(400);
+
+    // Test invalid Algorand address format
+    const res2b = await app.request(
+      "/api/v1/screen",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address: invalidAddress }),
+      },
+      { WATCHLIST: testList },
+    );
+    expect(res2b.status).toBe(400);
 
     // Test address exceeding max length
     const res3 = await app.request(
@@ -410,14 +440,15 @@ describe("Bulk Screening", () => {
     expect(res5.status).toBe(200);
   });
 
-  it("should validate register API input types, empty values, and string lengths", async () => {
+  it("should validate register API input types, empty values, invalid address format, and string lengths", async () => {
     const app = (await import("../src/routes/screening.js")).default;
-    const validAddress = "A".repeat(50);
+    const validAddress = "EJV45NV63RXILAMNL4IRRLBJ2XDKDXJ4J4EH5TSGIUCKVDTMBVYQ53PYRU";
+    const invalidAddress = "NOT_A_VALID_ALG_ADDRESS";
     const longAddress = "A".repeat(256);
     const validOwner = "John Doe";
     const longOwner = "B".repeat(256);
 
-    // Test invalid address
+    // Test invalid address length
     const res1 = await app.request(
       "/api/v1/register",
       {
@@ -429,6 +460,17 @@ describe("Bulk Screening", () => {
     expect(res1.status).toBe(400);
     const body1 = await res1.json();
     expect(body1.error).toContain("Invalid address");
+
+    // Test invalid address checksum/format
+    const res1b = await app.request(
+      "/api/v1/register",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address: invalidAddress, ownerName: validOwner }),
+      },
+    );
+    expect(res1b.status).toBe(400);
 
     // Test invalid ownerName
     const res2 = await app.request(
