@@ -33,3 +33,7 @@
 ## 2025-03-10 - Secondary Indexing for InMemoryAttemptStore Rate Limit Queries
 **Learning:** `InMemoryAttemptStore.getRecentAttemptCount(identifier)` was performing an $O(N)$ linear scan over all stored verification attempts in `attempts.values()`. During high-volume OTP verification attempts, evaluating rate limit windows triggered repeated full map traversals.
 **Action:** Maintain a `byIdentifier` secondary index (`Map<string, Set<VerificationAttempt>>`) kept synchronized across `createAttempt`, `getAttempt`, `deleteAttempt`, `cleanupExpired`, and `clear`. Reduces `getRecentAttemptCount` lookup runtime from $O(N)$ to $O(1)$.
+
+## 2025-03-11 - Single-Pass Deduplication & Dead Map Allocation Removal in Sibling Wallet Discovery
+**Learning:** In `SiblingDiscoveryService.discoverSiblings`, allocating unused maps (`senderToReceivers`) and per-transaction `Set` objects created tens of thousands of dead allocations per request without ever outputting associated wallets. Furthermore, performing post-pass array deduplication with a separate `Set` allocation created extra memory overhead.
+**Action:** Remove dead map/set tracking entirely and maintain a single `seenAddresses` set (pre-seeded with the target address) to deduplicate creator and counterparty siblings on insertion, eliminating dead allocations and post-processing array traversals.
