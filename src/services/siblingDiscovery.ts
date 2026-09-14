@@ -45,25 +45,24 @@ export class SiblingDiscoveryService {
       return cached;
     }
 
-    const siblings: SiblingWallet[] = [];
+    const uniqueSiblings: SiblingWallet[] = [];
 
-    // We will do a single pass over the transactions
-    const counterpartyMap = new Map<
-      string,
-      { count: number; firstRound: number; lastRound: number; value: number }
-    >();
-    const seenCreators = new Set<string>();
-    const seenDeployers = new Set<string>();
-    const senderToReceivers = new Map<
-      string,
-      { receivers: Set<string>; count: number; round: number }
-    >();
+    // Optimization: Maintain a single seenAddresses set initialized with the target address.
+    // Prevents duplicate allocations (Objects, Maps, Sets) and avoids extra deduplication passes.
+    const seenAddresses = new Set<string>([address]);
 
-    const excludeSet = new Set([address]);
+    const counterpartyMap = counterpartyStats
+      ? null
+      : new Map<
+          string,
+          { count: number; firstRound: number; lastRound: number; value: number }
+        >();
 
-    for (const tx of transactions) {
-      // 1. Frequent counterparties logic
-      if (!counterpartyStats) {
+    for (let i = 0; i < transactions.length; i++) {
+      const tx = transactions[i];
+
+      // 1. Frequent counterparties aggregation (if not pre-calculated)
+      if (counterpartyMap) {
         const counterparty = tx.type === "sent" ? tx.receiver : tx.sender;
         if (counterparty && counterparty !== address) {
           const existing = counterpartyMap.get(counterparty);
@@ -86,34 +85,27 @@ export class SiblingDiscoveryService {
       // 2. Creator wallets logic
       if (tx.assetTransfer) {
         if (tx.assetTransfer.sender === address) {
-          if (
-            tx.assetTransfer.receiver &&
-            tx.assetTransfer.receiver !== address
-          ) {
-            if (!seenCreators.has(tx.assetTransfer.receiver)) {
-              seenCreators.add(tx.assetTransfer.receiver);
-              siblings.push({
-                address: tx.assetTransfer.receiver,
-                relationshipType: "creator",
-                confidence: 0.85,
-                reason:
-                  "Asset creator wallet for a wallet created by this address",
-                interactionCount: 1,
-                firstSeenRound: tx.round,
-                lastSeenRound: tx.round,
-                totalValueTransferred: tx.amount,
-              });
-            }
+          const receiver = tx.assetTransfer.receiver;
+          if (receiver && !seenAddresses.has(receiver)) {
+            seenAddresses.add(receiver);
+            uniqueSiblings.push({
+              address: receiver,
+              relationshipType: "creator",
+              confidence: 0.85,
+              reason:
+                "Asset creator wallet for a wallet created by this address",
+              interactionCount: 1,
+              firstSeenRound: tx.round,
+              lastSeenRound: tx.round,
+              totalValueTransferred: tx.amount,
+            });
           }
         } else if (tx.assetTransfer.receiver === address) {
-          if (
-            tx.assetTransfer.sender &&
-            tx.assetTransfer.sender !== address &&
-            !seenCreators.has(tx.assetTransfer.sender)
-          ) {
-            seenCreators.add(tx.assetTransfer.sender);
-            siblings.push({
-              address: tx.assetTransfer.sender,
+          const sender = tx.assetTransfer.sender;
+          if (sender && !seenAddresses.has(sender)) {
+            seenAddresses.add(sender);
+            uniqueSiblings.push({
+              address: sender,
               relationshipType: "creator",
               confidence: 0.6,
               reason:
@@ -126,37 +118,16 @@ export class SiblingDiscoveryService {
           }
         }
       }
-
-      // 3. Deployment wallets logic
-      if (tx.applicationCall && tx.type === "application") {
-        // (Currently stubbed out in the original code, but we keep the loop structure intact if there was any logic)
-      }
-
-      // 4. Associated wallets logic
-      if (tx.type === "received") {
-        const sender = tx.sender;
-        if (sender && !excludeSet.has(sender)) {
-          const existing = senderToReceivers.get(sender);
-          if (existing) {
-            existing.receivers.add(address);
-            existing.count++;
-          } else {
-            senderToReceivers.set(sender, {
-              receivers: new Set([address]),
-              count: 1,
-              round: tx.round,
-            });
-          }
-        }
-      }
     }
 
     // Process Frequent Counterparties
     const threshold = this.frequencyThreshold;
     if (counterpartyStats) {
-      for (const cs of counterpartyStats) {
-        if (cs.interactionCount >= threshold) {
-          siblings.push({
+      for (let i = 0; i < counterpartyStats.length; i++) {
+        const cs = counterpartyStats[i];
+        if (cs.interactionCount >= threshold && !seenAddresses.has(cs.address)) {
+          seenAddresses.add(cs.address);
+          uniqueSiblings.push({
             address: cs.address,
             relationshipType: "frequent_counterparty",
             confidence: this.calculateFrequentCounterpartyConfidence(
@@ -173,10 +144,11 @@ export class SiblingDiscoveryService {
           });
         }
       }
-    } else {
+    } else if (counterpartyMap) {
       for (const [addr, stats] of counterpartyMap) {
-        if (stats.count >= threshold) {
-          siblings.push({
+        if (stats.count >= threshold && !seenAddresses.has(addr)) {
+          seenAddresses.add(addr);
+          uniqueSiblings.push({
             address: addr,
             relationshipType: "frequent_counterparty",
             confidence: this.calculateFrequentCounterpartyConfidence(
@@ -192,30 +164,6 @@ export class SiblingDiscoveryService {
             totalValueTransferred: stats.value,
           });
         }
-      }
-    }
-
-    // Process Associated Wallets
-    // In original code, it iterates over siblings to exclude them. Since siblings array was populated by other methods first, we should make sure we exclude them here.
-    const fullExcludeSet = new Set([address]);
-    for (const s of siblings) {
-      fullExcludeSet.add(s.address);
-    }
-
-    const commonSenders = new Map<string, number>();
-    for (const [sender, data] of senderToReceivers) {
-      if (data.count > 1 && !fullExcludeSet.has(sender)) {
-        commonSenders.set(sender, data.count);
-      }
-    }
-
-    // Remove duplicates by address
-    const seen = new Set<string>();
-    const uniqueSiblings: SiblingWallet[] = [];
-    for (const sibling of siblings) {
-      if (!seen.has(sibling.address)) {
-        seen.add(sibling.address);
-        uniqueSiblings.push(sibling);
       }
     }
 
