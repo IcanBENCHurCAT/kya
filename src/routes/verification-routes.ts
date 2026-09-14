@@ -54,6 +54,7 @@ export function createVerificationRoutes(
 
       return c.json({ attemptId }, 200);
     } catch (error) {
+      console.error("Error in /verify/email/initiate:", error);
       if ((error as VerificationError).code) {
         const err = error as VerificationError;
         return c.json({ error: err.message, code: err.code }, err.status as 400 | 401 | 403 | 404 | 409 | 429 | 500);
@@ -107,6 +108,7 @@ export function createVerificationRoutes(
 
       return c.json(result, 200);
     } catch (error) {
+      console.error("Error in /verify/email/complete:", error);
       if ((error as VerificationError).code) {
         const err = error as VerificationError;
         return c.json({ error: err.message, code: err.code }, err.status as 400 | 401 | 403 | 404 | 409 | 429 | 500);
@@ -131,6 +133,11 @@ export function createVerificationRoutes(
 
       return c.json(result, 200);
     } catch (error) {
+      console.error("Error in /verify/wallet/:address:", error);
+      if ((error as VerificationError).code) {
+        const err = error as VerificationError;
+        return c.json({ error: err.message, code: err.code }, err.status as 400 | 401 | 403 | 404 | 409 | 429 | 500);
+      }
       return c.json({ error: "Internal server error" }, 500);
     }
   });
@@ -151,6 +158,11 @@ export function createVerificationRoutes(
 
       return c.json(result, 200);
     } catch (error) {
+      console.error("Error in /verify/identity/:hash:", error);
+      if ((error as VerificationError).code) {
+        const err = error as VerificationError;
+        return c.json({ error: err.message, code: err.code }, err.status as 400 | 401 | 403 | 404 | 409 | 429 | 500);
+      }
       return c.json({ error: "Internal server error" }, 500);
     }
   });
