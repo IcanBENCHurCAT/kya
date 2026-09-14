@@ -25,6 +25,7 @@ describe('Phase 4 Deployment & Gateway Ingress Tests', () => {
       const html = await res.text();
       expect(html).toContain('href="#main-content"');
       expect(html).toContain('id="main-content"');
+      expect(html).toContain('id="copy-btn-text"');
       expect(html).toContain('aria-live="polite"');
       expect(html).toContain('aria-label="Copy cURL health check command"');
       expect(html).toContain('focus-visible');
