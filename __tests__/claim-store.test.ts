@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ClaimStore } from '../src/verification/claim-store.js';
 import { createClient } from '@supabase/supabase-js';
+import { createVerificationRoutes } from '../src/routes/verification-routes.js';
+import { VerificationService } from '../src/verification/service.js';
 
 vi.mock('@supabase/supabase-js', () => ({
   createClient: vi.fn(),
@@ -398,6 +400,49 @@ describe('ClaimStore', () => {
       await expect(claimStore.getClaimCount('WALLET123')).rejects.toThrow(
         'Claim count failed: Count error'
       );
+    });
+  });
+
+  describe('Verification Routes Security Error Handling', () => {
+    it('should safely handle unexpected errors on checkVerification without leaking internals', async () => {
+      const mockService = {
+        checkVerification: vi.fn().mockRejectedValue(new Error('Sensitive DB connection secret leaked!')),
+        getAvailableMethods: vi.fn().mockReturnValue(['email']),
+      } as unknown as VerificationService;
+
+      const router = createVerificationRoutes(mockService);
+      const res = await router.request('/verify/wallet/W5IRXJWPSXNUJVSN2MOEJGTDGKUGFKUDVPTR5ZQVMDG5O4KYD5M3QPG3TE');
+
+      expect(res.status).toBe(500);
+      const json = await res.json();
+      expect(json).toEqual({ error: 'Internal server error' });
+      expect(JSON.stringify(json)).not.toContain('Sensitive DB connection secret');
+    });
+
+    it('should preserve VerificationError structured code while masking unexpected details', async () => {
+      const customErr = Object.assign(new Error('Rate limit exceeded for test user'), {
+        code: 'RATE_LIMITED' as const,
+        status: 429,
+      });
+
+      const mockService = {
+        initiateVerification: vi.fn().mockRejectedValue(customErr),
+        getAvailableMethods: vi.fn().mockReturnValue(['email']),
+      } as unknown as VerificationService;
+
+      const router = createVerificationRoutes(mockService);
+      const res = await router.request('/verify/email/initiate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: 'test@example.com',
+          walletAddress: 'W5IRXJWPSXNUJVSN2MOEJGTDGKUGFKUDVPTR5ZQVMDG5O4KYD5M3QPG3TE',
+        }),
+      });
+
+      expect(res.status).toBe(429);
+      const json = await res.json();
+      expect(json).toEqual({ error: 'Rate limit exceeded for test user', code: 'RATE_LIMITED' });
     });
   });
 });
