@@ -1,26 +1,28 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { app } from '../src/app.js';
-import { resetX402Receipts } from '../src/middleware/x402.js';
+import { describe, it, expect, beforeEach } from "vitest";
+import { app } from "../src/app.js";
+import { resetX402Receipts } from "../src/middleware/x402.js";
 
-describe('Phase 4 Deployment & Gateway Ingress Tests', () => {
+describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
   beforeEach(() => {
     resetX402Receipts();
   });
 
-  describe('Developer Landing Page Endpoint Status', () => {
-    it('should return HTML landing page for GET / with default headers', async () => {
-      const res = await app.request('/');
+  describe("Developer Landing Page Endpoint Status", () => {
+    it("should return HTML landing page for GET / with default headers", async () => {
+      const res = await app.request("/");
       expect(res.status).toBe(200);
-      expect(res.headers.get('content-type')).toContain('text/html');
+      expect(res.headers.get("content-type")).toContain("text/html");
       const html = await res.text();
-      expect(html).toContain('<main');
-      expect(html).toContain('KYA Service — Trust Infrastructure for AI Agents');
-      expect(html).toContain('aria-label=');
+      expect(html).toContain("<main");
+      expect(html).toContain(
+        "KYA Service — Trust Infrastructure for AI Agents",
+      );
+      expect(html).toContain("aria-label=");
       expect(html).toContain('role="status"');
     });
 
-    it('should include accessibility features (skip link, focus styles, aria-live status) and Quick Start copy button', async () => {
-      const res = await app.request('/');
+    it("should include accessibility features (skip link, focus styles, aria-live status) and Quick Start copy button", async () => {
+      const res = await app.request("/");
       expect(res.status).toBe(200);
       const html = await res.text();
       expect(html).toContain('href="#main-content"');
@@ -28,118 +30,128 @@ describe('Phase 4 Deployment & Gateway Ingress Tests', () => {
       expect(html).toContain('id="copy-btn-text"');
       expect(html).toContain('aria-live="polite"');
       expect(html).toContain('aria-label="Copy cURL health check command"');
-      expect(html).toContain('focus-visible');
-      expect(html).toContain('.copy-btn.copied');
-      expect(html).toContain('.copy-btn.failed');
-      expect(html).toContain('btn.setAttribute(\'aria-label\',\'Command copied to clipboard\')');
-      expect(html).toContain('btn.setAttribute(\'title\',\'Command copied to clipboard\')');
-      expect(html).toContain('fallbackCopy');
-      expect(html).toContain('Failed to copy command to clipboard');
-      expect(html).toContain('Command copied to clipboard');
+      expect(html).toContain("focus-visible");
+      expect(html).toContain(".copy-btn.copied");
+      expect(html).toContain(".copy-btn.failed");
+      expect(html).toContain(
+        "btn.setAttribute('aria-label','Command copied to clipboard')",
+      );
+      expect(html).toContain(
+        "btn.setAttribute('title','Command copied to clipboard')",
+      );
+      expect(html).toContain("fallbackCopy");
+      expect(html).toContain("Failed to copy command to clipboard");
+      expect(html).toContain("Command copied to clipboard");
+      expect(html).toContain('role="tablist"');
+      expect(html).toContain("cmd-tab");
     });
 
-    it('should return JSON service info for GET / when Accept: application/json', async () => {
-      const res = await app.request('/', {
-        headers: { Accept: 'application/json' },
+    it("should return JSON service info for GET / when Accept: application/json", async () => {
+      const res = await app.request("/", {
+        headers: { Accept: "application/json" },
       });
       expect(res.status).toBe(200);
-      expect(res.headers.get('content-type')).toContain('application/json');
+      expect(res.headers.get("content-type")).toContain("application/json");
       const data = await res.json();
-      expect(data.status).toBe('ok');
-      expect(data.name).toContain('KYA Service');
+      expect(data.status).toBe("ok");
+      expect(data.name).toContain("KYA Service");
       expect(data.discovery).toBeDefined();
     });
   });
 
-  describe('404 Custom Not Found Handler Status', () => {
-    it('should return custom accessible HTML 404 page for unknown routes with default headers', async () => {
-      const res = await app.request('/unknown-route-test');
+  describe("404 Custom Not Found Handler Status", () => {
+    it("should return custom accessible HTML 404 page for unknown routes with default headers", async () => {
+      const res = await app.request("/unknown-route-test");
       expect(res.status).toBe(404);
-      expect(res.headers.get('content-type')).toContain('text/html');
+      expect(res.headers.get("content-type")).toContain("text/html");
       const html = await res.text();
       expect(html).toContain('<main id="main-content">');
-      expect(html).toContain('404 — Page Not Found');
+      expect(html).toContain("404 — Page Not Found");
       expect(html).toContain('href="#main-content"');
-      expect(html).toContain('focus-visible');
-      expect(html).toContain('Return to Landing Page');
+      expect(html).toContain("focus-visible");
+      expect(html).toContain("Return to Landing Page");
       expect(html).toContain('aria-label="Active discovery endpoints"');
       expect(html).toContain('href="/health"');
       expect(html).toContain('href="/.well-known/x402.json"');
       expect(html).toContain('href="/.well-known/agent-card.json"');
     });
 
-    it('should return JSON error response for unknown routes when Accept: application/json', async () => {
-      const res = await app.request('/unknown-route-test', {
-        headers: { Accept: 'application/json' },
+    it("should return JSON error response for unknown routes when Accept: application/json", async () => {
+      const res = await app.request("/unknown-route-test", {
+        headers: { Accept: "application/json" },
       });
       expect(res.status).toBe(404);
-      expect(res.headers.get('content-type')).toContain('application/json');
+      expect(res.headers.get("content-type")).toContain("application/json");
       const data = await res.json();
-      expect(data.error).toBe('Not Found');
-      expect(data.message).toBe('The requested endpoint does not exist.');
+      expect(data.error).toBe("Not Found");
+      expect(data.message).toBe("The requested endpoint does not exist.");
       expect(data.discovery).toBeDefined();
-      expect(data.discovery.landing).toBe('/');
+      expect(data.discovery.landing).toBe("/");
     });
   });
 
-  describe('Healthcheck Endpoint Status', () => {
-    it('should return HTTP 200 OK for root /health', async () => {
-      const res = await app.request('/health');
+  describe("Healthcheck Endpoint Status", () => {
+    it("should return HTTP 200 OK for root /health", async () => {
+      const res = await app.request("/health");
       expect(res.status).toBe(200);
       const data = await res.json();
-      expect(data.status).toBe('ok');
+      expect(data.status).toBe("ok");
       expect(data.timestamp).toBeDefined();
-      expect(new Date(data.timestamp).toString()).not.toBe('Invalid Date');
+      expect(new Date(data.timestamp).toString()).not.toBe("Invalid Date");
     });
 
-    it('should return HTTP 200 OK for /api/v1/health', async () => {
-      const res = await app.request('/api/v1/health');
+    it("should return HTTP 200 OK for /api/v1/health", async () => {
+      const res = await app.request("/api/v1/health");
       expect(res.status).toBe(200);
       const data = await res.json();
-      expect(data.status).toBe('ok');
+      expect(data.status).toBe("ok");
       expect(data.timestamp).toBeDefined();
     });
 
-    it('should allow health checks to bypass x402 payment gate without payment headers', async () => {
-      const res = await app.request('/api/v1/health');
+    it("should allow health checks to bypass x402 payment gate without payment headers", async () => {
+      const res = await app.request("/api/v1/health");
       expect(res.status).toBe(200);
-      expect(res.headers.get('X-402-Payment-Required')).toBeNull();
+      expect(res.headers.get("X-402-Payment-Required")).toBeNull();
     });
   });
 
-  describe('x402 Merchant Metadata & Bazaar Discovery Endpoints', () => {
-    it('should serve x402 merchant discovery metadata on /.well-known/x402.json', async () => {
-      const res = await app.request('/.well-known/x402.json');
+  describe("x402 Merchant Metadata & Bazaar Discovery Endpoints", () => {
+    it("should serve x402 merchant discovery metadata on /.well-known/x402.json", async () => {
+      const res = await app.request("/.well-known/x402.json");
       expect(res.status).toBe(200);
-      expect(res.headers.get('Cache-Control')).toContain('public');
+      expect(res.headers.get("Cache-Control")).toContain("public");
       const data = await res.json();
       expect(data.merchant).toBeDefined();
-      expect(data.merchant.name).toContain('KYA Service');
+      expect(data.merchant.name).toContain("KYA Service");
       expect(data.resources).toBeInstanceOf(Array);
       expect(data.resources.length).toBeGreaterThan(0);
-      expect(data.resources[0].tag).toBe('x402-global-challenge');
+      expect(data.resources[0].tag).toBe("x402-global-challenge");
     });
 
-    it('should serve agent card metadata on /.well-known/agent-card.json', async () => {
-      const res = await app.request('/.well-known/agent-card.json');
+    it("should serve agent card metadata on /.well-known/agent-card.json", async () => {
+      const res = await app.request("/.well-known/agent-card.json");
       expect(res.status).toBe(200);
       const data = await res.json();
-      expect(data.name).toContain('KYA Service');
+      expect(data.name).toContain("KYA Service");
       expect(data.skills).toBeInstanceOf(Array);
-      expect(data.skills[0].tags).toContain('x402-global-challenge');
+      expect(data.skills[0].tags).toContain("x402-global-challenge");
     });
   });
 
-  describe('Environment Variable Validation & Defaults', () => {
-    it('should validate default PORT environment configuration', () => {
-      const port = parseInt(process.env.PORT || '3000', 10);
+  describe("Environment Variable Validation & Defaults", () => {
+    it("should validate default PORT environment configuration", () => {
+      const port = parseInt(process.env.PORT || "3000", 10);
       expect(port).toBeGreaterThan(0);
       expect(port).toBeLessThanOrEqual(65535);
     });
 
-    it('should validate screening threshold environment variable fallbacks', () => {
-      const failThreshold = parseFloat(process.env.SCREENING_FAIL_THRESHOLD || '0.85');
-      const flagThreshold = parseFloat(process.env.SCREENING_FLAG_THRESHOLD || '0.50');
+    it("should validate screening threshold environment variable fallbacks", () => {
+      const failThreshold = parseFloat(
+        process.env.SCREENING_FAIL_THRESHOLD || "0.85",
+      );
+      const flagThreshold = parseFloat(
+        process.env.SCREENING_FLAG_THRESHOLD || "0.50",
+      );
 
       expect(failThreshold).toBeGreaterThan(0);
       expect(failThreshold).toBeLessThanOrEqual(1.0);
@@ -147,84 +159,92 @@ describe('Phase 4 Deployment & Gateway Ingress Tests', () => {
       expect(flagThreshold).toBeLessThan(failThreshold);
     });
 
-    it('should default NODE_ENV to test or production safely', () => {
-      const env = process.env.NODE_ENV || 'development';
-      expect(['development', 'test', 'production']).toContain(env);
+    it("should default NODE_ENV to test or production safely", () => {
+      const env = process.env.NODE_ENV || "development";
+      expect(["development", "test", "production"]).toContain(env);
     });
   });
 
-  describe('Caddy & x402 Header Forwardings', () => {
-    it('should return 402 challenge when accessing protected API without payment header', async () => {
-      const validAddress = 'KBWP7FHVYOKPNQOH7X3MLL6BHRK33WUNPHP3ZLY4JWPEGNXLNB3SNPBY6E';
+  describe("Caddy & x402 Header Forwardings", () => {
+    it("should return 402 challenge when accessing protected API without payment header", async () => {
+      const validAddress =
+        "KBWP7FHVYOKPNQOH7X3MLL6BHRK33WUNPHP3ZLY4JWPEGNXLNB3SNPBY6E";
       const res = await app.request(`/api/v1/karma/${validAddress}`, {
         headers: {
-          'Host': 'kya-service.duckdns.org',
-          'X-Forwarded-Proto': 'https',
-          'X-Forwarded-For': '203.0.113.195',
+          Host: "kya-service.duckdns.org",
+          "X-Forwarded-Proto": "https",
+          "X-Forwarded-For": "203.0.113.195",
         },
       });
 
       expect(res.status).toBe(402);
       const body = await res.json();
-      expect(body.error).toBe('Payment Required');
+      expect(body.error).toBe("Payment Required");
       expect(body.paymentOffer).toBeDefined();
       expect(body.paymentOffer.priceMicroAlgo).toBe(1000);
-      expect(body.paymentOffer.tag).toBe('x402-global-challenge');
+      expect(body.paymentOffer.tag).toBe("x402-global-challenge");
     });
 
-    it('should process reverse-proxy headers (Host, X-Forwarded-For, X-Forwarded-Proto) correctly', async () => {
-      const res = await app.request('/api/v1/health', {
+    it("should process reverse-proxy headers (Host, X-Forwarded-For, X-Forwarded-Proto) correctly", async () => {
+      const res = await app.request("/api/v1/health", {
         headers: {
-          'Host': 'kya-service.duckdns.org',
-          'X-Real-IP': '198.51.100.42',
-          'X-Forwarded-For': '198.51.100.42',
-          'X-Forwarded-Proto': 'https',
+          Host: "kya-service.duckdns.org",
+          "X-Real-IP": "198.51.100.42",
+          "X-Forwarded-For": "198.51.100.42",
+          "X-Forwarded-Proto": "https",
         },
       });
 
       expect(res.status).toBe(200);
       const json = await res.json();
-      expect(json.status).toBe('ok');
+      expect(json.status).toBe("ok");
     });
 
-    it('should honor X-Payment and return X-Payment-Receipt in response headers when valid', async () => {
-      const paymentTx = 'tx_deploy_caddy_test_100';
-      const validAddress = 'KBWP7FHVYOKPNQOH7X3MLL6BHRK33WUNPHP3ZLY4JWPEGNXLNB3SNPBY6E';
+    it("should honor X-Payment and return X-Payment-Receipt in response headers when valid", async () => {
+      const paymentTx = "tx_deploy_caddy_test_100";
+      const validAddress =
+        "KBWP7FHVYOKPNQOH7X3MLL6BHRK33WUNPHP3ZLY4JWPEGNXLNB3SNPBY6E";
       const res = await app.request(`/api/v1/karma/${validAddress}`, {
         headers: {
-          'Host': 'kya-service.duckdns.org',
-          'X-Forwarded-Proto': 'https',
-          'X-Payment': paymentTx,
+          Host: "kya-service.duckdns.org",
+          "X-Forwarded-Proto": "https",
+          "X-Payment": paymentTx,
         },
       });
 
       expect(res.status).toBe(200);
-      expect(res.headers.get('X-Payment-Receipt')).toContain(`receipt_${paymentTx}`);
+      expect(res.headers.get("X-Payment-Receipt")).toContain(
+        `receipt_${paymentTx}`,
+      );
     });
   });
 
-  describe('Verification Endpoint Input Validation', () => {
-    it('should return 400 when completing verification with an invalid wallet address format', async () => {
-      const { createVerificationRoutes } = await import('../src/routes/verification-routes.js');
-      const { VerificationService } = await import('../src/verification/service.js');
+  describe("Verification Endpoint Input Validation", () => {
+    it("should return 400 when completing verification with an invalid wallet address format", async () => {
+      const { createVerificationRoutes } =
+        await import("../src/routes/verification-routes.js");
+      const { VerificationService } =
+        await import("../src/verification/service.js");
       const service = new VerificationService({});
       const verificationApp = createVerificationRoutes(service);
 
-      const res = await verificationApp.request('/verify/email/complete', {
-        method: 'POST',
+      const res = await verificationApp.request("/verify/email/complete", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          attemptId: 'att_123',
-          code: '123456',
-          walletAddress: 'INVALID_WALLET_ADDRESS',
+          attemptId: "att_123",
+          code: "123456",
+          walletAddress: "INVALID_WALLET_ADDRESS",
         }),
       });
 
       expect(res.status).toBe(400);
       const json = await res.json();
-      expect(json.error).toBe('Invalid wallet address format (expected Algorand base32)');
+      expect(json.error).toBe(
+        "Invalid wallet address format (expected Algorand base32)",
+      );
     });
   });
 });

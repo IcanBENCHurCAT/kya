@@ -15,6 +15,6 @@
  *   npm run build    # Compile to dist/
  *   npm start        # Run in production
  */
-import { Hono } from 'hono';
+import { Hono } from "hono";
 declare const app: Hono<import("hono/types").BlankEnv, import("hono/types").BlankSchema, "/">;
 export { app };
