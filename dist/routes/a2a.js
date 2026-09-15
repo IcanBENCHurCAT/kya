@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { isValidAddress } from 'algosdk';
 import { defaultA2AService } from '../services/a2a.js';
 const MAX_STRING_LENGTH = 255;
 export function createA2ARoutes(a2aService = defaultA2AService) {
@@ -19,6 +20,12 @@ export function createA2ARoutes(a2aService = defaultA2AService) {
             return c.json({
                 success: false,
                 error: 'initiatorAddress and targetAddress are required',
+            }, 400);
+        }
+        if (!isValidAddress(initiatorAddress.trim()) || !isValidAddress(targetAddress.trim())) {
+            return c.json({
+                success: false,
+                error: 'Invalid Algorand address format for initiatorAddress or targetAddress',
             }, 400);
         }
         if (minKarmaScore !== undefined && typeof minKarmaScore !== 'number') {
