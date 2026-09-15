@@ -403,6 +403,46 @@ describe('ClaimStore', () => {
     });
   });
 
+  describe('Verification Routes Input Validation', () => {
+    it('should reject email initiate request if email format is invalid or exceeds max length', async () => {
+      const mockService = {
+        initiateVerification: vi.fn(),
+        getAvailableMethods: vi.fn().mockReturnValue(['email']),
+      } as unknown as VerificationService;
+
+      const router = createVerificationRoutes(mockService);
+      const validAddress = 'W5IRXJWPSXNUJVSN2MOEJGTDGKUGFKUDVPTR5ZQVMDG5O4KYD5M3QPG3TE';
+
+      // 1. Missing / invalid email type
+      const res1 = await router.request('/verify/email/initiate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: 12345, walletAddress: validAddress }),
+      });
+      expect(res1.status).toBe(400);
+      expect(await res1.json()).toEqual({ error: 'Valid email address and walletAddress are required' });
+
+      // 2. Malformed email address
+      const res2 = await router.request('/verify/email/initiate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: 'not-an-email', walletAddress: validAddress }),
+      });
+      expect(res2.status).toBe(400);
+
+      // 3. Email exceeds 255 chars
+      const longEmail = 'a'.repeat(250) + '@example.com';
+      const res3 = await router.request('/verify/email/initiate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: longEmail, walletAddress: validAddress }),
+      });
+      expect(res3.status).toBe(400);
+
+      expect(mockService.initiateVerification).not.toHaveBeenCalled();
+    });
+  });
+
   describe('Verification Routes Security Error Handling', () => {
     it('should safely handle unexpected errors on checkVerification without leaking internals', async () => {
       const mockService = {

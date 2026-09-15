@@ -15,6 +15,9 @@ import { isValidAddress } from "algosdk";
 import { VerificationService } from "../verification/service.js";
 import { VerificationError } from "../verification/types.js";
 
+const MAX_STRING_LENGTH = 255;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export function createVerificationRoutes(
   verificationService: VerificationService
 ) {
@@ -32,9 +35,15 @@ export function createVerificationRoutes(
         walletAddress?: string;
       }>();
 
-      if (!body.email || !body.walletAddress) {
+      if (
+        !body.email ||
+        typeof body.email !== "string" ||
+        body.email.length > MAX_STRING_LENGTH ||
+        !EMAIL_REGEX.test(body.email) ||
+        !body.walletAddress
+      ) {
         return c.json(
-          { error: "email and walletAddress are required" },
+          { error: "Valid email address and walletAddress are required" },
           400
         );
       }
