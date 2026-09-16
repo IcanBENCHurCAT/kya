@@ -49,6 +49,8 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       expect(html).toContain("handleTabKeydown");
       expect(html).toContain("e.key==='ArrowRight'");
       expect(html).toContain("e.key==='ArrowLeft'");
+      expect(html).toContain("getCopyLabel");
+      expect(html).toContain("btn.setAttribute('aria-label',lbl)");
     });
 
     it("should return JSON service info for GET / when Accept: application/json", async () => {
