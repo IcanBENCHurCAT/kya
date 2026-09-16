@@ -496,6 +496,27 @@ describe("Bulk Screening", () => {
     );
     expect(res3.status).toBe(200);
   });
+
+  it("should safely handle requests when c.env or WATCHLIST is missing or undefined", async () => {
+    const app = (await import("../src/routes/screening.js")).default;
+    const validAddress = "EJV45NV63RXILAMNL4IRRLBJ2XDKDXJ4J4EH5TSGIUCKVDTMBVYQ53PYRU";
+
+    // Test GET /api/v1/watchlist without env
+    const res1 = await app.request("/api/v1/watchlist");
+    expect(res1.status).toBe(200);
+    const body1 = await res1.json();
+    expect(body1.totalLists).toBe(0);
+
+    // Test POST /api/v1/screen without env
+    const res2 = await app.request("/api/v1/screen", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ address: validAddress }),
+    });
+    expect(res2.status).toBe(200);
+    const body2 = await res2.json();
+    expect(body2.success).toBe(true);
+  });
 });
 
 // ─── Beneficial Owner Resolution Tests ─────────────────────────────
