@@ -44,6 +44,11 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       expect(html).toContain("Command copied to clipboard");
       expect(html).toContain('role="tablist"');
       expect(html).toContain("cmd-tab");
+      expect(html).toContain('tabindex="0"');
+      expect(html).toContain('tabindex="-1"');
+      expect(html).toContain("handleTabKeydown");
+      expect(html).toContain("e.key==='ArrowRight'");
+      expect(html).toContain("e.key==='ArrowLeft'");
     });
 
     it("should return JSON service info for GET / when Accept: application/json", async () => {
