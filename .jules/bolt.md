@@ -45,3 +45,7 @@
 ## 2025-03-13 - Direct Map Size Counting for Graph Statistics
 **Learning:** In graph metric queries like `WalletGraph.getStats()`, delegating total edge counting to `getAllEdges().length` forces the creation of a temporary flat array of all edge objects across all source nodes and executes an unnecessary $O(E \log E)$ weight-descending sort. Furthermore, iterating `Map` entry tuples `[_, value]` allocates intermediate tuple arrays per entry.
 **Action:** Sum inner map sizes directly via `for (const sourceEdges of this.edges.values()) edgeCount += sourceEdges.size;` ($O(V_{sources})$ time, $O(1)$ space) and iterate `.values()` directly, reducing `getStats()` execution time by ~31% and eliminating temporary array allocations.
+
+## 2025-03-14 - Single-Pass Matched List Extraction & Bulk Screening Status Aggregation
+**Learning:** In screening routines (`screenSanctions` and bulk screening endpoints), mapping arrays before creating Sets (e.g. `[...new Set(topResults.map(r => r.source))]`) and invoking multiple `.filter()` calls over result arrays allocates multiple short-lived intermediate arrays and iterates the results multiple times. Furthermore, unreferenced local `Set` objects created in loops add dead GC overhead.
+**Action:** Extract unique list names directly into a Set during a single pass over `topResults` (eliminating the intermediate `.map()` array), remove unreferenced dead Set allocations, and aggregate bulk screening result status counts in a single $O(N)$ pass loop instead of 3 separate `.filter()` calls.
