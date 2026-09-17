@@ -205,12 +205,28 @@ app.post('/api/v1/screen/bulk', async (c) => {
     };
   });
 
-  // Count by status
+  // Performance optimization: Single pass counting over results array.
+  // Replaces 3 separate results.filter() calls to eliminate temporary array allocations and redundant iterations.
+  let noMatchFound = 0;
+  let potentialMatch = 0;
+  let requiresReview = 0;
+
+  for (let i = 0; i < results.length; i++) {
+    const status = results[i].screeningResult.status;
+    if (status === 'NO_MATCH_FOUND') {
+      noMatchFound++;
+    } else if (status === 'POTENTIAL_MATCH') {
+      potentialMatch++;
+    } else if (status === 'MATCH_REQUIRES_REVIEW') {
+      requiresReview++;
+    }
+  }
+
   const summary = {
     total: results.length,
-    noMatchFound: results.filter(r => r.screeningResult.status === 'NO_MATCH_FOUND').length,
-    potentialMatch: results.filter(r => r.screeningResult.status === 'POTENTIAL_MATCH').length,
-    requiresReview: results.filter(r => r.screeningResult.status === 'MATCH_REQUIRES_REVIEW').length,
+    noMatchFound,
+    potentialMatch,
+    requiresReview,
   };
 
   return c.json({ success: true, results, summary });
