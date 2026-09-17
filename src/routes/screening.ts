@@ -39,19 +39,20 @@ app.get('/api/v1/health', (c) => {
  * Get watchlist summary.
  */
 app.get('/api/v1/watchlist', (c) => {
-  const { WATCHLIST } = c.env;
+  const { WATCHLIST } = c.env || {};
+  const watchlist = WATCHLIST || {};
   const summary = getWatchlistSummary();
 
   // Count entries per list
   const listBreakdown: Record<string, number> = {};
-  for (const [name, entries] of Object.entries(WATCHLIST)) {
+  for (const [name, entries] of Object.entries(watchlist)) {
     listBreakdown[name] = entries.length;
   }
 
   return c.json({
     ...summary,
     listBreakdown,
-    totalLists: Object.keys(WATCHLIST).length,
+    totalLists: Object.keys(watchlist).length,
   });
 });
 
@@ -59,17 +60,20 @@ app.get('/api/v1/watchlist', (c) => {
  * Refresh watchlists (manual trigger).
  */
 app.post('/api/v1/watchlist/refresh', async (c) => {
-  const { WATCHLIST } = c.env;
+  const { WATCHLIST } = c.env || {};
+  const watchlist = WATCHLIST || {};
   const body = await c.req.json().catch(() => ({}));
   const force = body.force === true;
 
-  const updated = await refreshWatchlists(WATCHLIST, force);
+  const updated = await refreshWatchlists(watchlist, force);
   if (!updated) {
     return c.json({ error: 'Watchlist refresh failed. Check audit log.' }, 500);
   }
 
-  // Update the binding
-  c.env.WATCHLIST = updated;
+  // Update the binding if env exists
+  if (c.env) {
+    c.env.WATCHLIST = updated;
+  }
 
   return c.json({
     status: 'success',
@@ -90,7 +94,8 @@ app.post('/api/v1/watchlist/refresh', async (c) => {
  * }
  */
 app.post('/api/v1/screen', async (c) => {
-  const { WATCHLIST, SCREENING_CONFIG } = c.env;
+  const { WATCHLIST, SCREENING_CONFIG } = c.env || {};
+  const watchlist = WATCHLIST || {};
   const body = await c.req.json().catch(() => ({}));
 
   const address = body.address;
@@ -116,7 +121,7 @@ app.post('/api/v1/screen', async (c) => {
   }
 
   // Run screening
-  const result = screenSanctions(address, resolvedOwner, WATCHLIST, config);
+  const result = screenSanctions(address, resolvedOwner, watchlist, config);
 
   // Log to audit
   logScreening(result);
@@ -149,7 +154,8 @@ app.post('/api/v1/screen', async (c) => {
  * }
  */
 app.post('/api/v1/screen/bulk', async (c) => {
-  const { WATCHLIST, SCREENING_CONFIG } = c.env;
+  const { WATCHLIST, SCREENING_CONFIG } = c.env || {};
+  const watchlist = WATCHLIST || {};
   const body = await c.req.json().catch(() => ({}));
 
   const targets = body.targets as { address: string; beneficialOwner?: string }[];
@@ -186,7 +192,7 @@ app.post('/api/v1/screen/bulk', async (c) => {
 
   // Run screening for each target
   const results = resolvedTargets.map(t => {
-    const result = screenSanctions(t.address, t.beneficialOwner, WATCHLIST, config);
+    const result = screenSanctions(t.address, t.beneficialOwner, watchlist, config);
     logScreening(result);
     return {
       address: t.address,
