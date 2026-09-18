@@ -65,6 +65,31 @@ describe('Groth16 ZK-KYC Proof Verifier & REST Routes', () => {
       expect(result.valid).toBe(false);
       expect(result.error).toBe('Invalid ZK Proof');
     });
+
+    it('should reject proof payload with malformed pi_b G2 structure', async () => {
+      const malformedPiBPayload = {
+        ...validProofPayload,
+        proof: {
+          ...validProofPayload.proof,
+          pi_b: [['0x1111']] as any, // Only 1 element in inner array
+        },
+      };
+      const result = await zkpService.verifyProof(malformedPiBPayload);
+
+      expect(result.valid).toBe(false);
+      expect(result.error).toBe('Invalid ZK Proof');
+    });
+
+    it('should reject proof payload with overlong claimType string exceeding limit', async () => {
+      const overlongClaimPayload = {
+        ...validProofPayload,
+        claimType: 'A'.repeat(256),
+      };
+      const result = await zkpService.verifyProof(overlongClaimPayload);
+
+      expect(result.valid).toBe(false);
+      expect(result.error).toBe('Invalid ZK Proof');
+    });
   });
 
   describe('REST Endpoint POST /api/v1/verify/zk-proof', () => {
