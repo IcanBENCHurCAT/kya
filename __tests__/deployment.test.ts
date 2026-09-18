@@ -43,6 +43,10 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       expect(html).toContain("Failed to copy command to clipboard");
       expect(html).toContain("Command copied to clipboard");
       expect(html).toContain('role="tablist"');
+      expect(html).toContain('role="tabpanel"');
+      expect(html).toContain('id="curl-tabpanel"');
+      expect(html).toContain('aria-labelledby="tab-health"');
+      expect(html).toContain('aria-controls="curl-tabpanel"');
       expect(html).toContain("cmd-tab");
       expect(html).toContain('tabindex="0"');
       expect(html).toContain('tabindex="-1"');
