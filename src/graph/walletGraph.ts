@@ -343,6 +343,11 @@ export class WalletGraph {
 
   /**
    * Get connected components (unconnected groups of wallets)
+   *
+   * Performance optimization:
+   * Uses an index pointer (`head`) instead of `queue.shift()` to eliminate $O(K)$ array re-indexing per pop,
+   * and marks nodes visited immediately upon enqueueing to prevent duplicate node insertions into the BFS queue.
+   * Reduces BFS time complexity from $O(V^2 + E \cdot V)$ down to $O(V + E)$ with zero duplicate allocations.
    */
   getConnectedComponents(): string[][] {
     const visited = new Set<string>();
@@ -351,22 +356,21 @@ export class WalletGraph {
     for (const address of this.nodes.keys()) {
       if (visited.has(address)) continue;
 
-      // BFS to find all connected nodes
-      const component: string[] = [];
+      visited.add(address);
+      const component: string[] = [address];
       const queue: string[] = [address];
+      let head = 0;
 
-      while (queue.length > 0) {
-        const current = queue.shift()!;
-        if (visited.has(current)) continue;
-
-        visited.add(current);
-        component.push(current);
+      while (head < queue.length) {
+        const current = queue[head++];
 
         // Add outgoing neighbors
         const outgoing = this.adjacencyList.get(current);
         if (outgoing) {
           for (const neighbor of outgoing) {
             if (!visited.has(neighbor)) {
+              visited.add(neighbor);
+              component.push(neighbor);
               queue.push(neighbor);
             }
           }
@@ -377,15 +381,15 @@ export class WalletGraph {
         if (incoming) {
           for (const sender of incoming.keys()) {
             if (!visited.has(sender)) {
+              visited.add(sender);
+              component.push(sender);
               queue.push(sender);
             }
           }
         }
       }
 
-      if (component.length > 0) {
-        components.push(component);
-      }
+      components.push(component);
     }
 
     return components;
