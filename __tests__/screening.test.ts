@@ -495,6 +495,57 @@ describe("Bulk Screening", () => {
       },
     );
     expect(res3.status).toBe(200);
+
+    // Test invalid optional field types/lengths (nationality, dateOfBirth, verificationMethod)
+    const res4 = await app.request(
+      "/api/v1/register",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address: validAddress, ownerName: validOwner, nationality: longOwner }),
+      },
+    );
+    expect(res4.status).toBe(400);
+
+    // Test invalid altAddresses type (non-array)
+    const res5 = await app.request(
+      "/api/v1/register",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address: validAddress, ownerName: validOwner, altAddresses: "not-an-array" }),
+      },
+    );
+    expect(res5.status).toBe(400);
+
+    // Test invalid address format in altAddresses
+    const res6 = await app.request(
+      "/api/v1/register",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address: validAddress, ownerName: validOwner, altAddresses: [invalidAddress] }),
+      },
+    );
+    expect(res6.status).toBe(400);
+  });
+
+  it("should validate and bound audit API limit query parameter", async () => {
+    const app = (await import("../src/routes/screening.js")).default;
+
+    // Test negative limit query param
+    const res1 = await app.request("/api/v1/audit?limit=-5");
+    expect(res1.status).toBe(400);
+    const body1 = await res1.json();
+    expect(body1.error).toContain("Invalid limit parameter");
+
+    // Test non-numeric limit query param
+    const res2 = await app.request("/api/v1/audit?limit=invalid");
+    expect(res2.status).toBe(400);
+
+    // Test valid limit query param is accepted and capped
+    const res3 = await app.request("/api/v1/audit?limit=2000");
+    expect(res3.status).toBe(200);
   });
 
   it("should safely handle requests when c.env or WATCHLIST is missing or undefined", async () => {
