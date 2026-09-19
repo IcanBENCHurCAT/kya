@@ -49,6 +49,7 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       expect(html).toContain('id="curl-tabpanel"');
       expect(html).toContain('aria-labelledby="tab-health"');
       expect(html).toContain('aria-controls="curl-tabpanel"');
+      expect(html).toContain('aria-atomic="true"');
       expect(html).toContain("cmd-tab");
       expect(html).toContain('tabindex="0"');
       expect(html).toContain('tabindex="-1"');
