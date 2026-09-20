@@ -242,12 +242,21 @@ app.post('/api/v1/screen/bulk', async (c) => {
  *   result: NO_MATCH_FOUND | POTENTIAL_MATCH | MATCH_REQUIRES_REVIEW | ERROR
  */
 app.get('/api/v1/audit', (c) => {
-  const limit = parseInt(c.req.query('limit') || '100', 10);
+  // Security: Sanitize and bound limit query parameter to prevent negative array slice offsets or DoS
+  const limitParam = c.req.query('limit');
+  let limit = 100;
+  if (limitParam !== undefined) {
+    const parsed = parseInt(limitParam, 10);
+    if (isNaN(parsed) || parsed <= 0) {
+      return c.json({ error: 'Invalid limit parameter: must be a positive integer' }, 400);
+    }
+    limit = Math.min(parsed, 1000);
+  }
   const after = c.req.query('after');
   const before = c.req.query('before');
   const result = c.req.query('result') as 'NO_MATCH_FOUND' | 'POTENTIAL_MATCH' | 'MATCH_REQUIRES_REVIEW' | 'ERROR' | undefined;
 
-  const entries = getAuditLog({ limit: limit || 100, after, before, result });
+  const entries = getAuditLog({ limit, after, before, result });
   return c.json({ success: true, entries });
 });
 
@@ -286,11 +295,37 @@ app.post('/api/v1/register', async (c) => {
     return c.json({ error: `Invalid ownerName: must be a non-empty string of max ${MAX_STRING_LENGTH} characters` }, 400);
   }
 
+  // Security: Validate types and bounds for optional registration fields to prevent payload injection and DoS
+  const { nationality, dateOfBirth, verificationMethod, altAddresses } = body;
+
+  if (nationality !== undefined && nationality !== null && (typeof nationality !== 'string' || nationality.length > MAX_STRING_LENGTH)) {
+    return c.json({ error: `Invalid nationality: must be a string of max ${MAX_STRING_LENGTH} characters` }, 400);
+  }
+
+  if (dateOfBirth !== undefined && dateOfBirth !== null && (typeof dateOfBirth !== 'string' || dateOfBirth.length > MAX_STRING_LENGTH)) {
+    return c.json({ error: `Invalid dateOfBirth: must be a string of max ${MAX_STRING_LENGTH} characters` }, 400);
+  }
+
+  if (verificationMethod !== undefined && verificationMethod !== null && (typeof verificationMethod !== 'string' || verificationMethod.length > MAX_STRING_LENGTH)) {
+    return c.json({ error: `Invalid verificationMethod: must be a string of max ${MAX_STRING_LENGTH} characters` }, 400);
+  }
+
+  if (altAddresses !== undefined && altAddresses !== null) {
+    if (!Array.isArray(altAddresses) || altAddresses.length > 50) {
+      return c.json({ error: 'Invalid altAddresses: must be an array of max 50 valid Algorand wallet addresses' }, 400);
+    }
+    for (const altAddr of altAddresses) {
+      if (typeof altAddr !== 'string' || altAddr.trim().length === 0 || altAddr.length > MAX_STRING_LENGTH || !isValidAddress(altAddr)) {
+        return c.json({ error: 'Invalid altAddresses: each entry must be a valid Algorand wallet address' }, 400);
+      }
+    }
+  }
+
   const identity = registerWalletIdentity(address, ownerName, {
-    nationality: body.nationality,
-    dateOfBirth: body.dateOfBirth,
-    verificationMethod: body.verificationMethod,
-    altAddresses: body.altAddresses,
+    nationality: nationality || undefined,
+    dateOfBirth: dateOfBirth || undefined,
+    verificationMethod: verificationMethod || undefined,
+    altAddresses: altAddresses || undefined,
   });
 
   return c.json({ success: true, identity });
