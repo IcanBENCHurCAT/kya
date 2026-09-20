@@ -157,7 +157,18 @@ export class EmailVerificationProvider implements VerificationProvider {
       );
     }
 
-    // 2. Check max attempts
+    // 2. Security: Defense-in-depth check for OTP attempt expiration
+    if (attempt.expiresAt && attempt.expiresAt <= Date.now()) {
+      throw Object.assign(
+        new Error("Verification code expired or not found"),
+        {
+          code: "OTP_EXPIRED" as const,
+          status: 410,
+        }
+      );
+    }
+
+    // 3. Check max attempts
     if (attempt.attemptCount >= attempt.maxAttempts) {
       throw Object.assign(new Error("Too many attempts. Please request a new code."), {
         code: "RATE_LIMITED" as const,

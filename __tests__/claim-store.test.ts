@@ -3,6 +3,8 @@ import { ClaimStore } from '../src/verification/claim-store.js';
 import { createClient } from '@supabase/supabase-js';
 import { createVerificationRoutes } from '../src/routes/verification-routes.js';
 import { VerificationService } from '../src/verification/service.js';
+import { EmailVerificationProvider } from '../src/verification/providers/email-provider.js';
+import { generateSigningKey } from '../src/utils/crypto.js';
 
 vi.mock('@supabase/supabase-js', () => ({
   createClient: vi.fn(),
@@ -483,6 +485,48 @@ describe('ClaimStore', () => {
       expect(res.status).toBe(429);
       const json = await res.json();
       expect(json).toEqual({ error: 'Rate limit exceeded for test user', code: 'RATE_LIMITED' });
+    });
+  });
+
+  describe('EmailVerificationProvider Expiration Security', () => {
+    it('should reject completeVerification when attempt is expired', async () => {
+      const keys = await generateSigningKey();
+      const mockAttemptStore = {
+        getAttempt: vi.fn().mockResolvedValue({
+          id: 'expired-attempt-1',
+          identifier: 'user@example.com',
+          method: 'email',
+          codeHash: '$2a$10$abcdefghijklmnopqrstuu',
+          codeSalt: '$2a$10$abcdefghijklmnopqrstuu',
+          expiresAt: Date.now() - 10000, // Expired 10s ago
+          attemptCount: 0,
+          maxAttempts: 5,
+          createdAt: Date.now() - 600000,
+        }),
+        incrementAttempt: vi.fn(),
+        deleteAttempt: vi.fn(),
+      };
+
+      const provider = new EmailVerificationProvider({
+        attemptStore: mockAttemptStore as any,
+        claimStore: claimStore,
+        privateKey: keys.privateKey,
+        keyId: 'test-key-id',
+      });
+
+      await expect(
+        provider.completeVerification({
+          attemptId: 'expired-attempt-1',
+          code: '123456',
+          walletAddress: 'W5IRXJWPSXNUJVSN2MOEJGTDGKUGFKUDVPTR5ZQVMDG5O4KYD5M3QPG3TE',
+        })
+      ).rejects.toMatchObject({
+        message: 'Verification code expired or not found',
+        code: 'OTP_EXPIRED',
+        status: 410,
+      });
+
+      expect(mockAttemptStore.incrementAttempt).not.toHaveBeenCalled();
     });
   });
 });
