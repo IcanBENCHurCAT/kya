@@ -1,4 +1,4 @@
-import type { MiddlewareHandler } from 'hono';
+import type { MiddlewareHandler } from "hono";
 export interface X402Options {
     priceMicroAlgo?: number;
     receiverAddress?: string;

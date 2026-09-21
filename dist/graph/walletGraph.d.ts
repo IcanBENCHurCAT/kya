@@ -62,6 +62,11 @@ export declare class WalletGraph {
     };
     /**
      * Get connected components (unconnected groups of wallets)
+     *
+     * Performance optimization:
+     * Uses an index pointer (`head`) instead of `queue.shift()` to eliminate $O(K)$ array re-indexing per pop,
+     * and marks nodes visited immediately upon enqueueing to prevent duplicate node insertions into the BFS queue.
+     * Reduces BFS time complexity from $O(V^2 + E \cdot V)$ down to $O(V + E)$ with zero duplicate allocations.
      */
     getConnectedComponents(): string[][];
     /**
@@ -75,6 +80,10 @@ export declare class WalletGraph {
     buildFromSiblings(address: string, siblings: SiblingWallet[], counterpartyStats?: CounterpartyStats[]): void;
     /**
      * Get graph statistics
+     *
+     * Performance optimization:
+     * Direct O(V_sources) Map size summation for edge counting avoids constructing a flat array of all
+     * edges and performing an O(E log E) sort in getAllEdges(). Also uses Map.values() for total degree calculation.
      */
     getStats(): {
         nodeCount: number;

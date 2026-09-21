@@ -58,6 +58,13 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       expect(html).toContain("e.key==='ArrowLeft'");
       expect(html).toContain("getCopyLabel");
       expect(html).toContain("btn.setAttribute('aria-label',lbl)");
+      expect(html).toContain('kbd class="kbd-hint"');
+      expect(html).toContain('title="Press C to copy command"');
+      expect(html).toContain('aria-label="Keyboard shortcut: press C"');
+      expect(html).toContain(
+        'title="Query service health status and timestamp (GET /health)"',
+      );
+      expect(html).toContain("e.key==='c'");
     });
 
     it("should return JSON service info for GET / when Accept: application/json", async () => {
