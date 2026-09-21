@@ -347,18 +347,19 @@ export function screenSanctions(target, beneficialOwner, lists = {}, config = {}
     const topResults = uniqueResults.slice(0, settings.maxResults);
     // Determine overall decision
     const highestScore = topResults.length > 0 ? topResults[0].matchScore : 0;
-    const matchedListNames = [...new Set(topResults.map(r => r.source))];
+    // Performance optimization: Single pass over topResults to collect unique matched list names directly into an array.
+    // Eliminates topResults.map() array allocation and removes dead unreferenced allListNames Set allocation.
+    const matchedListNamesSet = new Set();
+    for (let i = 0; i < topResults.length; i++) {
+        matchedListNamesSet.add(topResults[i].source);
+    }
+    const matchedListNames = Array.from(matchedListNamesSet);
     let status = 'NO_MATCH_FOUND';
     if (highestScore >= settings.failThreshold) {
         status = 'POTENTIAL_MATCH';
     }
     else if (highestScore >= settings.flagThreshold) {
         status = 'MATCH_REQUIRES_REVIEW';
-    }
-    // Build matched list names from all entries
-    const allListNames = new Set();
-    for (const r of topResults) {
-        allListNames.add(r.source);
     }
     return {
         screened: target,

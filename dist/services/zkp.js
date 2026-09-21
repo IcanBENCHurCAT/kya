@@ -20,6 +20,17 @@ export class ZKPVerifierService {
                 error: 'Invalid or missing agentAddress',
             };
         }
+        // Validate optional claimType format and bound length to prevent log/payload injection into Karma audit reasons
+        if (payload.claimType !== undefined &&
+            (typeof payload.claimType !== 'string' || payload.claimType.length > 255)) {
+            return {
+                valid: false,
+                verificationLevel: 'UNVERIFIED',
+                agentAddress: payload.agentAddress,
+                timestamp,
+                error: 'Invalid ZK Proof',
+            };
+        }
         if (!payload.proof || !payload.proof.pi_a || !payload.proof.pi_b || !payload.proof.pi_c) {
             return {
                 valid: false,
@@ -38,7 +49,18 @@ export class ZKPVerifierService {
                 error: 'Missing public signals',
             };
         }
-        if (payload.proof.pi_a.length < 2 || payload.proof.pi_c.length < 2) {
+        // Validate Groth16 proof point arrays (pi_a, pi_b, pi_c)
+        // pi_b represents G2 points and must be a 2D array with at least 2 pairs of coordinates
+        if (!Array.isArray(payload.proof.pi_a) ||
+            !Array.isArray(payload.proof.pi_b) ||
+            !Array.isArray(payload.proof.pi_c) ||
+            payload.proof.pi_a.length < 2 ||
+            payload.proof.pi_c.length < 2 ||
+            payload.proof.pi_b.length < 2 ||
+            !Array.isArray(payload.proof.pi_b[0]) ||
+            payload.proof.pi_b[0].length < 2 ||
+            !Array.isArray(payload.proof.pi_b[1]) ||
+            payload.proof.pi_b[1].length < 2) {
             return {
                 valid: false,
                 verificationLevel: 'UNVERIFIED',

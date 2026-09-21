@@ -252,6 +252,11 @@ export class WalletGraph {
     }
     /**
      * Get connected components (unconnected groups of wallets)
+     *
+     * Performance optimization:
+     * Uses an index pointer (`head`) instead of `queue.shift()` to eliminate $O(K)$ array re-indexing per pop,
+     * and marks nodes visited immediately upon enqueueing to prevent duplicate node insertions into the BFS queue.
+     * Reduces BFS time complexity from $O(V^2 + E \cdot V)$ down to $O(V + E)$ with zero duplicate allocations.
      */
     getConnectedComponents() {
         const visited = new Set();
@@ -259,20 +264,19 @@ export class WalletGraph {
         for (const address of this.nodes.keys()) {
             if (visited.has(address))
                 continue;
-            // BFS to find all connected nodes
-            const component = [];
+            visited.add(address);
+            const component = [address];
             const queue = [address];
-            while (queue.length > 0) {
-                const current = queue.shift();
-                if (visited.has(current))
-                    continue;
-                visited.add(current);
-                component.push(current);
+            let head = 0;
+            while (head < queue.length) {
+                const current = queue[head++];
                 // Add outgoing neighbors
                 const outgoing = this.adjacencyList.get(current);
                 if (outgoing) {
                     for (const neighbor of outgoing) {
                         if (!visited.has(neighbor)) {
+                            visited.add(neighbor);
+                            component.push(neighbor);
                             queue.push(neighbor);
                         }
                     }
@@ -282,14 +286,14 @@ export class WalletGraph {
                 if (incoming) {
                     for (const sender of incoming.keys()) {
                         if (!visited.has(sender)) {
+                            visited.add(sender);
+                            component.push(sender);
                             queue.push(sender);
                         }
                     }
                 }
             }
-            if (component.length > 0) {
-                components.push(component);
-            }
+            components.push(component);
         }
         return components;
     }
@@ -324,13 +328,20 @@ export class WalletGraph {
     }
     /**
      * Get graph statistics
+     *
+     * Performance optimization:
+     * Direct O(V_sources) Map size summation for edge counting avoids constructing a flat array of all
+     * edges and performing an O(E log E) sort in getAllEdges(). Also uses Map.values() for total degree calculation.
      */
     getStats() {
-        const edgeCount = this.getAllEdges().length;
+        let edgeCount = 0;
+        for (const sourceEdges of this.edges.values()) {
+            edgeCount += sourceEdges.size;
+        }
         const nodeCount = this.nodes.size;
         const components = this.getConnectedComponents().length;
         let totalDegree = 0;
-        for (const [, outgoing] of this.adjacencyList) {
+        for (const outgoing of this.adjacencyList.values()) {
             totalDegree += outgoing.size;
         }
         return {

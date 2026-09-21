@@ -12,3 +12,8 @@
 
 **Learning:** Interactive ARIA tabs (`role="tablist"`, `role="tab"`) require an associated container with `role="tabpanel"` and `aria-controls`. Screen reader users rely on `aria-labelledby` updating dynamically alongside active tab switches, coupled with `aria-live` status announcements, to know when code snippet contents have been swapped.
 **Action:** Always link `role="tab"` buttons to a `role="tabpanel"` via `aria-controls`, dynamically update `aria-labelledby` upon activation, and announce content switches in an `aria-live` region.
+
+## 2026-09-20 - Quick-Start Keyboard Shortcuts & Endpoint Tab Tooltips
+
+**Learning:** Developers frequently copy terminal quick-start cURL commands while browsing API documentation. Pair interactive cURL copy buttons with visible `<kbd>` shortcut badges and single-key `[c]` event listeners (safely guarded against input focus) alongside descriptive endpoint `title` tooltips on `role="tab"` buttons to streamline developer workflow.
+**Action:** Include `<kbd>` shortcut hints and `e.key === 'c'` keydown handlers for high-frequency copy actions, and attach descriptive `title` tooltips to endpoint tab selectors.

@@ -11,6 +11,8 @@
  */
 import { Hono } from "hono";
 import { isValidAddress } from "algosdk";
+const MAX_STRING_LENGTH = 255;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export function createVerificationRoutes(verificationService) {
     const router = new Hono();
     // -----------------------------------------------------------------------
@@ -21,8 +23,12 @@ export function createVerificationRoutes(verificationService) {
     router.post("/verify/email/initiate", async (c) => {
         try {
             const body = await c.req.json();
-            if (!body.email || !body.walletAddress) {
-                return c.json({ error: "email and walletAddress are required" }, 400);
+            if (!body.email ||
+                typeof body.email !== "string" ||
+                body.email.length > MAX_STRING_LENGTH ||
+                !EMAIL_REGEX.test(body.email) ||
+                !body.walletAddress) {
+                return c.json({ error: "Valid email address and walletAddress are required" }, 400);
             }
             // Validate wallet address format
             if (!isValidAddress(body.walletAddress)) {
@@ -35,6 +41,7 @@ export function createVerificationRoutes(verificationService) {
             return c.json({ attemptId }, 200);
         }
         catch (error) {
+            console.error("Error in /verify/email/initiate:", error);
             if (error.code) {
                 const err = error;
                 return c.json({ error: err.message, code: err.code }, err.status);
@@ -71,6 +78,7 @@ export function createVerificationRoutes(verificationService) {
             return c.json(result, 200);
         }
         catch (error) {
+            console.error("Error in /verify/email/complete:", error);
             if (error.code) {
                 const err = error;
                 return c.json({ error: err.message, code: err.code }, err.status);
@@ -92,6 +100,11 @@ export function createVerificationRoutes(verificationService) {
             return c.json(result, 200);
         }
         catch (error) {
+            console.error("Error in /verify/wallet/:address:", error);
+            if (error.code) {
+                const err = error;
+                return c.json({ error: err.message, code: err.code }, err.status);
+            }
             return c.json({ error: "Internal server error" }, 500);
         }
     });
@@ -109,6 +122,11 @@ export function createVerificationRoutes(verificationService) {
             return c.json(result, 200);
         }
         catch (error) {
+            console.error("Error in /verify/identity/:hash:", error);
+            if (error.code) {
+                const err = error;
+                return c.json({ error: err.message, code: err.code }, err.status);
+            }
             return c.json({ error: "Internal server error" }, 500);
         }
     });
