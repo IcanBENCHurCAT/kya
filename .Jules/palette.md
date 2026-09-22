@@ -22,3 +22,8 @@
 
 **Learning:** When users switch active tab panels in quick-start code snippet selectors, copy buttons that remain in a temporary "Copied!" feedback state present stale information for the newly selected endpoint. Resetting copy button state and ARIA labels immediately upon tab selection eliminates visual confusion and ensures screen readers receive accurate button state description.
 **Action:** Always invoke copy button state resetting logic within tab selection handlers when switching code snippet tabs.
+
+## 2026-09-22 - Screen Reader Re-Announcements via ARIA-Live Reset & Native Shortcut Attributes
+
+**Learning:** `aria-live` status regions fail to re-announce identical status messages on repeated actions unless the region text is cleared during state resets. Pairing standard `aria-keyshortcuts` attributes with `<kbd>` shortcut hints ensures assistive technologies natively announce key bindings alongside visible visual indicators, while `@media (forced-colors: active)` maintains high-contrast visibility.
+**Action:** Always clear `aria-live` status text during state resets to enable repeated announcements, decorate shortcut controls with `aria-keyshortcuts`, and add forced-colors CSS rules for high-contrast themes.
