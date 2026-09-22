@@ -17,3 +17,8 @@
 
 **Learning:** Developers frequently copy terminal quick-start cURL commands while browsing API documentation. Pair interactive cURL copy buttons with visible `<kbd>` shortcut badges and single-key `[c]` event listeners (safely guarded against input focus) alongside descriptive endpoint `title` tooltips on `role="tab"` buttons to streamline developer workflow.
 **Action:** Include `<kbd>` shortcut hints and `e.key === 'c'` keydown handlers for high-frequency copy actions, and attach descriptive `title` tooltips to endpoint tab selectors.
+
+## 2026-09-21 - Instant Copy Feedback Reset on Tab Switch
+
+**Learning:** When users switch active tab panels in quick-start code snippet selectors, copy buttons that remain in a temporary "Copied!" feedback state present stale information for the newly selected endpoint. Resetting copy button state and ARIA labels immediately upon tab selection eliminates visual confusion and ensures screen readers receive accurate button state description.
+**Action:** Always invoke copy button state resetting logic within tab selection handlers when switching code snippet tabs.

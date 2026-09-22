@@ -57,6 +57,8 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       expect(html).toContain("e.key==='ArrowRight'");
       expect(html).toContain("e.key==='ArrowLeft'");
       expect(html).toContain("getCopyLabel");
+      expect(html).toContain("resetCopyBtn");
+      expect(html).toContain("resetCopyBtn()");
       expect(html).toContain("btn.setAttribute('aria-label',lbl)");
       expect(html).toContain('kbd class="kbd-hint"');
       expect(html).toContain('title="Press C to copy command"');
