@@ -61,3 +61,7 @@
 ## 2025-03-17 - Zero-Allocation Algorand Box Storage Encoding and Direct Key Prefix Assignment
 **Learning:** In Algorand binary box storage serialization (`encodeKarmaBox`) and key derivation (`getKarmaBoxKey`), using `Buffer.alloc(77)` zero-fills memory unnecessarily when every byte is explicitly written, and `.subarray(37, 69).set(...)` creates short-lived Buffer view objects. Furthermore, key generation allocating `Buffer.from('k_')` prefix buffers, wrapping public keys in Buffers, and using `Buffer.concat` creates 4 temporary allocations per key derivation.
 **Action:** Use `Buffer.allocUnsafe(77)` with direct `.set(hashBytes, 37)` for binary box encoding (reducing encoding runtime by >52%), and allocate a single 34-byte `Uint8Array` directly assigning prefix bytes (`key[0] = 0x6b; key[1] = 0x5f; key.set(pubKey, 2);`), eliminating `Buffer.from` and `Buffer.concat` garbage collection pressure.
+
+## 2025-03-18 - Early-Exit Reverse Loop for Chronological Audit Logs
+**Learning:** Querying append-only chronological logs like `auditLog` using full-array `.filter()` and $O(N \log N)$ sorting iterates through all $N$ historical entries and creates $O(N)$ temporary array allocations even when only the top 100 entries (`limit`) are requested.
+**Action:** Iterate backwards from the end of chronological arrays (`auditLog.length - 1` down to `0`), apply filters in a single pass, and break early as soon as `limit` items are matched. Reduces query complexity from $O(N \log N)$ to $O(\text{limit})$ and eliminates full-array GC allocations.

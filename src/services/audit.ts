@@ -120,8 +120,10 @@ export function logError(message: string, metadata?: Record<string, unknown>): A
  * Get all audit entries, optionally filtered.
  *
  * Performance optimization:
- * Combines filter criteria into a single pass and replaces localeCompare with fast ISO string
- * relational comparisons (> / <), avoiding multi-pass array allocations and expensive ICU locale overhead.
+ * Since auditLog is appended in chronological order, reverse iteration from newest (end) to oldest (start)
+ * allows collecting matching entries directly with an early exit once `limit` items are gathered.
+ * This turns query operations over large audit histories from $O(N \log N)$ sorting and $O(N)$ full-array copying
+ * down to $O(\text{limit})$ time complexity in common cases, eliminating massive array allocations.
  */
 export function getAuditLog(
   options: {
@@ -131,23 +133,30 @@ export function getAuditLog(
     result?: 'NO_MATCH_FOUND' | 'POTENTIAL_MATCH' | 'MATCH_REQUIRES_REVIEW' | 'ERROR';
   } = {},
 ): AuditEntry[] {
-  let entries: AuditEntry[];
+  const limit = options.limit || 100;
+  const entries: AuditEntry[] = [];
 
-  if (options.after || options.before || options.result) {
-    entries = auditLog.filter(e => {
-      if (options.after && e.timestamp < options.after) return false;
-      if (options.before && e.timestamp > options.before) return false;
-      if (options.result && e.result !== options.result) return false;
-      return true;
-    });
-  } else {
-    entries = [...auditLog];
+  const { after, before, result } = options;
+
+  // Reverse loop: newest entries are appended at the end of auditLog
+  for (let i = auditLog.length - 1; i >= 0; i--) {
+    const entry = auditLog[i];
+
+    if (after && entry.timestamp < after) continue;
+    if (before && entry.timestamp > before) continue;
+    if (result && entry.result !== result) continue;
+
+    entries.push(entry);
+
+    if (entries.length >= limit) {
+      break;
+    }
   }
 
-  // Sort by timestamp descending using fast ISO string relational comparisons
+  // Ensure entries are strictly sorted descending by ISO timestamp using fast relational operators
   entries.sort((a, b) => (b.timestamp > a.timestamp ? 1 : b.timestamp < a.timestamp ? -1 : 0));
 
-  return entries.slice(0, options.limit || 100);
+  return entries;
 }
 
 /**
