@@ -90,6 +90,26 @@ describe('Groth16 ZK-KYC Proof Verifier & REST Routes', () => {
       expect(result.valid).toBe(false);
       expect(result.error).toBe('Invalid ZK Proof');
     });
+
+    it('should reject proof payload with numeric or type-confused invalid public signals', async () => {
+      const numericSignalPayload = {
+        ...validProofPayload,
+        publicSignals: [0] as any,
+      };
+      const result = await zkpService.verifyProof(numericSignalPayload);
+
+      expect(result.valid).toBe(false);
+      expect(result.error).toBe('Invalid ZK Proof');
+
+      const nonStringSignalPayload = {
+        ...validProofPayload,
+        publicSignals: [0x00] as any,
+      };
+      const result2 = await zkpService.verifyProof(nonStringSignalPayload);
+
+      expect(result2.valid).toBe(false);
+      expect(result2.error).toBe('Invalid ZK Proof');
+    });
   });
 
   describe('REST Endpoint POST /api/v1/verify/zk-proof', () => {
