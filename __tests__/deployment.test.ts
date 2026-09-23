@@ -70,6 +70,11 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
         'title="Query service health status and timestamp (GET /health)"',
       );
       expect(html).toContain("e.key==='c'");
+      expect(html).toContain('id="endpoint-link"');
+      expect(html).toContain('target="_blank"');
+      expect(html).toContain('rel="noopener noreferrer"');
+      expect(html).toContain('aria-label="Open GET /health in browser tab"');
+      expect(html).toContain('title="Open GET /health in browser tab"');
     });
 
     it("should return JSON service info for GET / when Accept: application/json", async () => {

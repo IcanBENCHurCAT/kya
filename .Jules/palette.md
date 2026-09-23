@@ -27,3 +27,8 @@
 
 **Learning:** `aria-live` status regions fail to re-announce identical status messages on repeated actions unless the region text is cleared during state resets. Pairing standard `aria-keyshortcuts` attributes with `<kbd>` shortcut hints ensures assistive technologies natively announce key bindings alongside visible visual indicators, while `@media (forced-colors: active)` maintains high-contrast visibility.
 **Action:** Always clear `aria-live` status text during state resets to enable repeated announcements, decorate shortcut controls with `aria-keyshortcuts`, and add forced-colors CSS rules for high-contrast themes.
+
+## 2026-09-23 - Direct Endpoint Action Links with Dynamic ARIA Attributes
+
+**Learning:** Pairing terminal quick-start cURL command snippets with a direct "Open in Browser" action link (`target="_blank" rel="noopener noreferrer"`) provides developers with instant GET testing without context-switching to terminal windows. Dynamically updating `href`, `aria-label`, and `title` attributes upon tab changes maintains screen reader accuracy and ensures secure external navigation.
+**Action:** Include dynamic "Open Endpoint" action links alongside copy-to-clipboard buttons in code panels with full `aria-label`, `title`, and `rel="noopener noreferrer"` attributes.
