@@ -219,24 +219,28 @@ describe('A2A Pre-Flight Handshake & W3C VC Engine', () => {
       expect(json.error).toBe('Invalid Algorand address format for initiatorAddress or targetAddress');
     });
 
-    it('should return HTTP 400 if minKarmaScore is not a number', async () => {
-      const res = await app.request('/api/v1/a2a/handshake', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Payment': 'tx_a2a_handshake_bad_score',
-        },
-        body: JSON.stringify({
-          initiatorAddress: validInitiator,
-          targetAddress: validTarget,
-          minKarmaScore: 'not_a_number',
-        }),
-      });
+    it('should return HTTP 400 if minKarmaScore is invalid, negative, non-finite, or not a number', async () => {
+      const invalidScores = ['not_a_number', -50, NaN, Infinity, -Infinity];
 
-      expect(res.status).toBe(400);
-      const json = await res.json();
-      expect(json.success).toBe(false);
-      expect(json.error).toBe('minKarmaScore must be a number if provided');
+      for (const [idx, score] of invalidScores.entries()) {
+        const res = await app.request('/api/v1/a2a/handshake', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Payment': `tx_a2a_handshake_bad_score_${idx}`,
+          },
+          body: JSON.stringify({
+            initiatorAddress: validInitiator,
+            targetAddress: validTarget,
+            minKarmaScore: score,
+          }),
+        });
+
+        expect(res.status).toBe(400);
+        const json = await res.json();
+        expect(json.success).toBe(false);
+        expect(json.error).toBe('minKarmaScore must be a valid non-negative finite number if provided');
+      }
     });
 
     it('should handle malformed JSON body gracefully and return HTTP 400', async () => {
