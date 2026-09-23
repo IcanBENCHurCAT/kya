@@ -48,11 +48,14 @@ export function createA2ARoutes(a2aService: A2AService = defaultA2AService) {
       );
     }
 
-    if (minKarmaScore !== undefined && typeof minKarmaScore !== 'number') {
+    if (
+      minKarmaScore !== undefined &&
+      (typeof minKarmaScore !== 'number' || !Number.isFinite(minKarmaScore) || minKarmaScore < 0)
+    ) {
       return c.json(
         {
           success: false,
-          error: 'minKarmaScore must be a number if provided',
+          error: 'minKarmaScore must be a valid non-negative finite number if provided',
         },
         400
       );
