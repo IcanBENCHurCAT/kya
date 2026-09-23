@@ -63,6 +63,9 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       expect(html).toContain('kbd class="kbd-hint"');
       expect(html).toContain('title="Press C to copy command"');
       expect(html).toContain('aria-label="Keyboard shortcut: press C"');
+      expect(html).toContain('aria-keyshortcuts="c"');
+      expect(html).toContain("forced-colors: active");
+      expect(html).toContain("status.innerText=''");
       expect(html).toContain(
         'title="Query service health status and timestamp (GET /health)"',
       );
