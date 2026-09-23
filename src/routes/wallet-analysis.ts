@@ -106,10 +106,7 @@ const handleFullGraph = async (c: any) => {
     });
   } catch (err) {
     console.error("Error querying full wallet graph:", err);
-    return c.json(
-      { error: "Failed to query wallet graph statistics" },
-      500,
-    );
+    return c.json({ error: "Failed to query wallet graph statistics" }, 500);
   }
 };
 
@@ -162,13 +159,26 @@ const handleWalletTxs = async (c: any) => {
   if (!address || !isValidAddress(address)) {
     return c.json({ error: "Invalid Algorand address format" }, 400);
   }
-  const limit = parseInt(c.req.query("limit") || "100", 10);
+  const limitParam = c.req.query("limit");
+  let limit = 100;
+
+  if (limitParam !== undefined) {
+    const parsed = parseInt(limitParam, 10);
+    if (isNaN(parsed) || parsed <= 0) {
+      return c.json(
+        { error: "Invalid limit parameter: must be a positive integer" },
+        400,
+      );
+    }
+    limit = Math.min(parsed, 1000);
+  }
+
   const force = c.req.query("force") === "true";
 
   try {
     const service = getHistory();
     const history = await service.getTransactionHistory(address, {
-      limit: Math.min(limit, 1000),
+      limit,
       forceRefresh: force,
     });
 
