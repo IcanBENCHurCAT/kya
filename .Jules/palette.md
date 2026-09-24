@@ -32,3 +32,8 @@
 
 **Learning:** Pairing terminal quick-start cURL command snippets with a direct "Open in Browser" action link (`target="_blank" rel="noopener noreferrer"`) provides developers with instant GET testing without context-switching to terminal windows. Dynamically updating `href`, `aria-label`, and `title` attributes upon tab changes maintains screen reader accuracy and ensures secure external navigation.
 **Action:** Include dynamic "Open Endpoint" action links alongside copy-to-clipboard buttons in code panels with full `aria-label`, `title`, and `rel="noopener noreferrer"` attributes.
+
+## 2026-09-24 - Interactive Quick-Start Code Block Targets with Dynamic ARIA Tooltips
+
+**Learning:** When reviewing code command snippets on landing pages, developers intuitively click directly on the code text block itself. Converting code container elements (`<code>` / `<pre>`) into interactive targets (`role="button"`, `tabindex="0"`, `cursor:pointer`, `Enter`/`Space` keydown handlers) with dynamically updated `aria-label` and `title` tooltips provides a smooth, multi-modal copy experience for both mouse and keyboard users.
+**Action:** Make quick-start code snippet elements directly interactive with `role="button"`, `tabindex="0"`, keydown handlers, and accessible tooltips explaining click/keyboard activation.

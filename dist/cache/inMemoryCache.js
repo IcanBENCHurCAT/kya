@@ -65,13 +65,17 @@ export class InMemoryCache {
     }
     /**
      * Get cache statistics
+     *
+     * Performance optimization:
+     * Uses Map.prototype.forEach instead of `for (const [key, entry] of this.store)` to avoid
+     * allocating intermediate 2-element entry tuple arrays `[key, entry]` per cached item in V8.
      */
     getStats() {
         const entries = {};
         const now = Date.now();
-        for (const [key, entry] of this.store) {
+        this.store.forEach((entry, key) => {
             entries[key] = Math.max(0, (entry.timestamp + entry.ttl) - now);
-        }
+        });
         return {
             hits: this.stats.hits,
             misses: this.stats.misses,

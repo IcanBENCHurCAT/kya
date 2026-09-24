@@ -75,6 +75,10 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       expect(html).toContain('rel="noopener noreferrer"');
       expect(html).toContain('aria-label="Open GET /health in browser tab"');
       expect(html).toContain('title="Open GET /health in browser tab"');
+      expect(html).toContain('role="button"');
+      expect(html).toContain('handleCodeKeydown');
+      expect(html).toContain('cursor:pointer');
+      expect(html).toContain('click or press Enter to copy');
     });
 
     it("should return JSON service info for GET / when Accept: application/json", async () => {

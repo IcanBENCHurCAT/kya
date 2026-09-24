@@ -69,8 +69,13 @@ export class ZKPVerifierService {
                 error: 'Invalid ZK Proof',
             };
         }
-        // Check for dummy invalid signals or test rejection markers
-        const hasInvalidSignal = payload.publicSignals.some((sig) => sig === '0' || sig === 'invalid' || sig === '0x00');
+        // Security: Validate public signal string types and reject dummy/invalid markers regardless of JSON encoding
+        const hasInvalidSignal = payload.publicSignals.some((sig) => {
+            if (typeof sig !== 'string')
+                return true;
+            const s = sig.trim().toLowerCase();
+            return s === '' || s === '0' || s === 'invalid' || s === '0x0' || s === '0x00';
+        });
         if (hasInvalidSignal) {
             return {
                 valid: false,

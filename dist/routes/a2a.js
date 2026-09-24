@@ -28,10 +28,11 @@ export function createA2ARoutes(a2aService = defaultA2AService) {
                 error: 'Invalid Algorand address format for initiatorAddress or targetAddress',
             }, 400);
         }
-        if (minKarmaScore !== undefined && typeof minKarmaScore !== 'number') {
+        if (minKarmaScore !== undefined &&
+            (typeof minKarmaScore !== 'number' || !Number.isFinite(minKarmaScore) || minKarmaScore < 0)) {
             return c.json({
                 success: false,
-                error: 'minKarmaScore must be a number if provided',
+                error: 'minKarmaScore must be a valid non-negative finite number if provided',
             }, 400);
         }
         const handshakeResult = await a2aService.executeHandshake({
