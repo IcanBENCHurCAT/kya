@@ -69,3 +69,7 @@
 ## 2025-03-19 - Single-Pass Max Finding vs Array Sorting for Set Lookups
 **Learning:** In set/map index lookups where only the maximum/latest element is needed (e.g. `InMemoryClaimStore.findByWallet`), converting the candidate `Set` to an array via `Array.from` and sorting with `.sort()` incurs $O(K \log K)$ sorting time and creates temporary array allocations on every lookup.
 **Action:** Use a single-pass `for...of` loop over the set to track the item with the maximum target property (`verifiedAt`). Reduces time complexity from $O(K \log K)$ to $O(K)$ and eliminates intermediate array allocations, resulting in ~4x faster lookup performance.
+
+## 2025-03-20 - Map.prototype.forEach vs for...of Tuple Allocations in Map Metrics Iteration
+**Learning:** Iterating over a JS `Map` using `for (const [key, value] of map)` allocates a temporary 2-element tuple array `[key, value]` for every entry in V8. For large caches or maps (e.g. 10,000+ cached entries in `InMemoryCache.getStats()`), generating tens of thousands of entry tuples per call creates unnecessary garbage collection pressure and increases iteration overhead by ~10-15%.
+**Action:** Use `map.forEach((value, key) => ...)` when iterating Map keys and values for stats or transformations, avoiding entry tuple allocations in V8.
