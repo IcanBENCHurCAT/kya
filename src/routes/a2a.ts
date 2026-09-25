@@ -19,7 +19,7 @@ export function createA2ARoutes(a2aService: A2AService = defaultA2AService) {
     })) as A2AHandshakeRequest;
     const watchlist = c.env?.WATCHLIST || {};
 
-    const { initiatorAddress, targetAddress, minKarmaScore } = body;
+    const { initiatorAddress, targetAddress, requiredVerificationLevel, minKarmaScore } = body;
 
     if (
       typeof initiatorAddress !== 'string' ||
@@ -49,6 +49,21 @@ export function createA2ARoutes(a2aService: A2AService = defaultA2AService) {
     }
 
     if (
+      requiredVerificationLevel !== undefined &&
+      (typeof requiredVerificationLevel !== 'string' ||
+        requiredVerificationLevel.trim().length === 0 ||
+        requiredVerificationLevel.length > MAX_STRING_LENGTH)
+    ) {
+      return c.json(
+        {
+          success: false,
+          error: 'requiredVerificationLevel must be a non-empty string if provided',
+        },
+        400
+      );
+    }
+
+    if (
       minKarmaScore !== undefined &&
       (typeof minKarmaScore !== 'number' || !Number.isFinite(minKarmaScore) || minKarmaScore < 0)
     ) {
@@ -65,6 +80,7 @@ export function createA2ARoutes(a2aService: A2AService = defaultA2AService) {
       {
         initiatorAddress: initiatorAddress.trim(),
         targetAddress: targetAddress.trim(),
+        requiredVerificationLevel: requiredVerificationLevel ? requiredVerificationLevel.trim() : undefined,
         minKarmaScore,
       },
       watchlist

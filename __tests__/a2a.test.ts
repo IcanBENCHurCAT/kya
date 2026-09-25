@@ -119,6 +119,39 @@ describe('A2A Pre-Flight Handshake & W3C VC Engine', () => {
       expect(response.targetProfile?.sanctionsStatus).toBe('POTENTIAL_MATCH');
       expect(response.riskSummary.noSanctionsMatch).toBe(false);
     });
+
+    it('should evaluate requiredVerificationLevel and REJECT when target tier is insufficient', async () => {
+      const targetAddress = 'A2A_TARGET_TIER1';
+
+      // Base score 100 -> Tier 0 (Unscored)
+      const responseTier0 = await a2aService.executeHandshake({
+        initiatorAddress: 'A2A_INITIATOR_1',
+        targetAddress,
+        minKarmaScore: 100,
+        requiredVerificationLevel: 'Tier 2',
+      });
+
+      expect(responseTier0.decision).toBe('REJECT');
+      expect(responseTier0.riskSummary.verificationLevelPass).toBe(false);
+
+      // Boost score to 700 -> Tier 2 (Established)
+      await karmaService.recordEvent({
+        agentAddress: targetAddress,
+        eventType: 'credit',
+        amount: 600,
+        reason: 'Verification upgrade',
+      });
+
+      const responseTier2 = await a2aService.executeHandshake({
+        initiatorAddress: 'A2A_INITIATOR_1',
+        targetAddress,
+        minKarmaScore: 100,
+        requiredVerificationLevel: 'Tier 2',
+      });
+
+      expect(responseTier2.decision).toBe('PROCEED');
+      expect(responseTier2.riskSummary.verificationLevelPass).toBe(true);
+    });
   });
 
   describe('REST Endpoint POST /api/v1/a2a/handshake', () => {
@@ -257,6 +290,30 @@ describe('A2A Pre-Flight Handshake & W3C VC Engine', () => {
       const json = await res.json();
       expect(json.success).toBe(false);
       expect(json.error).toBe('initiatorAddress and targetAddress are required');
+    });
+
+    it('should return HTTP 400 if requiredVerificationLevel is provided but invalid', async () => {
+      const invalidLevels = [123, '', '   ', 'a'.repeat(256)];
+
+      for (const [idx, level] of invalidLevels.entries()) {
+        const res = await app.request('/api/v1/a2a/handshake', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Payment': `tx_a2a_handshake_bad_level_${idx}`,
+          },
+          body: JSON.stringify({
+            initiatorAddress: validInitiator,
+            targetAddress: validTarget,
+            requiredVerificationLevel: level,
+          }),
+        });
+
+        expect(res.status).toBe(400);
+        const json = await res.json();
+        expect(json.success).toBe(false);
+        expect(json.error).toBe('requiredVerificationLevel must be a non-empty string if provided');
+      }
     });
   });
 });
