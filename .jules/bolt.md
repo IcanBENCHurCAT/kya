@@ -77,3 +77,7 @@
 ## 2025-03-21 - Theoretical Jaro-Winkler Upper Bound Pruning & Cached String Normalization in Beneficial Owner Screening
 **Learning:** In sanctions screening across ~20k entries, evaluating `jaroWinklerSimilarity` and `partialNameMatch` for beneficial owner matching without upper-bound pruning or cached pre-normalized strings creates tens of thousands of string allocations and matrix computations (~650ms per request).
 **Action:** Pre-normalize `boNorm` outside the watchlist loop, cache `entry.nameTrimmedLower` and `entry.nameNorm` on entry objects, apply theoretical Jaro-Winkler upper bounds (`0.7 * maxJW + 0.3 * ratio < threshold`), and evaluate `bNorm.length` in `partialNameMatch` to achieve a ~55x performance improvement.
+
+## 2025-03-22 - Direct Latest Lookup & Single-Item Fast Path in Verification Queries
+**Learning:** Checking verification status via `checkVerification` by fetching all historical claims, converting the set via `Array.from()`, and sorting all items ($O(K \log K)$) incurs redundant array allocation and sorting overhead when only the latest claim and total count are needed.
+**Action:** Query `findByWallet` (single $O(K)$ linear scan max lookup) and `getClaimCount` ($O(1)$ size lookup) directly in `checkVerification`, and bypass `.sort()` for single-item sets in store queries (`findAllForWallet`, `findByIdentityHash`).

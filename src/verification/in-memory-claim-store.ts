@@ -69,6 +69,9 @@ export class InMemoryClaimStore {
   ): Promise<VerificationClaim[]> {
     const walletSet = this.byWallet.get(walletAddress);
     if (!walletSet || walletSet.size === 0) return [];
+    if (walletSet.size === 1) {
+      for (const claim of walletSet) return [claim];
+    }
     const walletClaims = Array.from(walletSet);
     return walletClaims.sort((a, b) => b.verifiedAt - a.verifiedAt);
   }
@@ -76,6 +79,9 @@ export class InMemoryClaimStore {
   async findByIdentityHash(identityHash: string): Promise<VerificationClaim[]> {
     const hashSet = this.byIdentityHash.get(identityHash);
     if (!hashSet || hashSet.size === 0) return [];
+    if (hashSet.size === 1) {
+      for (const claim of hashSet) return [claim];
+    }
     const hashClaims = Array.from(hashSet);
     return hashClaims.sort((a, b) => b.verifiedAt - a.verifiedAt);
   }

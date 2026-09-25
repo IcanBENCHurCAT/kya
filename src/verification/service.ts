@@ -122,11 +122,16 @@ export class VerificationService {
 
   /**
    * Check if a wallet address has been verified.
+   *
+   * Performance optimization:
+   * Queries `findByWallet` (single latest claim lookup) and `getClaimCount` directly.
+   * Avoids fetching, copying (`Array.from`), and $O(K \log K)$ sorting of all historical
+   * claims via `findAllForWallet` when only checking verification status and count.
    */
   async checkVerification(walletAddress: string): Promise<any> {
-    const claims = await this.claimStore.findAllForWallet(walletAddress);
+    const latest = await this.claimStore.findByWallet(walletAddress);
 
-    if (claims.length === 0) {
+    if (!latest) {
       return {
         walletAddress,
         isVerified: false,
@@ -137,11 +142,12 @@ export class VerificationService {
       };
     }
 
-    const latest = claims[0];
+    const claimCount = await this.claimStore.getClaimCount(walletAddress);
+
     return {
       walletAddress,
       isVerified: true,
-      claimCount: claims.length,
+      claimCount,
       latestMethod: latest.method,
       latestVerifiedAt: latest.verifiedAt,
       latestIdentityHash: latest.identityHash,
