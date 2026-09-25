@@ -17,3 +17,8 @@
 **Vulnerability:** `verifyProof` in `src/services/zkp.ts` checked `publicSignals` using strict string equality (`sig === '0'`), which allowed numeric signals (`[0]`) in JSON payloads to bypass invalid signal rejection and grant unauthorized Karma credit and tier upgrades.
 **Learning:** JSON parsers parse unquoted numbers as JavaScript `number` types. Strict string comparison (`=== '0'`) against numeric values evaluates to `false`, allowing type confusion to bypass security filters.
 **Prevention:** Always validate runtime types of input array elements (e.g., `typeof sig !== 'string'`) and normalize/trim values before evaluating against security exclusion rules.
+
+## 2025-05-18 - Verification Level Policy Bypass in A2A Handshake
+**Vulnerability:** `POST /a2a/handshake` in `src/routes/a2a.ts` dropped `requiredVerificationLevel` from request payloads, and `A2AService.executeHandshake` failed to evaluate `requiredVerificationLevel` against target agent tiers, issuing `PROCEED` decisions and W3C VCs to agents with insufficient verification levels.
+**Learning:** When endpoint routes silently drop policy parameters from incoming JSON bodies, risk evaluation engines default to permissive decisions regardless of caller security requirements.
+**Prevention:** Always validate and forward required security policy parameters from HTTP handlers, and explicitly check target profile tiers against caller requirements before returning `PROCEED` decisions.
