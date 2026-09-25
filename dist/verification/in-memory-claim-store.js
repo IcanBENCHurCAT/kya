@@ -33,13 +33,25 @@ export class InMemoryClaimStore {
         hashSet.add(fullClaim);
         return fullClaim;
     }
+    /**
+     * Find the latest verification claim for a wallet address.
+     *
+     * Performance optimization:
+     * Uses a single-pass loop over the wallet claims Set to find the claim with the maximum
+     * `verifiedAt` timestamp. Eliminates intermediate `Array.from` allocations and reduces
+     * lookup complexity from O(K log K) sorting down to O(K) linear scanning with 0 GC allocations.
+     */
     async findByWallet(walletAddress) {
         const walletSet = this.byWallet.get(walletAddress);
         if (!walletSet || walletSet.size === 0)
             return null;
-        const walletClaims = Array.from(walletSet);
-        walletClaims.sort((a, b) => b.verifiedAt - a.verifiedAt);
-        return walletClaims[0];
+        let latest = null;
+        for (const claim of walletSet) {
+            if (!latest || claim.verifiedAt > latest.verifiedAt) {
+                latest = claim;
+            }
+        }
+        return latest;
     }
     async findAllForWallet(walletAddress) {
         const walletSet = this.byWallet.get(walletAddress);

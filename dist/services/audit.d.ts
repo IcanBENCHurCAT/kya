@@ -53,8 +53,10 @@ export declare function logError(message: string, metadata?: Record<string, unkn
  * Get all audit entries, optionally filtered.
  *
  * Performance optimization:
- * Combines filter criteria into a single pass and replaces localeCompare with fast ISO string
- * relational comparisons (> / <), avoiding multi-pass array allocations and expensive ICU locale overhead.
+ * Since auditLog is appended in chronological order, reverse iteration from newest (end) to oldest (start)
+ * allows collecting matching entries directly with an early exit once `limit` items are gathered.
+ * This turns query operations over large audit histories from $O(N \log N)$ sorting and $O(N)$ full-array copying
+ * down to $O(\text{limit})$ time complexity in common cases, eliminating massive array allocations.
  */
 export declare function getAuditLog(options?: {
     limit?: number;

@@ -27,6 +27,10 @@ export declare class InMemoryCache<K extends string, V> {
     clear(): void;
     /**
      * Get cache statistics
+     *
+     * Performance optimization:
+     * Uses Map.prototype.forEach instead of `for (const [key, entry] of this.store)` to avoid
+     * allocating intermediate 2-element entry tuple arrays `[key, entry]` per cached item in V8.
      */
     getStats(): CacheStats;
     /**
