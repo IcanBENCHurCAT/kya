@@ -206,9 +206,15 @@ export function combinedSimilarity(a: string, b: string, threshold: number = 0):
  * Avoids redundant string lowercasing in hot loops and prunes calculations
  * via length ratio bounds and Jaro score thresholding.
  */
-function combinedSimilarityLower(aLower: string, bLower: string, threshold: number = 0): number {
+function combinedSimilarityLower(
+  aLower: string,
+  bLower: string,
+  threshold: number = 0,
+  aLenParam?: number,
+  aFirstCharParam?: number,
+): number {
   if (aLower === bLower) return 1.0;
-  const lenA = aLower.length;
+  const lenA = aLenParam ?? aLower.length;
   const lenB = bLower.length;
   if (lenA === 0 || lenB === 0) return 0.0;
 
@@ -216,12 +222,25 @@ function combinedSimilarityLower(aLower: string, bLower: string, threshold: numb
     const minLen = lenA < lenB ? lenA : lenB;
     const maxLen = lenA > lenB ? lenA : lenB;
     const ratio = minLen / maxLen;
-    // Theoretical upper bound on combined similarity.
-    // If first characters don't match, prefix bonus is 0, giving tighter bound: (1.6 * ratio + 1.4) / 3.
-    const maxBound = (aLower.charCodeAt(0) === bLower.charCodeAt(0))
-      ? (0.44 * ratio + 0.56)
-      : ((1.6 * ratio + 1.4) / 3);
-    if (maxBound < threshold) {
+    const aFirstChar = aFirstCharParam ?? aLower.charCodeAt(0);
+
+    // Theoretical upper bound on combined similarity (0.7 * jw + 0.3 * lv)
+    // Note: Levenshtein similarity lv <= ratio (since levDist >= maxLen - minLen).
+    let maxJW = 1.0;
+    if (aFirstChar !== bLower.charCodeAt(0)) {
+      maxJW = (ratio + 2.0) / 3;
+    } else if (aLower.charCodeAt(1) !== bLower.charCodeAt(1)) {
+      maxJW = 0.3 * ratio + 0.7;
+    } else if (aLower.charCodeAt(2) !== bLower.charCodeAt(2)) {
+      maxJW = 0.2667 * ratio + 0.7333;
+    } else if (aLower.charCodeAt(3) !== bLower.charCodeAt(3)) {
+      maxJW = 0.2333 * ratio + 0.7667;
+    } else {
+      maxJW = 0.2 * ratio + 0.8;
+    }
+
+    const maxCombined = 0.7 * maxJW + 0.3 * ratio;
+    if (maxCombined < threshold) {
       return 0.0;
     }
   }
@@ -248,10 +267,22 @@ function exactMatch(a: string, b: string): boolean {
 
 /**
  * Partial name match: checks if one name contains the other.
+ *
+ * Performance optimization:
+ * Performs length-ratio pruning before regex operations and reuses cached normalized strings.
  */
-function partialNameMatch(a: string, b: string): boolean {
-  const aNorm = a.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
-  const bNorm = b.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+function partialNameMatch(aNorm: string, bRaw: string, entry?: SanctionedEntry): boolean {
+  const bNorm = entry
+    ? (entry.nameNorm ??= bRaw.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim())
+    : bRaw.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+
+  const aLen = aNorm.length;
+  const bLen = bNorm.length;
+  const minLen = aLen < bLen ? aLen : bLen;
+  const maxLen = aLen > bLen ? aLen : bLen;
+  if (minLen <= 3 || (minLen / maxLen) < 0.6) {
+    return false;
+  }
 
   if (aNorm.includes(bNorm) || bNorm.includes(aNorm)) {
     const shorter = Math.min(aNorm.length, bNorm.length);
@@ -278,17 +309,26 @@ export function screenSanctions(
   const settings = { ...DEFAULT_CONFIG, ...config };
   const results: MatchedEntry[] = [];
 
-  // Performance optimization: Pre-lowercase target string and beneficialOwner string once
+  // Performance optimization: Pre-lowercase target string and beneficialOwner string once,
+  // and extract lengths and first character codes to pass down to similarity helpers.
   const targetLower = target.toLowerCase();
+  const targetLen = targetLower.length;
+  const targetFirstChar = targetLower.charCodeAt(0);
+
   const targetTrimmedLower = targetLower.trim();
+  const targetTrimmedLen = targetTrimmedLower.length;
+  const targetTrimmedFirstChar = targetTrimmedLower.charCodeAt(0);
 
   const hasBo = !!(beneficialOwner && beneficialOwner.trim());
   const boTrimmedLower = hasBo ? beneficialOwner!.toLowerCase().trim() : '';
   const boLower = hasBo ? beneficialOwner!.toLowerCase() : '';
+  const boNorm = hasBo ? boLower.replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim() : '';
 
   // Single pass through all entries across lists
-  for (const [listName, entries] of Object.entries(lists)) {
-    for (const entry of entries) {
+  for (const listName in lists) {
+    const entries = lists[listName];
+    for (let eIdx = 0; eIdx < entries.length; eIdx++) {
+      const entry = entries[eIdx];
       // 1. Screen wallet address against national IDs
       if (settings.matchNationalIds) {
         const nationalIdsLower = (entry.nationalIdsLower ??= entry.nationalIds.map(id => id.toLowerCase().trim()));
@@ -305,7 +345,7 @@ export function screenSanctions(
               reason: `Wallet address ${target} found in sanctions nationalId`,
             });
           } else if (settings.fuzzyMatch) {
-            const score = combinedSimilarityLower(targetTrimmedLower, natIdTrimmedLower, settings.fuzzyTolerance);
+            const score = combinedSimilarityLower(targetTrimmedLower, natIdTrimmedLower, settings.fuzzyTolerance, targetTrimmedLen, targetTrimmedFirstChar);
             if (score >= settings.fuzzyTolerance) {
               results.push({
                 sanctionedId: entry.id,
@@ -324,14 +364,14 @@ export function screenSanctions(
       // 2. Screen wallet address as a name/alias/address
       if (settings.fuzzyMatch) {
         const entryNameLower = (entry.nameLower ??= entry.name.toLowerCase());
-        let bestScore = combinedSimilarityLower(targetLower, entryNameLower, settings.fuzzyTolerance);
+        let bestScore = combinedSimilarityLower(targetLower, entryNameLower, settings.fuzzyTolerance, targetLen, targetFirstChar);
         let bestField = 'name';
 
         if (settings.matchAliases) {
           const aliasesLower = (entry.aliasesLower ??= entry.aliases.map(a => a.toLowerCase()));
           for (let i = 0; i < aliasesLower.length; i++) {
             const thresh = bestScore > settings.fuzzyTolerance ? bestScore : settings.fuzzyTolerance;
-            const score = combinedSimilarityLower(targetLower, aliasesLower[i], thresh);
+            const score = combinedSimilarityLower(targetLower, aliasesLower[i], thresh, targetLen, targetFirstChar);
             if (score > bestScore) {
               bestScore = score;
               bestField = 'alias';
@@ -343,7 +383,7 @@ export function screenSanctions(
           const addressesLower = (entry.addressesLower ??= entry.addresses.map(a => a.toLowerCase()));
           for (let i = 0; i < addressesLower.length; i++) {
             const thresh = bestScore > settings.fuzzyTolerance ? bestScore : settings.fuzzyTolerance;
-            const score = combinedSimilarityLower(targetLower, addressesLower[i], thresh);
+            const score = combinedSimilarityLower(targetLower, addressesLower[i], thresh, targetLen, targetFirstChar);
             if (score > bestScore) {
               bestScore = score;
               bestField = 'address';
@@ -369,29 +409,54 @@ export function screenSanctions(
         let score = 0;
         let matchField: string = 'name';
         const entryNameLower = (entry.nameLower ??= entry.name.toLowerCase());
+        const entryNameTrimmedLower = (entry.nameTrimmedLower ??= entryNameLower.trim());
 
-        if (boTrimmedLower === entryNameLower.trim()) {
+        if (boTrimmedLower === entryNameTrimmedLower) {
           score = 1.0;
           matchField = 'name';
         } else if (settings.fuzzyMatch) {
-          const jw = jaroWinklerSimilarity(boLower, entryNameLower);
-          if (jw >= settings.fuzzyTolerance) {
-            score = jw;
-            matchField = 'name';
+          const lenA = boLower.length;
+          const lenB = entryNameLower.length;
+          const minLen = lenA < lenB ? lenA : lenB;
+          const maxLen = lenA > lenB ? lenA : lenB;
+          const ratio = maxLen > 0 ? minLen / maxLen : 0;
+
+          // Jaro-Winkler theoretical upper-bound check
+          const maxBound = (boLower.charCodeAt(0) === entryNameLower.charCodeAt(0))
+            ? (0.2 * ratio + 0.8)
+            : ((ratio + 2.0) / 3);
+
+          if (maxBound >= settings.fuzzyTolerance) {
+            const jw = jaroWinklerSimilarity(boLower, entryNameLower);
+            if (jw >= settings.fuzzyTolerance) {
+              score = jw;
+              matchField = 'name';
+            }
           }
 
           if (settings.matchAliases && !score) {
             const aliasesLower = (entry.aliasesLower ??= entry.aliases.map(a => a.toLowerCase()));
             for (let i = 0; i < aliasesLower.length; i++) {
-              const aw = jaroWinklerSimilarity(boLower, aliasesLower[i]);
-              if (aw >= settings.fuzzyTolerance && aw > score) {
-                score = aw;
-                matchField = 'alias';
+              const aliasLower = aliasesLower[i];
+              const aLenB = aliasLower.length;
+              const aMinLen = lenA < aLenB ? lenA : aLenB;
+              const aMaxLen = lenA > aLenB ? lenA : aLenB;
+              const aRatio = aMaxLen > 0 ? aMinLen / aMaxLen : 0;
+              const aMaxBound = (boLower.charCodeAt(0) === aliasLower.charCodeAt(0))
+                ? (0.2 * aRatio + 0.8)
+                : ((aRatio + 2.0) / 3);
+
+              if (aMaxBound >= settings.fuzzyTolerance) {
+                const aw = jaroWinklerSimilarity(boLower, aliasLower);
+                if (aw >= settings.fuzzyTolerance && aw > score) {
+                  score = aw;
+                  matchField = 'alias';
+                }
               }
             }
           }
 
-          if (!score && partialNameMatch(beneficialOwner!, entry.name)) {
+          if (!score && partialNameMatch(boNorm, entry.name, entry)) {
             score = 0.75;
             matchField = 'name';
           }

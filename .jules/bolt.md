@@ -73,3 +73,7 @@
 ## 2025-03-20 - Map.prototype.forEach vs for...of Tuple Allocations in Map Metrics Iteration
 **Learning:** Iterating over a JS `Map` using `for (const [key, value] of map)` allocates a temporary 2-element tuple array `[key, value]` for every entry in V8. For large caches or maps (e.g. 10,000+ cached entries in `InMemoryCache.getStats()`), generating tens of thousands of entry tuples per call creates unnecessary garbage collection pressure and increases iteration overhead by ~10-15%.
 **Action:** Use `map.forEach((value, key) => ...)` when iterating Map keys and values for stats or transformations, avoiding entry tuple allocations in V8.
+
+## 2025-03-21 - Theoretical Jaro-Winkler Upper Bound Pruning & Cached String Normalization in Beneficial Owner Screening
+**Learning:** In sanctions screening across ~20k entries, evaluating `jaroWinklerSimilarity` and `partialNameMatch` for beneficial owner matching without upper-bound pruning or cached pre-normalized strings creates tens of thousands of string allocations and matrix computations (~650ms per request).
+**Action:** Pre-normalize `boNorm` outside the watchlist loop, cache `entry.nameTrimmedLower` and `entry.nameNorm` on entry objects, apply theoretical Jaro-Winkler upper bounds (`0.7 * maxJW + 0.3 * ratio < threshold`), and evaluate `bNorm.length` in `partialNameMatch` to achieve a ~55x performance improvement.

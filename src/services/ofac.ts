@@ -40,6 +40,8 @@ export interface SanctionedEntry {
   aliasesLower?: string[];
   addressesLower?: string[];
   nationalIdsLower?: string[];
+  nameTrimmedLower?: string;
+  nameNorm?: string;
 }
 
 export interface SanctionsList {
