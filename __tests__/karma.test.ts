@@ -246,5 +246,23 @@ describe('Karma Ledger & KarmaService', () => {
       });
       expect(resBadTxid.status).toBe(400);
     });
+
+    it('should reject non-string agentAddress on POST /api/v1/karma/event with HTTP 400', async () => {
+      const resBadAgentAddr = await app.request('/api/v1/karma/event', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Payment': 'tx_karma_non_string_agent_addr',
+        },
+        body: JSON.stringify({
+          agentAddress: { malformed: true },
+          eventType: 'credit',
+          amount: 100,
+        }),
+      });
+      expect(resBadAgentAddr.status).toBe(400);
+      const json = await resBadAgentAddr.json();
+      expect(json.error).toBe('Invalid parameters');
+    });
   });
 });
