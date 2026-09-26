@@ -69,7 +69,8 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#0f172a;color:#f8
 .sr-only:focus{position:static;width:auto;height:auto;padding:.5rem;background:#38bdf8;color:#0f172a;font-weight:600;border-radius:.25rem;display:inline-block;margin-bottom:1rem}
 main{max-width:680px;margin:0 auto;background:#1e293b;padding:2rem;border-radius:.75rem;border:1px solid #334155}
 h1{color:#38bdf8;margin:0 0 .5rem;display:flex;align-items:center;justify-content:space-between;font-size:1.5rem}a{color:#38bdf8;text-decoration:none;font-weight:500}a:hover{text-decoration:underline}
-a:focus-visible,button:focus-visible{outline:2px solid #38bdf8;outline-offset:3px;border-radius:.25rem}
+a:focus-visible,button:focus-visible,code:focus-visible{outline:2px solid #38bdf8;outline-offset:3px;border-radius:.25rem}
+code[role="button"]:hover{color:#38bdf8}
 .badge{background:#166534;color:#4ade80;font-size:.75rem;padding:.2rem .5rem;border-radius:99px;font-weight:600}
 ul{padding-left:1.25rem}li{margin-bottom:.5rem}
 .code-box{background:#0f172a;padding:.75rem 1rem;border-radius:.5rem;border:1px solid #334155;display:flex;align-items:center;justify-content:space-between;gap:.5rem}
@@ -83,7 +84,7 @@ ul{padding-left:1.25rem}li{margin-bottom:.5rem}
 .cmd-tab.active{background:#334155;color:#38bdf8;border-color:#38bdf8}
 .cmd-tab:focus-visible{outline:2px solid #38bdf8;outline-offset:2px}
 .kbd-hint{font-family:inherit;font-size:.65rem;background:#0f172a;border:1px solid #475569;padding:0 .25rem;border-radius:.2rem;color:#94a3b8;margin-left:.25rem}
-@media (forced-colors: active){.cmd-tab.active{outline:2px solid Highlight;border-color:Highlight}.copy-btn.copied{outline:2px solid Highlight}}
+@media (forced-colors: active){.cmd-tab.active{outline:2px solid Highlight;border-color:Highlight}.copy-btn.copied{outline:2px solid Highlight}.code-box code:focus-visible{outline:2px solid Highlight}}
 footer{margin-top:1.5rem;border-top:1px solid #334155;padding-top:1rem;color:#94a3b8;font-size:.875rem}
 </style></head><body><a href="#main-content" class="sr-only">Skip to main content</a><main id="main-content"><header><h1>KYA Service <span class="badge" role="status" aria-label="System status: Operational">● Operational</span></h1><p>Trust Infrastructure for AI Agents — On-chain Karma, ZK Identity & Sanctions Screening.</p></header>
 <section aria-label="Discovery & System Links"><h2 style="font-size:1.1rem;color:#94a3b8">Discovery Links</h2><ul><li><a href="/health" aria-label="View health check status">/health</a> — Service Health & Timestamp</li><li><a href="/.well-known/x402.json" aria-label="View x402 merchant discovery metadata">/.well-known/x402.json</a> — x402 Merchant Metadata</li><li><a href="/.well-known/agent-card.json" aria-label="View A2A Agent Card manifest">/.well-known/agent-card.json</a> — Agent Card Capabilities Manifest</li></ul></section>
