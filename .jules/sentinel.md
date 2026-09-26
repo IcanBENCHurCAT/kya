@@ -22,3 +22,8 @@
 **Vulnerability:** `POST /a2a/handshake` in `src/routes/a2a.ts` dropped `requiredVerificationLevel` from request payloads, and `A2AService.executeHandshake` failed to evaluate `requiredVerificationLevel` against target agent tiers, issuing `PROCEED` decisions and W3C VCs to agents with insufficient verification levels.
 **Learning:** When endpoint routes silently drop policy parameters from incoming JSON bodies, risk evaluation engines default to permissive decisions regardless of caller security requirements.
 **Prevention:** Always validate and forward required security policy parameters from HTTP handlers, and explicitly check target profile tiers against caller requirements before returning `PROCEED` decisions.
+
+## 2025-05-18 - Unhandled Type Confusion in Address and Payload Verification Routes
+**Vulnerability:** `POST /api/v1/karma/event`, `POST /api/v1/verify/zk-proof`, `POST /verify/email/initiate`, and `POST /verify/email/complete` accepted non-string JSON inputs (e.g., objects, numbers) and passed them directly to `isValidAddress` or `bcrypt.compareSync`, triggering unhandled `TypeError` exceptions and HTTP 500 server errors.
+**Learning:** Checking truthiness (`!param`) on JSON payload values is insufficient because non-string JSON values like `{}` or `123` evaluate as truthy, causing SDK and cryptographic library functions expecting strings to throw unhandled runtime exceptions.
+**Prevention:** Always perform explicit `typeof param === 'string'` and length bound checks before passing JSON payload inputs to third-party SDK routines or cryptographic comparison functions.

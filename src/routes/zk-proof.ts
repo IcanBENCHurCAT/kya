@@ -8,7 +8,7 @@ export function createZKProofRoutes(zkpService: ZKPVerifierService = defaultZKPV
   const handleVerifyZKProof = async (c: any) => {
     const body = (await c.req.json().catch(() => ({}))) as ZKProofPayload;
 
-    if (!body || !body.agentAddress) {
+    if (!body || !body.agentAddress || typeof body.agentAddress !== 'string' || body.agentAddress.length > 255) {
       return c.json({ success: false, error: 'agentAddress is required' }, 400);
     }
 

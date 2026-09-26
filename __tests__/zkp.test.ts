@@ -187,5 +187,24 @@ describe('Groth16 ZK-KYC Proof Verifier & REST Routes', () => {
       expect(json.success).toBe(false);
       expect(json.error).toBe('Invalid ZK Proof');
     });
+
+    it('should return HTTP 400 when non-string agentAddress is submitted', async () => {
+      const res = await app.request('/api/v1/verify/zk-proof', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Payment': 'tx_zk_proof_non_string_addr',
+        },
+        body: JSON.stringify({
+          ...validProofPayload,
+          agentAddress: { bad: 'type' },
+        }),
+      });
+
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json.success).toBe(false);
+      expect(json.error).toBe('agentAddress is required');
+    });
   });
 });

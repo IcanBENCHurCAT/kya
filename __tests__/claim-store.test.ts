@@ -443,6 +443,43 @@ describe('ClaimStore', () => {
 
       expect(mockService.initiateVerification).not.toHaveBeenCalled();
     });
+
+    it('should reject email initiate and complete requests with non-string walletAddress or parameters', async () => {
+      const mockService = {
+        initiateVerification: vi.fn(),
+        completeVerification: vi.fn(),
+        getAvailableMethods: vi.fn().mockReturnValue(['email']),
+      } as unknown as VerificationService;
+
+      const router = createVerificationRoutes(mockService);
+
+      // Non-string walletAddress on initiate
+      const res1 = await router.request('/verify/email/initiate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: 'user@example.com', walletAddress: { bad: 'type' } }),
+      });
+      expect(res1.status).toBe(400);
+
+      // Non-string attemptId on complete
+      const res2 = await router.request('/verify/email/complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ attemptId: 12345, code: '123456', walletAddress: 'W5IRXJWPSXNUJVSN2MOEJGTDGKUGFKUDVPTR5ZQVMDG5O4KYD5M3QPG3TE' }),
+      });
+      expect(res2.status).toBe(400);
+
+      // Non-string code on complete
+      const res3 = await router.request('/verify/email/complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ attemptId: 'att-123', code: 123456, walletAddress: 'W5IRXJWPSXNUJVSN2MOEJGTDGKUGFKUDVPTR5ZQVMDG5O4KYD5M3QPG3TE' }),
+      });
+      expect(res3.status).toBe(400);
+
+      expect(mockService.initiateVerification).not.toHaveBeenCalled();
+      expect(mockService.completeVerification).not.toHaveBeenCalled();
+    });
   });
 
   describe('Verification Routes Security Error Handling', () => {
