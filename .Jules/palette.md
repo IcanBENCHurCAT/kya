@@ -37,3 +37,8 @@
 
 **Learning:** When reviewing code command snippets on landing pages, developers intuitively click directly on the code text block itself. Converting code container elements (`<code>` / `<pre>`) into interactive targets (`role="button"`, `tabindex="0"`, `cursor:pointer`, `Enter`/`Space` keydown handlers) with dynamically updated `aria-label` and `title` tooltips provides a smooth, multi-modal copy experience for both mouse and keyboard users.
 **Action:** Make quick-start code snippet elements directly interactive with `role="button"`, `tabindex="0"`, keydown handlers, and accessible tooltips explaining click/keyboard activation.
+
+## 2026-09-25 - Interactive Code Block Focus Rings & High-Contrast Hover Styles
+
+**Learning:** Converting standard semantic tags like `<code>` or `<pre>` into interactive targets (`role="button"`) without explicit `:focus-visible` and `:hover` CSS declarations creates an inconsistent accessibility experience for keyboard and high-contrast theme users. Adding explicit `code:focus-visible` outline rings alongside `code[role="button"]:hover` visual indicators and `@media (forced-colors: active)` support ensures clear focus states and hover affordances across all interactive elements.
+**Action:** Always complement `role="button"` on non-standard interactive HTML elements with explicit `:focus-visible`, `:hover`, and high-contrast CSS declarations.

@@ -79,6 +79,9 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       expect(html).toContain('handleCodeKeydown');
       expect(html).toContain('cursor:pointer');
       expect(html).toContain('click or press Enter to copy');
+      expect(html).toContain('code:focus-visible');
+      expect(html).toContain('code[role="button"]:hover');
+      expect(html).toContain('.code-box code:focus-visible');
     });
 
     it("should return JSON service info for GET / when Accept: application/json", async () => {
