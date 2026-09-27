@@ -727,32 +727,115 @@ describe("Audit Logging", () => {
     assert(passOnly[0].result === "NO_MATCH_FOUND");
   });
 
-  it("should generate audit summary", () => {
-    logScreening({
-      screened: "P1",
-      status: "NO_MATCH_FOUND",
-      confidence: 0,
-      matchedEntries: [],
-      matchedListNames: [],
-      details: "",
-      timestamp: new Date().toISOString(),
+  describe("getAuditSummary", () => {
+    it("should return zero counts when audit log is empty", () => {
+      const summary = getAuditSummary();
+      expect(summary).toEqual({
+        total: 0,
+        noMatchFound: 0,
+        potentialMatch: 0,
+        requiresReview: 0,
+        errors: 0,
+        recentScreenings: 0,
+      });
     });
-    logScreening({
-      screened: "F1",
-      status: "POTENTIAL_MATCH",
-      confidence: 1.0,
-      matchedEntries: [{ name: "Sanctioned" }],
-      matchedListNames: ["OFAC"],
-      details: "Match",
-      timestamp: new Date().toISOString(),
-    });
-    logError("Test error");
 
-    const summary = getAuditSummary();
-    assert(summary.total >= 3, "Should have at least 3 entries");
-    assert(summary.noMatchFound >= 1);
-    assert(summary.potentialMatch >= 1);
-    assert(summary.errors >= 1);
+    it("should accurately count all result types and totals", () => {
+      const now = new Date().toISOString();
+
+      logScreening({
+        screened: "PASS-1",
+        status: "NO_MATCH_FOUND",
+        confidence: 0,
+        matchedEntries: [],
+        matchedListNames: [],
+        details: "",
+        timestamp: now,
+      });
+
+      logScreening({
+        screened: "MATCH-1",
+        status: "POTENTIAL_MATCH",
+        confidence: 0.95,
+        matchedEntries: [{ name: "Sanctioned Individual" }],
+        matchedListNames: ["OFAC-SDN"],
+        details: "Matched SDN",
+        timestamp: now,
+      });
+
+      logScreening({
+        screened: "REVIEW-1",
+        status: "MATCH_REQUIRES_REVIEW",
+        confidence: 0.7,
+        matchedEntries: [{ name: "Possible Match" }],
+        matchedListNames: ["EU-SANCTIONS"],
+        details: "Requires compliance review",
+        timestamp: now,
+      });
+
+      logError("Database connection warning");
+
+      logUpdate({
+        source: "OFAC-SDN",
+        entriesAdded: 50,
+        entriesRemoved: 2,
+        success: false,
+        error: "Network timeout",
+      });
+
+      const summary = getAuditSummary();
+      expect(summary.total).toBe(5);
+      expect(summary.noMatchFound).toBe(1);
+      expect(summary.potentialMatch).toBe(1);
+      expect(summary.requiresReview).toBe(1);
+      expect(summary.errors).toBe(2); // 1 logError + 1 failed logUpdate
+      expect(summary.recentScreenings).toBe(3); // 3 screening events in last 24h
+    });
+
+    it("should accurately filter recentScreenings by 24h window and eventType", () => {
+      const now = Date.now();
+      const recentTimestamp = new Date(now - 2 * 60 * 60 * 1000).toISOString(); // 2 hours ago
+      const oldTimestamp = new Date(now - 25 * 60 * 60 * 1000).toISOString(); // 25 hours ago
+
+      // Recent screening (within 24h)
+      logScreening({
+        screened: "RECENT-SCREENING",
+        status: "NO_MATCH_FOUND",
+        confidence: 0,
+        matchedEntries: [],
+        matchedListNames: [],
+        details: "Recent search",
+        timestamp: recentTimestamp,
+      });
+
+      // Old screening (older than 24h)
+      logScreening({
+        screened: "OLD-SCREENING",
+        status: "NO_MATCH_FOUND",
+        confidence: 0,
+        matchedEntries: [],
+        matchedListNames: [],
+        details: "Old search",
+        timestamp: oldTimestamp,
+      });
+
+      // Recent error event (non-screening, within 24h)
+      logError("Recent system error");
+
+      // Recent update event (non-screening, within 24h)
+      logUpdate({
+        source: "OFAC-SDN",
+        entriesAdded: 10,
+        entriesRemoved: 0,
+        success: true,
+      });
+
+      const summary = getAuditSummary();
+      expect(summary.total).toBe(4);
+      expect(summary.noMatchFound).toBe(3); // 2 screenings + 1 successful update
+      expect(summary.errors).toBe(1);
+      expect(summary.recentScreenings).toBe(1); // Only RECENT-SCREENING is eventType 'screening' within 24h
+    });
   });
 
   it("should persist to disk", () => {
