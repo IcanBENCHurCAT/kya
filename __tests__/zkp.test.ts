@@ -110,6 +110,44 @@ describe('Groth16 ZK-KYC Proof Verifier & REST Routes', () => {
       expect(result2.valid).toBe(false);
       expect(result2.error).toBe('Invalid ZK Proof');
     });
+
+    it('should reject proof payload with non-string elements in pi_a, pi_b, or pi_c proof point arrays', async () => {
+      const nonStringPiAPayload = {
+        ...validProofPayload,
+        proof: {
+          ...validProofPayload.proof,
+          pi_a: [12345, '0x87654321'] as any,
+        },
+      };
+      const result1 = await zkpService.verifyProof(nonStringPiAPayload);
+      expect(result1.valid).toBe(false);
+      expect(result1.error).toBe('Invalid ZK Proof');
+
+      const nonStringPiBPayload = {
+        ...validProofPayload,
+        proof: {
+          ...validProofPayload.proof,
+          pi_b: [
+            ['0x1111', 2222],
+            ['0x3333', '0x4444'],
+          ] as any,
+        },
+      };
+      const result2 = await zkpService.verifyProof(nonStringPiBPayload);
+      expect(result2.valid).toBe(false);
+      expect(result2.error).toBe('Invalid ZK Proof');
+
+      const nonStringPiCPayload = {
+        ...validProofPayload,
+        proof: {
+          ...validProofPayload.proof,
+          pi_c: [{ obj: 'invalid' }, '0x6666'] as any,
+        },
+      };
+      const result3 = await zkpService.verifyProof(nonStringPiCPayload);
+      expect(result3.valid).toBe(false);
+      expect(result3.error).toBe('Invalid ZK Proof');
+    });
   });
 
   describe('REST Endpoint POST /api/v1/verify/zk-proof', () => {
