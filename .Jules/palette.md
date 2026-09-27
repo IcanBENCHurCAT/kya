@@ -42,3 +42,8 @@
 
 **Learning:** Converting standard semantic tags like `<code>` or `<pre>` into interactive targets (`role="button"`) without explicit `:focus-visible` and `:hover` CSS declarations creates an inconsistent accessibility experience for keyboard and high-contrast theme users. Adding explicit `code:focus-visible` outline rings alongside `code[role="button"]:hover` visual indicators and `@media (forced-colors: active)` support ensures clear focus states and hover affordances across all interactive elements.
 **Action:** Always complement `role="button"` on non-standard interactive HTML elements with explicit `:focus-visible`, `:hover`, and high-contrast CSS declarations.
+
+## 2026-09-26 - Consecutive Copy Announcements via Asynchronous ARIA-Live Clearing
+
+**Learning:** ARIA live regions (`aria-live="polite"`) ignore DOM updates when consecutive status messages are identical, causing screen readers to remain silent on repeated copy actions. Asynchronously clearing the live region text (`status.innerText=''`) prior to re-setting status text via a brief timeout/microtask guarantees DOM mutation events and consistent screen reader re-announcements on consecutive user interactions.
+**Action:** Asynchronously clear `aria-live` text buffers before setting status text on repeatable interactive controls.
