@@ -47,3 +47,8 @@
 
 **Learning:** ARIA live regions (`aria-live="polite"`) ignore DOM updates when consecutive status messages are identical, causing screen readers to remain silent on repeated copy actions. Asynchronously clearing the live region text (`status.innerText=''`) prior to re-setting status text via a brief timeout/microtask guarantees DOM mutation events and consistent screen reader re-announcements on consecutive user interactions.
 **Action:** Asynchronously clear `aria-live` text buffers before setting status text on repeatable interactive controls.
+
+## 2026-09-28 - Synchronized Interactive Code Target ARIA Labels & Tooltips
+
+**Learning:** When interactive code blocks (`<code role="button">`) serve as click-to-copy targets alongside dedicated copy buttons, feedback updates (e.g. "Copied!") must be dynamically synchronized across both the button and code container ARIA attributes (`aria-label`, `title`). Restoring default tooltip states during reset guarantees consistent accessibility and visual feedback for assistive technology and mouse users alike.
+**Action:** Always update and restore `aria-label` and `title` attributes on both primary code targets and secondary action buttons during interactive feedback state transitions.

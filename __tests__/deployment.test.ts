@@ -41,6 +41,12 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       expect(html).toContain(
         "btn.setAttribute('title','Command copied to clipboard')",
       );
+      expect(html).toContain(
+        "cmdEl.setAttribute('aria-label','Command copied to clipboard')",
+      );
+      expect(html).toContain(
+        "cmdEl.setAttribute('title','Command copied to clipboard')",
+      );
       expect(html).toContain("fallbackCopy");
       expect(html).toContain("Failed to copy command to clipboard");
       expect(html).toContain("Command copied to clipboard");
