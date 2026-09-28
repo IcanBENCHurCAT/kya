@@ -264,18 +264,74 @@ export class WalletGraph {
   }
 
   /**
-   * Get all nodes
+   * Get all nodes, optionally bounded to top K items.
+   *
+   * Performance optimization:
+   * When `limit` is provided and smaller than total nodes, extracts top K items directly
+   * using a bounded insertion-sorted array. Reduces time complexity from O(V log V) to O(V)
+   * and minimizes memory allocations.
    */
-  getAllNodes(): WalletGraphNode[] {
+  getAllNodes(limit?: number): WalletGraphNode[] {
+    if (limit !== undefined && limit > 0 && limit < this.nodes.size) {
+      const top: WalletGraphNode[] = [];
+      for (const node of this.nodes.values()) {
+        const score = node.transactionCount;
+        if (top.length < limit) {
+          let idx = top.length;
+          while (idx > 0 && top[idx - 1].transactionCount < score) {
+            idx--;
+          }
+          top.splice(idx, 0, node);
+        } else if (score > top[limit - 1].transactionCount) {
+          let idx = limit - 1;
+          while (idx > 0 && top[idx - 1].transactionCount < score) {
+            top[idx] = top[idx - 1];
+            idx--;
+          }
+          top[idx] = node;
+        }
+      }
+      return top;
+    }
+
     return Array.from(this.nodes.values()).sort(
       (a, b) => b.transactionCount - a.transactionCount
     );
   }
 
   /**
-   * Get all edges
+   * Get all edges, optionally bounded to top K items.
+   *
+   * Performance optimization:
+   * When `limit` is provided, streams edges directly from inner maps into a bounded
+   * insertion-sorted array of size `limit`. Eliminates constructing a temporary flat array
+   * of all graph edges (saving O(E) allocations) and reduces sort complexity from O(E log E) to O(E).
    */
-  getAllEdges(): WalletGraphEdge[] {
+  getAllEdges(limit?: number): WalletGraphEdge[] {
+    if (limit !== undefined && limit > 0) {
+      const top: WalletGraphEdge[] = [];
+      for (const sourceEdges of this.edges.values()) {
+        for (const edge of sourceEdges.values()) {
+          const score = edge.weight;
+          if (top.length < limit) {
+            let idx = top.length;
+            while (idx > 0 && top[idx - 1].weight < score) {
+              idx--;
+            }
+            top.splice(idx, 0, edge);
+          } else if (score > top[limit - 1].weight) {
+            let idx = limit - 1;
+            while (idx > 0 && top[idx - 1].weight < score) {
+              top[idx] = top[idx - 1];
+              idx--;
+            }
+            top[idx] = edge;
+          }
+        }
+      }
+      return top;
+    }
+
     const allEdges: WalletGraphEdge[] = [];
 
     for (const sourceEdges of this.edges.values()) {
