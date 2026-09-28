@@ -56,16 +56,23 @@ export class InMemoryAttemptStore {
     }
   }
 
+  /**
+   * Cleanup expired verification attempts
+   *
+   * Performance optimization:
+   * Uses Map.prototype.forEach instead of `for (const [id, attempt] of this.attempts)` to avoid
+   * allocating intermediate 2-element entry tuple arrays `[id, attempt]` per attempt in V8.
+   */
   async cleanupExpired(): Promise<number> {
     let count = 0;
     const now = Date.now();
-    for (const [id, attempt] of this.attempts) {
+    this.attempts.forEach((attempt, id) => {
       if (attempt.expiresAt <= now) {
         this.removeFromIndex(attempt);
         this.attempts.delete(id);
         count++;
       }
-    }
+    });
     return count;
   }
 

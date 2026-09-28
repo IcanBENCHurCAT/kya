@@ -81,3 +81,7 @@
 ## 2025-03-22 - Direct Latest Lookup & Single-Item Fast Path in Verification Queries
 **Learning:** Checking verification status via `checkVerification` by fetching all historical claims, converting the set via `Array.from()`, and sorting all items ($O(K \log K)$) incurs redundant array allocation and sorting overhead when only the latest claim and total count are needed.
 **Action:** Query `findByWallet` (single $O(K)$ linear scan max lookup) and `getClaimCount` ($O(1)$ size lookup) directly in `checkVerification`, and bypass `.sort()` for single-item sets in store queries (`findAllForWallet`, `findByIdentityHash`).
+
+## 2025-03-23 - Map.prototype.forEach vs for...of Tuple Allocations in Expiration Sweeps & Map Value Iterations
+**Learning:** Iterating over Map entries via `for (const [key, value] of map)` in expiration sweeps (`cleanup()`) or value extraction (`for (const [, edge] of map)`) allocates tens of thousands of temporary 2-element tuple arrays `[key, value]` in V8. During cache/store cleanup sweeps on large maps (~50,000 entries), this tuple allocation overhead causes execution time to spike from ~2.0ms to ~13.9ms (~7x slower).
+**Action:** Use `map.forEach((value, key) => ...)` for in-place deletion or expiration sweeps, and use `for (const value of map.values())` / `for (const key of map.keys())` when iterating values or keys directly.

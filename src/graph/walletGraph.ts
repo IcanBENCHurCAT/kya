@@ -191,7 +191,7 @@ export class WalletGraph {
     // Outgoing edges (address sent to these wallets)
     const outgoing = this.edges.get(address);
     if (outgoing) {
-      for (const [, edge] of outgoing) {
+      for (const edge of outgoing.values()) {
         edges.push(edge);
       }
     }
@@ -199,7 +199,7 @@ export class WalletGraph {
     // Incoming edges (these wallets sent to address)
     const incoming = this.incomingEdges.get(address);
     if (incoming) {
-      for (const [, edge] of incoming) {
+      for (const edge of incoming.values()) {
         edges.push(edge);
       }
     }
@@ -278,8 +278,8 @@ export class WalletGraph {
   getAllEdges(): WalletGraphEdge[] {
     const allEdges: WalletGraphEdge[] = [];
 
-    for (const [, sourceEdges] of this.edges) {
-      for (const [, edge] of sourceEdges) {
+    for (const sourceEdges of this.edges.values()) {
+      for (const edge of sourceEdges.values()) {
         allEdges.push(edge);
       }
     }
@@ -405,7 +405,7 @@ export class WalletGraph {
 
     if (n <= 1) return centrality;
 
-    for (const [address] of this.nodes) {
+    for (const address of this.nodes.keys()) {
       const outgoing = this.adjacencyList.get(address);
       const outgoingCount = outgoing ? outgoing.size : 0;
 
