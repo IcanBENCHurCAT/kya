@@ -97,7 +97,7 @@ I,SMITH,JANE,Entity,LAX,LAX,CA,US,987-65-4321,1985-05-15`;
     expect(entries.length).toBe(1);
     expect(entries[0].name).toBe("Test Entity Without ID");
     expect(entries[0].id).toMatch(
-      /^unknown-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+      /^unknown-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
     );
   });
 });
@@ -128,7 +128,10 @@ describe("Screening Engine", () => {
     const entry = buildDefaultData()[0]; // AL-RAZI, Abubakar
     const result = screenSanctions(entry.name, undefined, testList);
     assert(result.match === true, "Should match");
-    assert(result.status === "POTENTIAL_MATCH", "Status should be FAIL for exact match");
+    assert(
+      result.status === "POTENTIAL_MATCH",
+      "Status should be FAIL for exact match",
+    );
     assert(result.confidence === 1.0, "Exact match should have 1.0 confidence");
     assert(result.matchedEntries.length > 0, "Should have matched entries");
   });
@@ -276,7 +279,8 @@ describe("Bulk Screening", () => {
     const app = (await import("../src/routes/screening.js")).default;
     const longAddress = "A".repeat(256);
     const invalidAddress = "INVALID_ALGORAND_ADDRESS_STRING";
-    const validAddress = "EJV45NV63RXILAMNL4IRRLBJ2XDKDXJ4J4EH5TSGIUCKVDTMBVYQ53PYRU";
+    const validAddress =
+      "EJV45NV63RXILAMNL4IRRLBJ2XDKDXJ4J4EH5TSGIUCKVDTMBVYQ53PYRU";
     const longOwner = "B".repeat(256);
 
     // Test address exceeds max length (255)
@@ -360,7 +364,8 @@ describe("Bulk Screening", () => {
     const app = (await import("../src/routes/screening.js")).default;
     const longAddress = "A".repeat(256);
     const invalidAddress = "NOT_A_VALID_ALG_ADDRESS";
-    const validAddress = "EJV45NV63RXILAMNL4IRRLBJ2XDKDXJ4J4EH5TSGIUCKVDTMBVYQ53PYRU";
+    const validAddress =
+      "EJV45NV63RXILAMNL4IRRLBJ2XDKDXJ4J4EH5TSGIUCKVDTMBVYQ53PYRU";
     const longOwner = "B".repeat(256);
 
     // Test missing address / non-string address
@@ -419,7 +424,10 @@ describe("Bulk Screening", () => {
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address: validAddress, beneficialOwner: longOwner }),
+        body: JSON.stringify({
+          address: validAddress,
+          beneficialOwner: longOwner,
+        }),
       },
       { WATCHLIST: testList },
     );
@@ -433,100 +441,228 @@ describe("Bulk Screening", () => {
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address: validAddress, beneficialOwner: "John Doe" }),
+        body: JSON.stringify({
+          address: validAddress,
+          beneficialOwner: "John Doe",
+        }),
       },
       { WATCHLIST: testList },
     );
     expect(res5.status).toBe(200);
   });
 
+  it("should validate and reject invalid screening config overrides via Hono routes", async () => {
+    const app = (await import("../src/routes/screening.js")).default;
+    const validAddress =
+      "EJV45NV63RXILAMNL4IRRLBJ2XDKDXJ4J4EH5TSGIUCKVDTMBVYQ53PYRU";
+
+    // Non-object config
+    const res1 = await app.request(
+      "/api/v1/screen",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          address: validAddress,
+          config: "invalid-string-config",
+        }),
+      },
+      { WATCHLIST: testList },
+    );
+    expect(res1.status).toBe(400);
+    const body1 = await res1.json();
+    expect(body1.error).toContain("must be a plain object");
+
+    // Array config
+    const res2 = await app.request(
+      "/api/v1/screen",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address: validAddress, config: [1, 2, 3] }),
+      },
+      { WATCHLIST: testList },
+    );
+    expect(res2.status).toBe(400);
+
+    // Invalid numeric threshold (string instead of finite number)
+    const res3 = await app.request(
+      "/api/v1/screen",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          address: validAddress,
+          config: { failThreshold: "invalid" },
+        }),
+      },
+      { WATCHLIST: testList },
+    );
+    expect(res3.status).toBe(400);
+    const body3 = await res3.json();
+    expect(body3.error).toContain(
+      "failThreshold must be a number between 0 and 1",
+    );
+
+    // Out of bounds failThreshold (> 1)
+    const res4 = await app.request(
+      "/api/v1/screen",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          address: validAddress,
+          config: { failThreshold: 1.5 },
+        }),
+      },
+      { WATCHLIST: testList },
+    );
+    expect(res4.status).toBe(400);
+
+    // Invalid maxResults (< 1)
+    const res5 = await app.request(
+      "/api/v1/screen",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          address: validAddress,
+          config: { maxResults: 0 },
+        }),
+      },
+      { WATCHLIST: testList },
+    );
+    expect(res5.status).toBe(400);
+    const body5 = await res5.json();
+    expect(body5.error).toContain(
+      "maxResults must be an integer between 1 and 100",
+    );
+
+    // Invalid boolean field (string instead of boolean)
+    const res6 = await app.request(
+      "/api/v1/screen",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          address: validAddress,
+          config: { matchAliases: "true" },
+        }),
+      },
+      { WATCHLIST: testList },
+    );
+    expect(res6.status).toBe(400);
+
+    // Bulk screening with invalid config
+    const res7 = await app.request(
+      "/api/v1/screen/bulk",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          targets: [{ address: validAddress }],
+          config: { fuzzyTolerance: -0.1 },
+        }),
+      },
+      { WATCHLIST: testList },
+    );
+    expect(res7.status).toBe(400);
+
+    // Valid config override accepted
+    const res8 = await app.request(
+      "/api/v1/screen",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          address: validAddress,
+          config: { failThreshold: 0.9, maxResults: 10, matchAliases: false },
+        }),
+      },
+      { WATCHLIST: testList },
+    );
+    expect(res8.status).toBe(200);
+  });
+
   it("should validate register API input types, empty values, invalid address format, and string lengths", async () => {
     const app = (await import("../src/routes/screening.js")).default;
-    const validAddress = "EJV45NV63RXILAMNL4IRRLBJ2XDKDXJ4J4EH5TSGIUCKVDTMBVYQ53PYRU";
+    const validAddress =
+      "EJV45NV63RXILAMNL4IRRLBJ2XDKDXJ4J4EH5TSGIUCKVDTMBVYQ53PYRU";
     const invalidAddress = "NOT_A_VALID_ALG_ADDRESS";
     const longAddress = "A".repeat(256);
     const validOwner = "John Doe";
     const longOwner = "B".repeat(256);
 
     // Test invalid address length
-    const res1 = await app.request(
-      "/api/v1/register",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address: longAddress, ownerName: validOwner }),
-      },
-    );
+    const res1 = await app.request("/api/v1/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ address: longAddress, ownerName: validOwner }),
+    });
     expect(res1.status).toBe(400);
     const body1 = await res1.json();
     expect(body1.error).toContain("Invalid address");
 
     // Test invalid address checksum/format
-    const res1b = await app.request(
-      "/api/v1/register",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address: invalidAddress, ownerName: validOwner }),
-      },
-    );
+    const res1b = await app.request("/api/v1/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ address: invalidAddress, ownerName: validOwner }),
+    });
     expect(res1b.status).toBe(400);
 
     // Test invalid ownerName
-    const res2 = await app.request(
-      "/api/v1/register",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address: validAddress, ownerName: longOwner }),
-      },
-    );
+    const res2 = await app.request("/api/v1/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ address: validAddress, ownerName: longOwner }),
+    });
     expect(res2.status).toBe(400);
     const body2 = await res2.json();
     expect(body2.error).toContain("Invalid ownerName");
 
     // Test valid registration
-    const res3 = await app.request(
-      "/api/v1/register",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address: validAddress, ownerName: validOwner }),
-      },
-    );
+    const res3 = await app.request("/api/v1/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ address: validAddress, ownerName: validOwner }),
+    });
     expect(res3.status).toBe(200);
 
     // Test invalid optional field types/lengths (nationality, dateOfBirth, verificationMethod)
-    const res4 = await app.request(
-      "/api/v1/register",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address: validAddress, ownerName: validOwner, nationality: longOwner }),
-      },
-    );
+    const res4 = await app.request("/api/v1/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        address: validAddress,
+        ownerName: validOwner,
+        nationality: longOwner,
+      }),
+    });
     expect(res4.status).toBe(400);
 
     // Test invalid altAddresses type (non-array)
-    const res5 = await app.request(
-      "/api/v1/register",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address: validAddress, ownerName: validOwner, altAddresses: "not-an-array" }),
-      },
-    );
+    const res5 = await app.request("/api/v1/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        address: validAddress,
+        ownerName: validOwner,
+        altAddresses: "not-an-array",
+      }),
+    });
     expect(res5.status).toBe(400);
 
     // Test invalid address format in altAddresses
-    const res6 = await app.request(
-      "/api/v1/register",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address: validAddress, ownerName: validOwner, altAddresses: [invalidAddress] }),
-      },
-    );
+    const res6 = await app.request("/api/v1/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        address: validAddress,
+        ownerName: validOwner,
+        altAddresses: [invalidAddress],
+      }),
+    });
     expect(res6.status).toBe(400);
   });
 
@@ -550,7 +686,8 @@ describe("Bulk Screening", () => {
 
   it("should safely handle requests when c.env or WATCHLIST is missing or undefined", async () => {
     const app = (await import("../src/routes/screening.js")).default;
-    const validAddress = "EJV45NV63RXILAMNL4IRRLBJ2XDKDXJ4J4EH5TSGIUCKVDTMBVYQ53PYRU";
+    const validAddress =
+      "EJV45NV63RXILAMNL4IRRLBJ2XDKDXJ4J4EH5TSGIUCKVDTMBVYQ53PYRU";
 
     // Test GET /api/v1/watchlist without env
     const res1 = await app.request("/api/v1/watchlist");
@@ -650,7 +787,10 @@ describe("Beneficial Owner Resolution", () => {
       { "OFAC-SDN": buildDefaultData() },
     );
 
-    assert(screenResult.status === "POTENTIAL_MATCH", "Sanctioned wallet should fail");
+    assert(
+      screenResult.status === "POTENTIAL_MATCH",
+      "Sanctioned wallet should fail",
+    );
     assert(screenResult.match === true, "Should match");
   });
 });
@@ -996,7 +1136,10 @@ describe("Integration: Full Screening Flow", () => {
       { "OFAC-SDN": buildDefaultData() },
     );
 
-    assert(sancResult.status === "POTENTIAL_MATCH", "Sanctioned wallet should fail");
+    assert(
+      sancResult.status === "POTENTIAL_MATCH",
+      "Sanctioned wallet should fail",
+    );
     assert(sancResult.match, "Should match");
     assert(sancResult.matchedEntries.length > 0, "Should have matches");
 
@@ -1027,10 +1170,12 @@ describe("Integration: Full Screening Flow", () => {
     );
 
     // Step 6: Verify compliance gates
-    const cleanAction = cleanResult.status === "NO_MATCH_FOUND" ? "ALLOW" : "BLOCK";
+    const cleanAction =
+      cleanResult.status === "NO_MATCH_FOUND" ? "ALLOW" : "BLOCK";
     assert(cleanAction === "ALLOW", "Clean wallet should be allowed");
 
-    const sancAction = sancResult.status === "POTENTIAL_MATCH" ? "BLOCK" : "ALLOW";
+    const sancAction =
+      sancResult.status === "POTENTIAL_MATCH" ? "BLOCK" : "ALLOW";
     assert(sancAction === "BLOCK", "Sanctioned wallet should be blocked");
   });
 

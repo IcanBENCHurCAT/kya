@@ -27,3 +27,8 @@
 **Vulnerability:** `POST /api/v1/karma/event`, `POST /api/v1/verify/zk-proof`, `POST /verify/email/initiate`, and `POST /verify/email/complete` accepted non-string JSON inputs (e.g., objects, numbers) and passed them directly to `isValidAddress` or `bcrypt.compareSync`, triggering unhandled `TypeError` exceptions and HTTP 500 server errors.
 **Learning:** Checking truthiness (`!param`) on JSON payload values is insufficient because non-string JSON values like `{}` or `123` evaluate as truthy, causing SDK and cryptographic library functions expecting strings to throw unhandled runtime exceptions.
 **Prevention:** Always perform explicit `typeof param === 'string'` and length bound checks before passing JSON payload inputs to third-party SDK routines or cryptographic comparison functions.
+
+## 2025-05-18 - Unvalidated Screening Configuration Overrides Bypass Sanctions Screening
+**Vulnerability:** `POST /api/v1/screen` and `POST /api/v1/screen/bulk` allowed client payloads to supply arbitrary `config` overrides without type or range checks. Invalid numeric thresholds (e.g., `failThreshold: "invalid"` or `failThreshold: 999`) caused score evaluation `highestScore >= settings.failThreshold` to evaluate to `false`, returning `NO_MATCH_FOUND` for sanctioned targets.
+**Learning:** Merging unvalidated client JSON objects directly into internal configuration objects enables callers to manipulate threshold logic, bypass compliance gates, or inject malformed properties.
+**Prevention:** Always strictly validate and bound client-supplied configuration overrides (enforcing type checks, finite numbers, and range limits [0, 1]) before merging into business logic options.
