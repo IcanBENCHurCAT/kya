@@ -88,6 +88,9 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       expect(html).toContain('code:focus-visible');
       expect(html).toContain('code[role="button"]:hover');
       expect(html).toContain('.code-box code:focus-visible');
+      expect(html).toContain('code[role="button"]:active,.cmd-tab:active');
+      expect(html).toContain("code.copied");
+      expect(html).toContain("code.failed");
     });
 
     it("should return JSON service info for GET / when Accept: application/json", async () => {
