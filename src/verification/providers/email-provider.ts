@@ -13,6 +13,7 @@
 
 import { randomInt, createHash } from "node:crypto";
 import bcrypt from "bcryptjs";
+import { isValidAddress } from "algosdk";
 import { VerificationProvider } from "../types.js";
 import { AttemptStore } from "../attempt-store.js";
 import { ClaimStore } from "../claim-store.js";
@@ -76,7 +77,12 @@ export class EmailVerificationProvider implements VerificationProvider {
    */
   validateIdentifier(identifier: string): void {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(identifier)) {
+    if (
+      !identifier ||
+      typeof identifier !== "string" ||
+      identifier.length > 255 ||
+      !emailRegex.test(identifier)
+    ) {
       throw new Error(`Invalid email address: ${identifier}`);
     }
   }
@@ -95,7 +101,20 @@ export class EmailVerificationProvider implements VerificationProvider {
     // 1. Validate email format
     this.validateIdentifier(email);
 
-    // 2. Generate OTP
+    // 2. Security: Validate wallet address parameter type, bounds, and Algorand base32 checksum
+    if (
+      !walletAddress ||
+      typeof walletAddress !== "string" ||
+      walletAddress.length > 255 ||
+      !isValidAddress(walletAddress)
+    ) {
+      throw Object.assign(new Error("Invalid wallet address format"), {
+        code: "INVALID_ADDRESS" as const,
+        status: 400,
+      });
+    }
+
+    // 3. Generate OTP
     const otp = randomInt(100_000, 999_999).toString();
 
     // 3. Hash OTP with random salt
@@ -145,6 +164,26 @@ export class EmailVerificationProvider implements VerificationProvider {
     code: string;
     walletAddress: string;
   }): Promise<VerificationSuccess> {
+    // Security: Validate required input types, length bounds, and Algorand wallet address format
+    // to prevent type confusion, unhandled TypeError exceptions in bcrypt comparison, and invalid claims.
+    if (
+      !attemptId ||
+      typeof attemptId !== "string" ||
+      attemptId.length > 255 ||
+      !code ||
+      typeof code !== "string" ||
+      code.length > 255 ||
+      !walletAddress ||
+      typeof walletAddress !== "string" ||
+      walletAddress.length > 255 ||
+      !isValidAddress(walletAddress)
+    ) {
+      throw Object.assign(new Error("Invalid verification parameter"), {
+        code: "OTP_INVALID" as const,
+        status: 400,
+      });
+    }
+
     // 1. Look up attempt
     const attempt = await this.attemptStore.getAttempt(attemptId);
     if (!attempt) {

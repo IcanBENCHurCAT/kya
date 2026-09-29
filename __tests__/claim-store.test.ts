@@ -525,6 +525,74 @@ describe('ClaimStore', () => {
     });
   });
 
+  describe('EmailVerificationProvider Input Validation', () => {
+    it('should reject initiateVerification and completeVerification with malformed or non-string parameters', async () => {
+      const keys = await generateSigningKey();
+      const mockAttemptStore = {
+        createAttempt: vi.fn(),
+        getAttempt: vi.fn(),
+        incrementAttempt: vi.fn(),
+        deleteAttempt: vi.fn(),
+      };
+
+      const provider = new EmailVerificationProvider({
+        attemptStore: mockAttemptStore as any,
+        claimStore: claimStore,
+        privateKey: keys.privateKey,
+        keyId: 'test-key-id',
+      });
+
+      // 1. Invalid email in initiateVerification
+      await expect(
+        provider.initiateVerification({
+          identifier: 12345 as any,
+          walletAddress: 'W5IRXJWPSXNUJVSN2MOEJGTDGKUGFKUDVPTR5ZQVMDG5O4KYD5M3QPG3TE',
+        })
+      ).rejects.toThrow('Invalid email address');
+
+      // 2. Invalid wallet address in initiateVerification
+      await expect(
+        provider.initiateVerification({
+          identifier: 'user@example.com',
+          walletAddress: 'INVALID_ALGORAND_ADDRESS',
+        })
+      ).rejects.toMatchObject({
+        message: 'Invalid wallet address format',
+        code: 'INVALID_ADDRESS',
+        status: 400,
+      });
+
+      // 3. Non-string attemptId in completeVerification
+      await expect(
+        provider.completeVerification({
+          attemptId: { bad: 'id' } as any,
+          code: '123456',
+          walletAddress: 'W5IRXJWPSXNUJVSN2MOEJGTDGKUGFKUDVPTR5ZQVMDG5O4KYD5M3QPG3TE',
+        })
+      ).rejects.toMatchObject({
+        message: 'Invalid verification parameter',
+        code: 'OTP_INVALID',
+        status: 400,
+      });
+
+      // 4. Invalid wallet address in completeVerification
+      await expect(
+        provider.completeVerification({
+          attemptId: 'att-123',
+          code: '123456',
+          walletAddress: 'INVALID_WALLET',
+        })
+      ).rejects.toMatchObject({
+        message: 'Invalid verification parameter',
+        code: 'OTP_INVALID',
+        status: 400,
+      });
+
+      expect(mockAttemptStore.createAttempt).not.toHaveBeenCalled();
+      expect(mockAttemptStore.getAttempt).not.toHaveBeenCalled();
+    });
+  });
+
   describe('EmailVerificationProvider Expiration Security', () => {
     it('should reject completeVerification when attempt is expired', async () => {
       const keys = await generateSigningKey();
