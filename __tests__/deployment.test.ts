@@ -67,6 +67,8 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       expect(html).toContain("resetCopyBtn()");
       expect(html).toContain("btn.setAttribute('aria-label',lbl)");
       expect(html).toContain('kbd class="kbd-hint"');
+      expect(html).toContain('.kbd-hint.active');
+      expect(html).toContain("kbd.classList.add");
       expect(html).toContain('title="Press C to copy command"');
       expect(html).toContain('aria-label="Keyboard shortcut: press C"');
       expect(html).toContain('aria-keyshortcuts="c"');
