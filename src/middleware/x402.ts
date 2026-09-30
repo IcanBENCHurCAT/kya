@@ -17,6 +17,8 @@ export interface X402Receipt {
   timestamp: string;
 }
 
+// Maximum number of redeemed payment receipts stored in memory for replay protection
+export const MAX_RECEIPTS_CAP = 10000;
 const usedTxIds: Map<string, X402Receipt> = new Map();
 
 export function resetX402Receipts(): void {
@@ -110,6 +112,15 @@ export function x402PaymentGate(options: X402Options = {}): MiddlewareHandler {
       endpoint: path,
       timestamp: new Date().toISOString(),
     };
+
+    // Performance optimization: Bounded FIFO eviction prevents unbounded memory growth
+    // and V8 garbage collection pauses under high micro-payment traffic volume.
+    if (usedTxIds.size >= MAX_RECEIPTS_CAP) {
+      const oldestKey = usedTxIds.keys().next().value;
+      if (oldestKey !== undefined) {
+        usedTxIds.delete(oldestKey);
+      }
+    }
 
     usedTxIds.set(paymentTxId, receipt);
     c.header("X-Payment-Receipt", receipt.receiptId);
