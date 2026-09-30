@@ -17,6 +17,8 @@ export interface X402Receipt {
   timestamp: string;
 }
 
+// Security: Bound maximum size of redeemed payment receipts cache to prevent uncontrolled memory growth (DoS)
+export const MAX_RECEIPTS_CAP = 10000;
 const usedTxIds: Map<string, X402Receipt> = new Map();
 
 export function resetX402Receipts(): void {
@@ -110,6 +112,14 @@ export function x402PaymentGate(options: X402Options = {}): MiddlewareHandler {
       endpoint: path,
       timestamp: new Date().toISOString(),
     };
+
+    // Security: Evict oldest receipt entry if capacity is reached to prevent memory exhaustion
+    if (usedTxIds.size >= MAX_RECEIPTS_CAP) {
+      const oldestKey = usedTxIds.keys().next().value;
+      if (oldestKey !== undefined) {
+        usedTxIds.delete(oldestKey);
+      }
+    }
 
     usedTxIds.set(paymentTxId, receipt);
     c.header("X-Payment-Receipt", receipt.receiptId);

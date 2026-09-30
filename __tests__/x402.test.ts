@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { app } from "../src/app.js";
-import { resetX402Receipts } from "../src/middleware/x402.js";
+import { resetX402Receipts, getX402Receipts, MAX_RECEIPTS_CAP } from "../src/middleware/x402.js";
 
 describe("x402 Payment Gate Middleware", () => {
   beforeEach(() => {
@@ -104,6 +104,45 @@ describe("x402 Payment Gate Middleware", () => {
       const json2 = await res2.json();
       expect(json2.error).toBe("Bad Request");
       expect(json2.message).toContain("already redeemed");
+    });
+
+    it("should bound receipts cache size to MAX_RECEIPTS_CAP and evict oldest entry", async () => {
+      const validAddress =
+        "KBWP7FHVYOKPNQOH7X3MLL6BHRK33WUNPHP3ZLY4JWPEGNXLNB3SNPBY6E";
+
+      // Fill up to capacity
+      for (let i = 0; i < MAX_RECEIPTS_CAP; i++) {
+        const res = await app.request(`/api/v1/karma/${validAddress}`, {
+          headers: {
+            "X-Payment": `tx_capacity_test_${i}`,
+          },
+        });
+        expect(res.status).toBe(200);
+      }
+
+      expect(getX402Receipts().length).toBe(MAX_RECEIPTS_CAP);
+
+      // Submit one more request beyond capacity
+      const resExtra = await app.request(`/api/v1/karma/${validAddress}`, {
+        headers: {
+          "X-Payment": "tx_capacity_test_overflow",
+        },
+      });
+      expect(resExtra.status).toBe(200);
+
+      // Cache size must remain bounded at MAX_RECEIPTS_CAP
+      const receipts = getX402Receipts();
+      expect(receipts.length).toBe(MAX_RECEIPTS_CAP);
+
+      // The oldest entry (tx_capacity_test_0) should have been evicted
+      const hasOldest = receipts.some((r) => r.txid === "tx_capacity_test_0");
+      expect(hasOldest).toBe(false);
+
+      // The newest entry (tx_capacity_test_overflow) should be present
+      const hasNewest = receipts.some(
+        (r) => r.txid === "tx_capacity_test_overflow",
+      );
+      expect(hasNewest).toBe(true);
     });
   });
 });
