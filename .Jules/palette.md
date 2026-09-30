@@ -52,3 +52,8 @@
 
 **Learning:** When interactive code blocks (`<code role="button">`) serve as click-to-copy targets alongside dedicated copy buttons, feedback updates (e.g. "Copied!") must be dynamically synchronized across both the button and code container ARIA attributes (`aria-label`, `title`). Restoring default tooltip states during reset guarantees consistent accessibility and visual feedback for assistive technology and mouse users alike.
 **Action:** Always update and restore `aria-label` and `title` attributes on both primary code targets and secondary action buttons during interactive feedback state transitions.
+
+## 2026-09-29 - On-Demand Keyboard Dismissal (`Escape` Key) for Temporary Copy Feedback
+
+**Learning:** Transient status indicators (such as temporary "Copied!" feedback state on code block copy controls) can linger unnaturally for users who wish to dismiss feedback immediately or reset their view before copying again. Binding the standard `Escape` key (`e.key === 'Escape'`) to invoke status resetting logic gives keyboard and screen reader users immediate, predictable control over UI state dismissals.
+**Action:** Attach `Escape` key event handlers to clear transient feedback states and reset ARIA status regions on interactive copy components.

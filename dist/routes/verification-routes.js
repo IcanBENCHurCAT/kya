@@ -27,7 +27,9 @@ export function createVerificationRoutes(verificationService) {
                 typeof body.email !== "string" ||
                 body.email.length > MAX_STRING_LENGTH ||
                 !EMAIL_REGEX.test(body.email) ||
-                !body.walletAddress) {
+                !body.walletAddress ||
+                typeof body.walletAddress !== "string" ||
+                body.walletAddress.length > MAX_STRING_LENGTH) {
                 return c.json({ error: "Valid email address and walletAddress are required" }, 400);
             }
             // Validate wallet address format
@@ -58,8 +60,14 @@ export function createVerificationRoutes(verificationService) {
         try {
             const body = await c.req.json();
             if (!body.attemptId ||
+                typeof body.attemptId !== "string" ||
+                body.attemptId.length > MAX_STRING_LENGTH ||
                 !body.code ||
-                !body.walletAddress) {
+                typeof body.code !== "string" ||
+                body.code.length > MAX_STRING_LENGTH ||
+                !body.walletAddress ||
+                typeof body.walletAddress !== "string" ||
+                body.walletAddress.length > MAX_STRING_LENGTH) {
                 return c.json({ error: "attemptId, code, and walletAddress are required" }, 400);
             }
             // Validate code format (6-digit OTP)

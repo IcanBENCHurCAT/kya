@@ -51,6 +51,11 @@ export declare class VerificationService {
     }>;
     /**
      * Check if a wallet address has been verified.
+     *
+     * Performance optimization:
+     * Queries `findByWallet` (single latest claim lookup) and `getClaimCount` directly.
+     * Avoids fetching, copying (`Array.from`), and $O(K \log K)$ sorting of all historical
+     * claims via `findAllForWallet` when only checking verification status and count.
      */
     checkVerification(walletAddress: string): Promise<any>;
     /**

@@ -12,9 +12,9 @@
  *   POST /api/v1/watchlist/refresh — Refresh watchlists
  *   GET  /api/v1/health — Health check
  */
-import { Hono } from 'hono';
-import { type ScreeningConfig } from '../services/screening.js';
-import { type ListRegistry } from '../services/watchlist-updater.js';
+import { Hono } from "hono";
+import { type ScreeningConfig } from "../services/screening.js";
+import { type ListRegistry } from "../services/watchlist-updater.js";
 export interface AppBindings {
     WATCHLIST: ListRegistry;
     SCREENING_CONFIG?: Partial<ScreeningConfig>;

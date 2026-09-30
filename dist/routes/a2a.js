@@ -10,7 +10,7 @@ export function createA2ARoutes(a2aService = defaultA2AService) {
             return {};
         }));
         const watchlist = c.env?.WATCHLIST || {};
-        const { initiatorAddress, targetAddress, minKarmaScore } = body;
+        const { initiatorAddress, targetAddress, requiredVerificationLevel, minKarmaScore } = body;
         if (typeof initiatorAddress !== 'string' ||
             initiatorAddress.trim().length === 0 ||
             initiatorAddress.length > MAX_STRING_LENGTH ||
@@ -28,6 +28,15 @@ export function createA2ARoutes(a2aService = defaultA2AService) {
                 error: 'Invalid Algorand address format for initiatorAddress or targetAddress',
             }, 400);
         }
+        if (requiredVerificationLevel !== undefined &&
+            (typeof requiredVerificationLevel !== 'string' ||
+                requiredVerificationLevel.trim().length === 0 ||
+                requiredVerificationLevel.length > MAX_STRING_LENGTH)) {
+            return c.json({
+                success: false,
+                error: 'requiredVerificationLevel must be a non-empty string if provided',
+            }, 400);
+        }
         if (minKarmaScore !== undefined &&
             (typeof minKarmaScore !== 'number' || !Number.isFinite(minKarmaScore) || minKarmaScore < 0)) {
             return c.json({
@@ -38,6 +47,7 @@ export function createA2ARoutes(a2aService = defaultA2AService) {
         const handshakeResult = await a2aService.executeHandshake({
             initiatorAddress: initiatorAddress.trim(),
             targetAddress: targetAddress.trim(),
+            requiredVerificationLevel: requiredVerificationLevel ? requiredVerificationLevel.trim() : undefined,
             minKarmaScore,
         }, watchlist);
         return c.json({

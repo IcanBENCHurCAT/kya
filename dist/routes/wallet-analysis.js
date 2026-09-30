@@ -84,8 +84,8 @@ const handleFullGraph = async (c) => {
             edgeCount: stats.edgeCount,
             components: stats.components,
             avgDegree: stats.avgDegree,
-            topNodes: graph.getAllNodes().slice(0, 20),
-            topEdges: graph.getAllEdges().slice(0, 20),
+            topNodes: graph.getAllNodes(20),
+            topEdges: graph.getAllEdges(20),
         });
     }
     catch (err) {

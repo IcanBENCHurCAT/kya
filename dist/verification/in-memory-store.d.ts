@@ -10,6 +10,13 @@ export declare class InMemoryAttemptStore {
     getAttempt(id: string): Promise<VerificationAttempt | null>;
     incrementAttempt(id: string): Promise<VerificationAttempt | null>;
     deleteAttempt(id: string): Promise<void>;
+    /**
+     * Cleanup expired verification attempts
+     *
+     * Performance optimization:
+     * Uses Map.prototype.forEach instead of `for (const [id, attempt] of this.attempts)` to avoid
+     * allocating intermediate 2-element entry tuple arrays `[id, attempt]` per attempt in V8.
+     */
     cleanupExpired(): Promise<number>;
     /**
      * Check rate limit for an identifier.
