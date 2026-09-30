@@ -295,11 +295,28 @@ app.use(
   }),
 );
 
+const defaultAttemptStore = new InMemoryAttemptStore();
+const defaultClaimStore = new InMemoryClaimStore();
+const defaultEphemeralKey = await generateSigningKey();
+const defaultEmailProvider = new EmailVerificationProvider({
+  attemptStore: defaultAttemptStore as any,
+  claimStore: defaultClaimStore as any,
+  privateKey: defaultEphemeralKey.privateKey,
+  keyId: "default-key",
+});
+const defaultVerificationService = new VerificationService({
+  claimStore: defaultClaimStore,
+  attemptStore: defaultAttemptStore,
+  defaultProvider: defaultEmailProvider,
+});
+const defaultVerificationApp = createVerificationRoutes(defaultVerificationService);
+
 app.route("/api/v1", screeningApp);
 app.route("/api/v1", walletAnalysisApp);
 app.route("/api/v1", karmaApp);
 app.route("/api/v1", zkProofApp);
 app.route("/api/v1", a2aApp);
+app.route("/api/v1/verify", defaultVerificationApp);
 
 const PORT = parseInt(process.env.PORT || "3000", 10);
 

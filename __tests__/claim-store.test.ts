@@ -482,6 +482,26 @@ describe('ClaimStore', () => {
     });
   });
 
+  describe('Case-Insensitive Identity Hash Lookup', () => {
+    it('should normalize uppercase SHA-256 hex hashes in identity lookup route', async () => {
+      const mockService = {
+        checkIdentityHash: vi.fn().mockResolvedValue({
+          found: true,
+          walletAddresses: ['W5IRXJWPSXNUJVSN2MOEJGTDGKUGFKUDVPTR5ZQVMDG5O4KYD5M3QPG3TE'],
+          claimCount: 1,
+        }),
+        getAvailableMethods: vi.fn().mockReturnValue(['email']),
+      } as unknown as VerificationService;
+
+      const router = createVerificationRoutes(mockService);
+      const uppercaseHash = 'E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855';
+
+      const res = await router.request(`/identity/${uppercaseHash}`);
+      expect(res.status).toBe(200);
+      expect(mockService.checkIdentityHash).toHaveBeenCalledWith(uppercaseHash.toLowerCase());
+    });
+  });
+
   describe('Verification Routes Security Error Handling', () => {
     it('should safely handle unexpected errors on checkVerification without leaking internals', async () => {
       const mockService = {

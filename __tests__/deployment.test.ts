@@ -267,6 +267,24 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
   });
 
   describe("Verification Endpoint Input Validation", () => {
+    it("should process /api/v1/verify/email/initiate via global app instance when gated with X-Payment", async () => {
+      const res = await app.request("/api/v1/verify/email/initiate", {
+        method: "POST",
+        headers: {
+          "X-Payment": "tx_verify_initiate_test_01",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: "user@example.com",
+          walletAddress: "KBWP7FHVYOKPNQOH7X3MLL6BHRK33WUNPHP3ZLY4JWPEGNXLNB3SNPBY6E",
+        }),
+      });
+
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(json.attemptId).toBeDefined();
+    });
+
     it("should return 400 when completing verification with an invalid wallet address format", async () => {
       const { createVerificationRoutes } =
         await import("../src/routes/verification-routes.js");
