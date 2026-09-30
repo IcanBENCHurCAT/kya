@@ -12,24 +12,65 @@
  *   POST /api/v1/watchlist/refresh — Refresh watchlists
  *   GET  /api/v1/health — Health check
  */
-import { Hono } from 'hono';
-import { isValidAddress } from 'algosdk';
-import { screenSanctions } from '../services/screening.js';
-import { resolveWalletIdentity, registerWalletIdentity, hasVerifiedOwner } from '../services/resolution.js';
-import { logScreening, getAuditLog, getAuditSummary } from '../services/audit.js';
-import { refreshWatchlists, getSummary as getWatchlistSummary } from '../services/watchlist-updater.js';
+import { Hono } from "hono";
+import { isValidAddress } from "algosdk";
+import { screenSanctions, } from "../services/screening.js";
+import { resolveWalletIdentity, registerWalletIdentity, hasVerifiedOwner, } from "../services/resolution.js";
+import { logScreening, getAuditLog, getAuditSummary, } from "../services/audit.js";
+import { refreshWatchlists, getSummary as getWatchlistSummary, } from "../services/watchlist-updater.js";
 const MAX_STRING_LENGTH = 255;
 const app = new Hono();
 /**
+ * Security: Validate and bound request screening configuration overrides to prevent
+ * threshold manipulation attacks or malformed parameters from bypassing sanctions screening.
+ */
+function validateScreeningConfig(config) {
+    if (config === undefined || config === null)
+        return null;
+    if (typeof config !== "object" || Array.isArray(config)) {
+        return "Invalid config: must be a plain object";
+    }
+    const cfg = config;
+    const numFields = ["failThreshold", "flagThreshold", "fuzzyTolerance"];
+    for (const f of numFields) {
+        if (cfg[f] !== undefined &&
+            (typeof cfg[f] !== "number" ||
+                !Number.isFinite(cfg[f]) ||
+                cfg[f] < 0 ||
+                cfg[f] > 1)) {
+            return `Invalid config: ${f} must be a number between 0 and 1`;
+        }
+    }
+    if (cfg.maxResults !== undefined &&
+        (typeof cfg.maxResults !== "number" ||
+            !Number.isInteger(cfg.maxResults) ||
+            cfg.maxResults < 1 ||
+            cfg.maxResults > 100)) {
+        return "Invalid config: maxResults must be an integer between 1 and 100";
+    }
+    const boolFields = [
+        "matchAliases",
+        "matchNationalIds",
+        "matchAddresses",
+        "fuzzyMatch",
+    ];
+    for (const f of boolFields) {
+        if (cfg[f] !== undefined && typeof cfg[f] !== "boolean") {
+            return `Invalid config: ${f} must be a boolean`;
+        }
+    }
+    return null;
+}
+/**
  * Health check endpoint.
  */
-app.get('/api/v1/health', (c) => {
-    return c.json({ status: 'ok', timestamp: new Date().toISOString() });
+app.get("/api/v1/health", (c) => {
+    return c.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 /**
  * Get watchlist summary.
  */
-app.get('/api/v1/watchlist', (c) => {
+app.get("/api/v1/watchlist", (c) => {
     const { WATCHLIST } = c.env || {};
     const watchlist = WATCHLIST || {};
     const summary = getWatchlistSummary();
@@ -47,21 +88,21 @@ app.get('/api/v1/watchlist', (c) => {
 /**
  * Refresh watchlists (manual trigger).
  */
-app.post('/api/v1/watchlist/refresh', async (c) => {
+app.post("/api/v1/watchlist/refresh", async (c) => {
     const { WATCHLIST } = c.env || {};
     const watchlist = WATCHLIST || {};
     const body = await c.req.json().catch(() => ({}));
     const force = body.force === true;
     const updated = await refreshWatchlists(watchlist, force);
     if (!updated) {
-        return c.json({ error: 'Watchlist refresh failed. Check audit log.' }, 500);
+        return c.json({ error: "Watchlist refresh failed. Check audit log." }, 500);
     }
     // Update the binding if env exists
     if (c.env) {
         c.env.WATCHLIST = updated;
     }
     return c.json({
-        status: 'success',
+        status: "success",
         totalEntries: Object.values(updated).reduce((sum, entries) => sum + entries.length, 0),
         timestamp: new Date().toISOString(),
     });
@@ -77,18 +118,30 @@ app.post('/api/v1/watchlist/refresh', async (c) => {
  *   config?: Partial<ScreeningConfig> // Optional: per-request config
  * }
  */
-app.post('/api/v1/screen', async (c) => {
+app.post("/api/v1/screen", async (c) => {
     const { WATCHLIST, SCREENING_CONFIG } = c.env || {};
     const watchlist = WATCHLIST || {};
     const body = await c.req.json().catch(() => ({}));
     const address = body.address;
-    if (typeof address !== 'string' || address.trim().length === 0 || address.length > MAX_STRING_LENGTH || !isValidAddress(address)) {
+    if (typeof address !== "string" ||
+        address.trim().length === 0 ||
+        address.length > MAX_STRING_LENGTH ||
+        !isValidAddress(address)) {
         return c.json({ error: `Invalid address: must be a valid Algorand wallet address` }, 400);
     }
     const beneficialOwner = body.beneficialOwner;
     if (beneficialOwner !== undefined && beneficialOwner !== null) {
-        if (typeof beneficialOwner !== 'string' || beneficialOwner.length > MAX_STRING_LENGTH) {
-            return c.json({ error: `Invalid beneficialOwner: must be a string of max ${MAX_STRING_LENGTH} characters` }, 400);
+        if (typeof beneficialOwner !== "string" ||
+            beneficialOwner.length > MAX_STRING_LENGTH) {
+            return c.json({
+                error: `Invalid beneficialOwner: must be a string of max ${MAX_STRING_LENGTH} characters`,
+            }, 400);
+        }
+    }
+    if (body.config !== undefined && body.config !== null) {
+        const configErr = validateScreeningConfig(body.config);
+        if (configErr) {
+            return c.json({ error: configErr }, 400);
         }
     }
     const config = { ...SCREENING_CONFIG, ...body.config };
@@ -107,7 +160,11 @@ app.post('/api/v1/screen', async (c) => {
     // Add compliance flag
     const screeningResult = {
         status: result.status,
-        recommendation: result.status === 'POTENTIAL_MATCH' ? 'ESCALATE' : result.status === 'MATCH_REQUIRES_REVIEW' ? 'REVIEW' : 'NO_ACTION_REQUIRED',
+        recommendation: result.status === "POTENTIAL_MATCH"
+            ? "ESCALATE"
+            : result.status === "MATCH_REQUIRES_REVIEW"
+                ? "REVIEW"
+                : "NO_ACTION_REQUIRED",
         reason: result.details,
     };
     return c.json({
@@ -129,28 +186,45 @@ app.post('/api/v1/screen', async (c) => {
  *   config?: Partial<ScreeningConfig>
  * }
  */
-app.post('/api/v1/screen/bulk', async (c) => {
+app.post("/api/v1/screen/bulk", async (c) => {
     const { WATCHLIST, SCREENING_CONFIG } = c.env || {};
     const watchlist = WATCHLIST || {};
     const body = await c.req.json().catch(() => ({}));
     const targets = body.targets;
     if (!Array.isArray(targets) || targets.length === 0) {
-        return c.json({ error: 'targets array is required and must be non-empty' }, 400);
+        return c.json({ error: "targets array is required and must be non-empty" }, 400);
     }
     if (targets.length > 100) {
-        return c.json({ error: 'Maximum 100 targets per request' }, 400);
+        return c.json({ error: "Maximum 100 targets per request" }, 400);
     }
     for (const t of targets) {
-        if (!t || typeof t.address !== 'string' || t.address.trim().length === 0 || t.address.length > MAX_STRING_LENGTH || !isValidAddress(t.address)) {
-            return c.json({ error: `Invalid target address: must be a valid Algorand wallet address` }, 400);
+        if (!t ||
+            typeof t.address !== "string" ||
+            t.address.trim().length === 0 ||
+            t.address.length > MAX_STRING_LENGTH ||
+            !isValidAddress(t.address)) {
+            return c.json({
+                error: `Invalid target address: must be a valid Algorand wallet address`,
+            }, 400);
         }
-        if (t.beneficialOwner !== undefined && t.beneficialOwner !== null && (typeof t.beneficialOwner !== 'string' || t.beneficialOwner.length > MAX_STRING_LENGTH)) {
-            return c.json({ error: `Invalid target beneficialOwner: must be a string of max ${MAX_STRING_LENGTH} characters` }, 400);
+        if (t.beneficialOwner !== undefined &&
+            t.beneficialOwner !== null &&
+            (typeof t.beneficialOwner !== "string" ||
+                t.beneficialOwner.length > MAX_STRING_LENGTH)) {
+            return c.json({
+                error: `Invalid target beneficialOwner: must be a string of max ${MAX_STRING_LENGTH} characters`,
+            }, 400);
+        }
+    }
+    if (body.config !== undefined && body.config !== null) {
+        const configErr = validateScreeningConfig(body.config);
+        if (configErr) {
+            return c.json({ error: configErr }, 400);
         }
     }
     const config = { ...SCREENING_CONFIG, ...body.config };
     // Resolve beneficial owners for each target
-    const resolvedTargets = targets.map(t => {
+    const resolvedTargets = targets.map((t) => {
         let owner = t.beneficialOwner;
         if (!owner && hasVerifiedOwner(t.address)) {
             const identity = resolveWalletIdentity(t.address);
@@ -161,7 +235,7 @@ app.post('/api/v1/screen/bulk', async (c) => {
         return { address: t.address, beneficialOwner: owner };
     });
     // Run screening for each target
-    const results = resolvedTargets.map(t => {
+    const results = resolvedTargets.map((t) => {
         const result = screenSanctions(t.address, t.beneficialOwner, watchlist, config);
         logScreening(result);
         return {
@@ -169,7 +243,11 @@ app.post('/api/v1/screen/bulk', async (c) => {
             result,
             screeningResult: {
                 status: result.status,
-                recommendation: result.status === 'POTENTIAL_MATCH' ? 'ESCALATE' : result.status === 'MATCH_REQUIRES_REVIEW' ? 'REVIEW' : 'NO_ACTION_REQUIRED',
+                recommendation: result.status === "POTENTIAL_MATCH"
+                    ? "ESCALATE"
+                    : result.status === "MATCH_REQUIRES_REVIEW"
+                        ? "REVIEW"
+                        : "NO_ACTION_REQUIRED",
                 reason: result.details,
             },
         };
@@ -181,13 +259,13 @@ app.post('/api/v1/screen/bulk', async (c) => {
     let requiresReview = 0;
     for (let i = 0; i < results.length; i++) {
         const status = results[i].screeningResult.status;
-        if (status === 'NO_MATCH_FOUND') {
+        if (status === "NO_MATCH_FOUND") {
             noMatchFound++;
         }
-        else if (status === 'POTENTIAL_MATCH') {
+        else if (status === "POTENTIAL_MATCH") {
             potentialMatch++;
         }
-        else if (status === 'MATCH_REQUIRES_REVIEW') {
+        else if (status === "MATCH_REQUIRES_REVIEW") {
             requiresReview++;
         }
     }
@@ -208,27 +286,27 @@ app.post('/api/v1/screen/bulk', async (c) => {
  *   before: ISO timestamp
  *   result: NO_MATCH_FOUND | POTENTIAL_MATCH | MATCH_REQUIRES_REVIEW | ERROR
  */
-app.get('/api/v1/audit', (c) => {
+app.get("/api/v1/audit", (c) => {
     // Security: Sanitize and bound limit query parameter to prevent negative array slice offsets or DoS
-    const limitParam = c.req.query('limit');
+    const limitParam = c.req.query("limit");
     let limit = 100;
     if (limitParam !== undefined) {
         const parsed = parseInt(limitParam, 10);
         if (isNaN(parsed) || parsed <= 0) {
-            return c.json({ error: 'Invalid limit parameter: must be a positive integer' }, 400);
+            return c.json({ error: "Invalid limit parameter: must be a positive integer" }, 400);
         }
         limit = Math.min(parsed, 1000);
     }
-    const after = c.req.query('after');
-    const before = c.req.query('before');
-    const result = c.req.query('result');
+    const after = c.req.query("after");
+    const before = c.req.query("before");
+    const result = c.req.query("result");
     const entries = getAuditLog({ limit, after, before, result });
     return c.json({ success: true, entries });
 });
 /**
  * Get audit summary stats.
  */
-app.get('/api/v1/audit/summary', (c) => {
+app.get("/api/v1/audit/summary", (c) => {
     const stats = getAuditSummary();
     return c.json({ success: true, ...stats });
 });
@@ -245,34 +323,61 @@ app.get('/api/v1/audit/summary', (c) => {
  *   altAddresses?: string[]
  * }
  */
-app.post('/api/v1/register', async (c) => {
+app.post("/api/v1/register", async (c) => {
     const body = await c.req.json().catch(() => ({}));
     const address = body.address;
     const ownerName = body.ownerName;
-    if (typeof address !== 'string' || address.trim().length === 0 || address.length > MAX_STRING_LENGTH || !isValidAddress(address)) {
+    if (typeof address !== "string" ||
+        address.trim().length === 0 ||
+        address.length > MAX_STRING_LENGTH ||
+        !isValidAddress(address)) {
         return c.json({ error: `Invalid address: must be a valid Algorand wallet address` }, 400);
     }
-    if (typeof ownerName !== 'string' || ownerName.trim().length === 0 || ownerName.length > MAX_STRING_LENGTH) {
-        return c.json({ error: `Invalid ownerName: must be a non-empty string of max ${MAX_STRING_LENGTH} characters` }, 400);
+    if (typeof ownerName !== "string" ||
+        ownerName.trim().length === 0 ||
+        ownerName.length > MAX_STRING_LENGTH) {
+        return c.json({
+            error: `Invalid ownerName: must be a non-empty string of max ${MAX_STRING_LENGTH} characters`,
+        }, 400);
     }
     // Security: Validate types and bounds for optional registration fields to prevent payload injection and DoS
     const { nationality, dateOfBirth, verificationMethod, altAddresses } = body;
-    if (nationality !== undefined && nationality !== null && (typeof nationality !== 'string' || nationality.length > MAX_STRING_LENGTH)) {
-        return c.json({ error: `Invalid nationality: must be a string of max ${MAX_STRING_LENGTH} characters` }, 400);
+    if (nationality !== undefined &&
+        nationality !== null &&
+        (typeof nationality !== "string" || nationality.length > MAX_STRING_LENGTH)) {
+        return c.json({
+            error: `Invalid nationality: must be a string of max ${MAX_STRING_LENGTH} characters`,
+        }, 400);
     }
-    if (dateOfBirth !== undefined && dateOfBirth !== null && (typeof dateOfBirth !== 'string' || dateOfBirth.length > MAX_STRING_LENGTH)) {
-        return c.json({ error: `Invalid dateOfBirth: must be a string of max ${MAX_STRING_LENGTH} characters` }, 400);
+    if (dateOfBirth !== undefined &&
+        dateOfBirth !== null &&
+        (typeof dateOfBirth !== "string" || dateOfBirth.length > MAX_STRING_LENGTH)) {
+        return c.json({
+            error: `Invalid dateOfBirth: must be a string of max ${MAX_STRING_LENGTH} characters`,
+        }, 400);
     }
-    if (verificationMethod !== undefined && verificationMethod !== null && (typeof verificationMethod !== 'string' || verificationMethod.length > MAX_STRING_LENGTH)) {
-        return c.json({ error: `Invalid verificationMethod: must be a string of max ${MAX_STRING_LENGTH} characters` }, 400);
+    if (verificationMethod !== undefined &&
+        verificationMethod !== null &&
+        (typeof verificationMethod !== "string" ||
+            verificationMethod.length > MAX_STRING_LENGTH)) {
+        return c.json({
+            error: `Invalid verificationMethod: must be a string of max ${MAX_STRING_LENGTH} characters`,
+        }, 400);
     }
     if (altAddresses !== undefined && altAddresses !== null) {
         if (!Array.isArray(altAddresses) || altAddresses.length > 50) {
-            return c.json({ error: 'Invalid altAddresses: must be an array of max 50 valid Algorand wallet addresses' }, 400);
+            return c.json({
+                error: "Invalid altAddresses: must be an array of max 50 valid Algorand wallet addresses",
+            }, 400);
         }
         for (const altAddr of altAddresses) {
-            if (typeof altAddr !== 'string' || altAddr.trim().length === 0 || altAddr.length > MAX_STRING_LENGTH || !isValidAddress(altAddr)) {
-                return c.json({ error: 'Invalid altAddresses: each entry must be a valid Algorand wallet address' }, 400);
+            if (typeof altAddr !== "string" ||
+                altAddr.trim().length === 0 ||
+                altAddr.length > MAX_STRING_LENGTH ||
+                !isValidAddress(altAddr)) {
+                return c.json({
+                    error: "Invalid altAddresses: each entry must be a valid Algorand wallet address",
+                }, 400);
             }
         }
     }

@@ -60,7 +60,10 @@ export class ZKPVerifierService {
             !Array.isArray(payload.proof.pi_b[0]) ||
             payload.proof.pi_b[0].length < 2 ||
             !Array.isArray(payload.proof.pi_b[1]) ||
-            payload.proof.pi_b[1].length < 2) {
+            payload.proof.pi_b[1].length < 2 ||
+            payload.proof.pi_a.some((x) => typeof x !== 'string') ||
+            payload.proof.pi_c.some((x) => typeof x !== 'string') ||
+            payload.proof.pi_b.some((sub) => !Array.isArray(sub) || sub.some((x) => typeof x !== 'string'))) {
             return {
                 valid: false,
                 verificationLevel: 'UNVERIFIED',

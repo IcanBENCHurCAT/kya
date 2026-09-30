@@ -45,13 +45,23 @@ export declare class WalletGraph {
      */
     getNode(address: string): WalletGraphNode | null;
     /**
-     * Get all nodes
+     * Get all nodes, optionally bounded to top K items.
+     *
+     * Performance optimization:
+     * When `limit` is provided and smaller than total nodes, extracts top K items directly
+     * using a bounded insertion-sorted array. Reduces time complexity from O(V log V) to O(V)
+     * and minimizes memory allocations.
      */
-    getAllNodes(): WalletGraphNode[];
+    getAllNodes(limit?: number): WalletGraphNode[];
     /**
-     * Get all edges
+     * Get all edges, optionally bounded to top K items.
+     *
+     * Performance optimization:
+     * When `limit` is provided, streams edges directly from inner maps into a bounded
+     * insertion-sorted array of size `limit`. Eliminates constructing a temporary flat array
+     * of all graph edges (saving O(E) allocations) and reduces sort complexity from O(E log E) to O(E).
      */
-    getAllEdges(): WalletGraphEdge[];
+    getAllEdges(limit?: number): WalletGraphEdge[];
     /**
      * Find paths between two addresses (BFS, limited depth)
      * Returns the shortest path and all paths up to maxDepth

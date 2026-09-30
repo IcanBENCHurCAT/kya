@@ -36,13 +36,26 @@ export class A2AService {
         const screeningResult = screenSanctions(request.targetAddress, undefined, watchlist || {});
         const sanctionsStatus = screeningResult.status;
         // 3. Risk signal evaluation
+        const getTierLevel = (t) => {
+            const m = t.match(/Tier\s*(\d+)/i);
+            return m ? parseInt(m[1], 10) : -1;
+        };
+        const reqLevel = request.requiredVerificationLevel ? getTierLevel(request.requiredVerificationLevel) : -1;
+        const targetLevel = getTierLevel(targetProfile.tier);
+        const verificationLevelPass = !request.requiredVerificationLevel ||
+            (reqLevel !== -1 && targetLevel !== -1
+                ? targetLevel >= reqLevel
+                : targetProfile.tier.toLowerCase().includes(request.requiredVerificationLevel.toLowerCase()));
         const karmaPass = targetProfile.score >= minKarmaScore;
         const noSanctionsMatch = sanctionsStatus === 'NO_MATCH_FOUND';
         let decision = 'PROCEED';
         let details = 'Pre-flight risk signals evaluated — no adverse indicators detected';
-        if (!noSanctionsMatch || !karmaPass) {
+        if (!noSanctionsMatch || !karmaPass || !verificationLevelPass) {
             decision = 'REJECT';
-            if (!noSanctionsMatch && !karmaPass) {
+            if (!verificationLevelPass) {
+                details = `Rejected: Target tier (${targetProfile.tier}) does not meet required verification level (${request.requiredVerificationLevel})`;
+            }
+            else if (!noSanctionsMatch && !karmaPass) {
                 details = `Rejected: Karma score (${targetProfile.score}) below required (${minKarmaScore}) and sanctions status is ${sanctionsStatus}`;
             }
             else if (!noSanctionsMatch) {
@@ -55,6 +68,7 @@ export class A2AService {
         const riskSummary = {
             karmaPass,
             noSanctionsMatch,
+            verificationLevelPass,
             sanctionsStatus,
             details,
         };

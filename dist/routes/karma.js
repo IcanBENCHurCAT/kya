@@ -27,8 +27,10 @@ export function createKarmaRoutes(karmaService = defaultKarmaService) {
         const body = await c.req.json().catch(() => ({}));
         const { agentAddress, eventType, amount, reason, txid } = body;
         // Security: Validate required parameters and strictly enforce finite, positive amount
-        // to prevent NaN score corruption, negative credits/debits, and overflow exploits.
+        // and string type bounds to prevent NaN score corruption, type confusion, and unhandled exceptions.
         if (!agentAddress ||
+            typeof agentAddress !== 'string' ||
+            agentAddress.length > MAX_STRING_LENGTH ||
             !isValidAddress(agentAddress) ||
             !eventType ||
             typeof amount !== 'number' ||

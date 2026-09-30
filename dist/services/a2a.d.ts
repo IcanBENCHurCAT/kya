@@ -41,6 +41,7 @@ export interface A2AHandshakeResponse {
     riskSummary: {
         karmaPass: boolean;
         noSanctionsMatch?: boolean;
+        verificationLevelPass: boolean;
         sanctionsStatus: 'NO_MATCH_FOUND' | 'POTENTIAL_MATCH' | 'MATCH_REQUIRES_REVIEW';
         details: string;
     };
