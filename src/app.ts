@@ -308,6 +308,8 @@ const defaultVerificationService = new VerificationService({
   claimStore: defaultClaimStore,
   attemptStore: defaultAttemptStore,
   defaultProvider: defaultEmailProvider,
+  privateKey: defaultEphemeralKey.privateKey,
+  keyId: "default-key",
 });
 const defaultVerificationApp = createVerificationRoutes(defaultVerificationService);
 
