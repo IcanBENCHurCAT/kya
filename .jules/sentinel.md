@@ -32,3 +32,8 @@
 **Vulnerability:** `POST /api/v1/screen` and `POST /api/v1/screen/bulk` allowed client payloads to supply arbitrary `config` overrides without type or range checks. Invalid numeric thresholds (e.g., `failThreshold: "invalid"` or `failThreshold: 999`) caused score evaluation `highestScore >= settings.failThreshold` to evaluate to `false`, returning `NO_MATCH_FOUND` for sanctioned targets.
 **Learning:** Merging unvalidated client JSON objects directly into internal configuration objects enables callers to manipulate threshold logic, bypass compliance gates, or inject malformed properties.
 **Prevention:** Always strictly validate and bound client-supplied configuration overrides (enforcing type checks, finite numbers, and range limits [0, 1]) before merging into business logic options.
+
+## 2025-05-18 - Uppercase Hex Rejection in Identity Hash Verification Lookup
+**Vulnerability:** `GET /verify/identity/:hash` in `src/routes/verification-routes.ts` validated SHA-256 identity hash parameters using strict lowercase regex `/^[0-9a-f]{64}$/`, causing uppercase hex hashes (e.g. `E3B0...`) to be rejected with HTTP 400 errors and breaking identity lookups.
+**Learning:** SHA-256 hexadecimal representations can be generated in uppercase or lowercase depending on the client environment. Validating strict lowercase hex without parameter normalization breaks valid identity hash checks.
+**Prevention:** Always convert hex input parameters to lowercase using `.toLowerCase()` before applying regex validation and querying hash indexes.

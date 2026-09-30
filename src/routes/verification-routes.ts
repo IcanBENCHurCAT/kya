@@ -23,17 +23,13 @@ export function createVerificationRoutes(
 ) {
   const router = new Hono();
 
-  // -----------------------------------------------------------------------
-  // POST /verify/email/initiate
-  // Request: { email: string, walletAddress: string }
-  // Response: { attemptId: string }
-  // -----------------------------------------------------------------------
-  router.post("/verify/email/initiate", async (c) => {
+  // Route Handlers
+  const handleInitiate = async (c: any) => {
     try {
-      const body = await c.req.json<{
+      const body = (await c.req.json().catch(() => ({}))) as {
         email?: string;
         walletAddress?: string;
-      }>();
+      };
 
       if (
         !body.email ||
@@ -50,7 +46,6 @@ export function createVerificationRoutes(
         );
       }
 
-      // Validate wallet address format
       if (!isValidAddress(body.walletAddress)) {
         return c.json(
           { error: "Invalid wallet address format (expected Algorand base32)" },
@@ -72,20 +67,15 @@ export function createVerificationRoutes(
       }
       return c.json({ error: "Internal server error" }, 500);
     }
-  });
+  };
 
-  // -----------------------------------------------------------------------
-  // POST /verify/email/complete
-  // Request: { attemptId: string, code: string, walletAddress: string }
-  // Response: { claim: VerificationClaim, isNew: boolean }
-  // -----------------------------------------------------------------------
-  router.post("/verify/email/complete", async (c) => {
+  const handleComplete = async (c: any) => {
     try {
-      const body = await c.req.json<{
+      const body = (await c.req.json().catch(() => ({}))) as {
         attemptId?: string;
         code?: string;
         walletAddress?: string;
-      }>();
+      };
 
       if (
         !body.attemptId ||
@@ -104,12 +94,10 @@ export function createVerificationRoutes(
         );
       }
 
-      // Validate code format (6-digit OTP)
       if (!/^\d{6}$/.test(body.code)) {
         return c.json({ error: "Code must be a 6-digit number" }, 400);
       }
 
-      // Validate wallet address format
       if (!isValidAddress(body.walletAddress)) {
         return c.json(
           { error: "Invalid wallet address format (expected Algorand base32)" },
@@ -132,13 +120,9 @@ export function createVerificationRoutes(
       }
       return c.json({ error: "Internal server error" }, 500);
     }
-  });
+  };
 
-  // -----------------------------------------------------------------------
-  // GET /verify/wallet/:address
-  // Response: { isVerified, claimCount, ... }
-  // -----------------------------------------------------------------------
-  router.get("/verify/wallet/:address", async (c) => {
+  const handleWalletCheck = async (c: any) => {
     try {
       const walletAddress = c.req.param("address");
 
@@ -157,15 +141,12 @@ export function createVerificationRoutes(
       }
       return c.json({ error: "Internal server error" }, 500);
     }
-  });
+  };
 
-  // -----------------------------------------------------------------------
-  // GET /verify/identity/:hash
-  // Response: { found, walletAddresses, claimCount }
-  // -----------------------------------------------------------------------
-  router.get("/verify/identity/:hash", async (c) => {
+  const handleIdentityCheck = async (c: any) => {
     try {
-      const identityHash = c.req.param("hash");
+      const rawHash = c.req.param("hash");
+      const identityHash = typeof rawHash === "string" ? rawHash.toLowerCase() : "";
 
       if (!identityHash || !/^[0-9a-f]{64}$/.test(identityHash)) {
         return c.json({ error: "Valid SHA-256 hex hash required" }, 400);
@@ -182,24 +163,27 @@ export function createVerificationRoutes(
       }
       return c.json({ error: "Internal server error" }, 500);
     }
-  });
+  };
 
-  // -----------------------------------------------------------------------
-  // GET /verify/methods
-  // Response: { methods: string[] }
-  // -----------------------------------------------------------------------
-  router.get("/verify/methods", async (c) => {
+  const handleMethods = async (c: any) => {
     const methods = verificationService.getAvailableMethods();
     return c.json({ methods }, 200);
-  });
+  };
 
-  // -----------------------------------------------------------------------
-  // GET /health
-  // Simple health check endpoint
-  // -----------------------------------------------------------------------
-  router.get("/health", (c) => {
-    return c.json({ status: "ok", service: "kya-verification" }, 200);
-  });
+  // Register routes with and without /verify prefix for sub-app mounting & standalone usage
+  router.post("/email/initiate", handleInitiate);
+  router.post("/verify/email/initiate", handleInitiate);
+  router.post("/email/complete", handleComplete);
+  router.post("/verify/email/complete", handleComplete);
+  router.get("/wallet/:address", handleWalletCheck);
+  router.get("/verify/wallet/:address", handleWalletCheck);
+  router.get("/identity/:hash", handleIdentityCheck);
+  router.get("/verify/identity/:hash", handleIdentityCheck);
+  router.get("/methods", handleMethods);
+  router.get("/verify/methods", handleMethods);
+  router.get("/health", (c) =>
+    c.json({ status: "ok", service: "kya-verification" }, 200)
+  );
 
   return router;
 }
