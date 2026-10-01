@@ -35,6 +35,7 @@ import { InMemoryClaimStore } from "./verification/in-memory-claim-store.js";
 import { InMemoryAttemptStore } from "./verification/in-memory-store.js";
 import { EmailVerificationProvider } from "./verification/providers/email-provider.js";
 import { VerificationService } from "./verification/service.js";
+import { sendEmail } from "./utils/email.js";
 
 // Mount all apps into a single router
 const app = new Hono();
@@ -402,13 +403,7 @@ async function main() {
     claimStore: claimStore as ClaimStore,
     privateKey: signingKeyPEM,
     keyId,
-    sendEmail: async (to, subject, body) => {
-      if (process.env.NODE_ENV === "production") {
-        console.log(`📧 Email to ${to}: ${subject}`);
-      } else {
-        console.log(`📧 Email to ${to}: ${subject} — ${body}`);
-      }
-    },
+    sendEmail,
   });
 
   // Initialize verification service
