@@ -36,6 +36,7 @@ import { InMemoryAttemptStore } from "./verification/in-memory-store.js";
 import { EmailVerificationProvider } from "./verification/providers/email-provider.js";
 import { VerificationService } from "./verification/service.js";
 import { sendEmail } from "./utils/email.js";
+import { checkHealth } from "./services/health.js";
 
 // Mount all apps into a single router
 const app = new Hono();
@@ -72,12 +73,14 @@ app.use(
 );
 
 // Global health check routes (exempt)
-app.get("/health", (c) =>
-  c.json({ status: "ok", timestamp: new Date().toISOString() }),
-);
-app.get("/api/v1/health", (c) =>
-  c.json({ status: "ok", timestamp: new Date().toISOString() }),
-);
+app.get("/health", async (c) => {
+  const result = await checkHealth();
+  return c.json(result, result.status === 'healthy' ? 200 : 503);
+});
+app.get("/api/v1/health", async (c) => {
+  const result = await checkHealth();
+  return c.json(result, result.status === 'healthy' ? 200 : 503);
+});
 
 // Root developer landing page
 app.get("/", (c) => {

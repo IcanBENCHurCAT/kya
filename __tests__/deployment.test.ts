@@ -145,7 +145,7 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       const res = await app.request("/health");
       expect(res.status).toBe(200);
       const data = await res.json();
-      expect(data.status).toBe("ok");
+      expect(data.status).toBe("healthy");
       expect(data.timestamp).toBeDefined();
       expect(new Date(data.timestamp).toString()).not.toBe("Invalid Date");
     });
@@ -154,7 +154,7 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       const res = await app.request("/api/v1/health");
       expect(res.status).toBe(200);
       const data = await res.json();
-      expect(data.status).toBe("ok");
+      expect(data.status).toBe("healthy");
       expect(data.timestamp).toBeDefined();
     });
 
@@ -247,7 +247,7 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
 
       expect(res.status).toBe(200);
       const json = await res.json();
-      expect(json.status).toBe("ok");
+      expect(json.status).toBe("healthy");
     });
 
     it("should honor X-Payment and return X-Payment-Receipt in response headers when valid", async () => {
