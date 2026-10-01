@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { app } from "../src/app.js";
-import { resetX402Receipts } from "../src/middleware/x402.js";
+import { resetX402Receipts, getX402Receipts, MAX_RECEIPTS_CAP } from "../src/middleware/x402.js";
 
 describe("x402 Payment Gate Middleware", () => {
   beforeEach(() => {
@@ -104,6 +104,37 @@ describe("x402 Payment Gate Middleware", () => {
       const json2 = await res2.json();
       expect(json2.error).toBe("Bad Request");
       expect(json2.message).toContain("already redeemed");
+    });
+
+    it("should bound receipt cache size and perform FIFO eviction when capacity is reached", async () => {
+      const validAddress =
+        "KBWP7FHVYOKPNQOH7X3MLL6BHRK33WUNPHP3ZLY4JWPEGNXLNB3SNPBY6E";
+
+      // Fill receipt store up to capacity
+      for (let i = 0; i < MAX_RECEIPTS_CAP; i++) {
+        const res = await app.request(`/api/v1/karma/${validAddress}`, {
+          headers: {
+            "X-Payment": `tx_batch_${i}`,
+          },
+        });
+        expect(res.status).toBe(200);
+      }
+
+      expect(getX402Receipts().length).toBe(MAX_RECEIPTS_CAP);
+
+      // Overflow by 1 entry to trigger FIFO eviction of tx_batch_0
+      const overflowRes = await app.request(`/api/v1/karma/${validAddress}`, {
+        headers: {
+          "X-Payment": "tx_overflow_entry",
+        },
+      });
+      expect(overflowRes.status).toBe(200);
+
+      // Receipt store size should remain bounded at MAX_RECEIPTS_CAP
+      const receipts = getX402Receipts();
+      expect(receipts.length).toBe(MAX_RECEIPTS_CAP);
+      expect(receipts.some((r) => r.txid === "tx_batch_0")).toBe(false);
+      expect(receipts.some((r) => r.txid === "tx_overflow_entry")).toBe(true);
     });
   });
 });
