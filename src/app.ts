@@ -368,7 +368,23 @@ app.route("/api/v1/verify", defaultVerificationApp);
 
 const PORT = parseInt(process.env.PORT || "3000", 10);
 
+export function checkProductionGuards(env: NodeJS.ProcessEnv = process.env) {
+  if (env.NODE_ENV === "production") {
+    if (!env.KYA_PRIVATE_KEY) {
+      throw new Error(
+        "FATAL: KYA_PRIVATE_KEY is missing. In production, this would cause Verifiable Credentials to become unverifiable after restart."
+      );
+    }
+    if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
+      throw new Error(
+        "FATAL: SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is missing. In production, this would cause verification state to be lost on restart."
+      );
+    }
+  }
+}
+
 async function main() {
+  checkProductionGuards(process.env);
   console.log("🔍 KYA Service starting...\n");
 
   // Start HTTP server immediately so health checks pass without delay
