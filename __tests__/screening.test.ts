@@ -38,6 +38,7 @@ import {
   getAuditLog,
   getAuditSummary,
   clearAuditLog,
+  loadAuditLog,
 } from "../src/services/audit.js";
 import {
   refreshWatchlists,
@@ -836,6 +837,26 @@ describe("Audit Logging", () => {
     const entry = logError("Something went wrong", { code: 500 });
     assert(entry.eventType === "error");
     assert(entry.result === "ERROR");
+  });
+
+  it("should safely load large audit logs from disk without throwing stack overflow RangeError", () => {
+    const largeDataset = new Array(150000).fill(null).map((_, i) => ({
+      id: `id-${i}`,
+      timestamp: "2025-01-01T00:00:00.000Z",
+      eventType: "screening" as const,
+      result: "NO_MATCH_FOUND" as const,
+      confidence: 0,
+      matchedEntries: [],
+      matchedListNames: [],
+      screenableTarget: `target-${i}`,
+    }));
+
+    vi.spyOn(fs, "existsSync").mockReturnValue(true);
+    vi.spyOn(fs, "readFileSync").mockReturnValue(JSON.stringify(largeDataset));
+
+    expect(() => loadAuditLog()).not.toThrow();
+    const loaded = getAuditLog({ limit: 10 });
+    expect(loaded.length).toBe(10);
   });
 
   it("should filter audit log", () => {
