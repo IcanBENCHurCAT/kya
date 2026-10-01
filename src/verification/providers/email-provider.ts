@@ -64,9 +64,9 @@ export class EmailVerificationProvider implements VerificationProvider {
     // Default sendEmail does nothing (for testing/development)
     this.sendEmail =
       options.sendEmail ??
-      ((to, subject, body) => {
+      ((to, subject, _body) => {
         console.log(
-          `[EmailProvider] Would send email to ${to}: ${subject} — ${body}`
+          `[EmailProvider] Would send email to ${to}: ${subject} — [REDACTED]`
         );
         return Promise.resolve();
       });
