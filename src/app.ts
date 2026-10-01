@@ -311,10 +311,26 @@ app.get("/.well-known/agent-card.json", (c) => {
 // Mount x402 payment gate over /api/v1/*
 const defaultEscrowWallet =
   "W5IRXJWPSXNUJVSN2MOEJGTDGKUGFKUDVPTR5ZQVMDG5O4KYD5M3QPG3TE";
+
+if (!process.env.KYA_TREASURY_ADDRESS && !process.env.ESCROW_ADDRESS) {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "FATAL: KYA_TREASURY_ADDRESS and ESCROW_ADDRESS are both unset. " +
+        "In production, one must be set to prevent routing payments to the default fallback address."
+    );
+  } else {
+    console.warn(
+      "WARNING: KYA_TREASURY_ADDRESS and ESCROW_ADDRESS are both unset. " +
+        "Routing x402 payments to the default fallback address. Do not do this in production."
+    );
+  }
+}
+
 const configuredReceiver =
   process.env.KYA_TREASURY_ADDRESS ||
   process.env.ESCROW_ADDRESS ||
   defaultEscrowWallet;
+
 app.use(
   "/api/v1/*",
   x402PaymentGate({
