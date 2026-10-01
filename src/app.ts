@@ -39,8 +39,36 @@ import { VerificationService } from "./verification/service.js";
 // Mount all apps into a single router
 const app = new Hono();
 
-// Apply CORS middleware globally
-app.use("*", cors());
+// Apply CORS middleware globally with restricted allowed origins
+const defaultAllowedOrigins = [
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
+  "https://kya-service.duckdns.org",
+];
+
+const getAllowedOrigins = (): string[] => {
+  if (process.env.ALLOWED_ORIGINS) {
+    return process.env.ALLOWED_ORIGINS.split(",")
+      .map((origin) => origin.trim())
+      .filter((origin) => origin.length > 0);
+  }
+  return defaultAllowedOrigins;
+};
+
+app.use(
+  "*",
+  cors({
+    origin: (origin) => {
+      if (!origin) return null;
+      const allowed = getAllowedOrigins();
+      return allowed.includes(origin) ? origin : null;
+    },
+    allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowHeaders: ["Content-Type", "Authorization", "X-Payment"],
+    exposeHeaders: ["X-Payment-Receipt"],
+    maxAge: 86400,
+  }),
+);
 
 // Global health check routes (exempt)
 app.get("/health", (c) =>
