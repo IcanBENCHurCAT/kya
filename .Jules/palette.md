@@ -57,3 +57,8 @@
 
 **Learning:** Transient status indicators (such as temporary "Copied!" feedback state on code block copy controls) can linger unnaturally for users who wish to dismiss feedback immediately or reset their view before copying again. Binding the standard `Escape` key (`e.key === 'Escape'`) to invoke status resetting logic gives keyboard and screen reader users immediate, predictable control over UI state dismissals.
 **Action:** Attach `Escape` key event handlers to clear transient feedback states and reset ARIA status regions on interactive copy components.
+
+## 2026-09-30 - Transient Visual Affordances for Single-Key Keyboard Shortcuts
+
+**Learning:** Single-key keyboard shortcuts (such as pressing `[c]` to copy a command) provide great efficiency, but without immediate visual feedback on the shortcut indicator element (`<kbd>`), users may be uncertain whether the shortcut was triggered or if focus was lost. Temporarily applying an active visual class (`.kbd-hint.active`) during shortcut execution confirms key registration instantly.
+**Action:** Toggling a brief active CSS state on `<kbd>` shortcut hints during keydown execution provides clear visual confirmation of keyboard shortcut invocation.
