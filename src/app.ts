@@ -341,30 +341,65 @@ app.use(
   }),
 );
 
-const defaultAttemptStore = new InMemoryAttemptStore();
-const defaultClaimStore = new InMemoryClaimStore();
-const defaultEphemeralKey = await generateSigningKey();
-const defaultEmailProvider = new EmailVerificationProvider({
-  attemptStore: defaultAttemptStore as any,
-  claimStore: defaultClaimStore as any,
-  privateKey: defaultEphemeralKey.privateKey,
-  keyId: "default-key",
+// ─── Initialize Verification Service ───────────────────────────────
+console.log("🔐 Initializing KYA verification service...");
+
+const dbUrl = process.env.SUPABASE_URL || "";
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+const privateKey = process.env.KYA_PRIVATE_KEY || "";
+const keyId = process.env.KYA_KEY_ID || "default-key";
+const useInMemory = !dbUrl || !serviceRoleKey || !privateKey;
+
+let attemptStore: AttemptStore | InMemoryAttemptStore;
+let claimStore: ClaimStore | InMemoryClaimStore;
+
+if (useInMemory) {
+  console.log("  ⚠️  No DB credentials found — running in in-memory mode");
+  attemptStore = new InMemoryAttemptStore();
+  claimStore = new InMemoryClaimStore();
+} else {
+  console.log("  ✅ Connected to Supabase for verification storage");
+  attemptStore = new AttemptStore(dbUrl, serviceRoleKey);
+  claimStore = new ClaimStore(dbUrl, serviceRoleKey);
+}
+
+// Generate or use existing signing key
+let signingKeyPEM: string;
+if (privateKey) {
+  signingKeyPEM = privateKey;
+} else {
+  console.log("  🔑 Generating ephemeral signing key (not persisted)");
+  const keys = await generateSigningKey();
+  signingKeyPEM = keys.privateKey;
+}
+
+// Set up email provider
+const emailProvider = new EmailVerificationProvider({
+  attemptStore: attemptStore as AttemptStore,
+  claimStore: claimStore as ClaimStore,
+  privateKey: signingKeyPEM,
+  keyId,
+  sendEmail,
 });
-const defaultVerificationService = new VerificationService({
-  claimStore: defaultClaimStore,
-  attemptStore: defaultAttemptStore,
-  defaultProvider: defaultEmailProvider,
-  privateKey: defaultEphemeralKey.privateKey,
-  keyId: "default-key",
+
+// Initialize verification service
+const verificationService = new VerificationService({
+  databaseUrl: dbUrl,
+  serviceRoleKey,
+  privateKey: signingKeyPEM,
+  keyId,
+  defaultProvider: emailProvider,
 });
-const defaultVerificationApp = createVerificationRoutes(defaultVerificationService);
+
+// Mount verification routes
+const verificationRoutes = createVerificationRoutes(verificationService);
 
 app.route("/api/v1", screeningApp);
 app.route("/api/v1", walletAnalysisApp);
 app.route("/api/v1", karmaApp);
 app.route("/api/v1", zkProofApp);
 app.route("/api/v1", a2aApp);
-app.route("/api/v1/verify", defaultVerificationApp);
+app.route("/api/v1/verify", verificationRoutes);
 
 const PORT = parseInt(process.env.PORT || "3000", 10);
 
@@ -397,59 +432,6 @@ async function main() {
   // Load audit log from disk
   loadAuditLog();
 
-  // ─── Initialize Verification Service ───────────────────────────────
-  console.log("🔐 Initializing KYA verification service...");
-
-  const dbUrl = process.env.SUPABASE_URL || "";
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
-  const privateKey = process.env.KYA_PRIVATE_KEY || "";
-  const keyId = process.env.KYA_KEY_ID || "default-key";
-  const useInMemory = !dbUrl || !serviceRoleKey || !privateKey;
-
-  let attemptStore: AttemptStore | InMemoryAttemptStore;
-  let claimStore: ClaimStore | InMemoryClaimStore;
-
-  if (useInMemory) {
-    console.log("  ⚠️  No DB credentials found — running in in-memory mode");
-    attemptStore = new InMemoryAttemptStore();
-    claimStore = new InMemoryClaimStore();
-  } else {
-    console.log("  ✅ Connected to Supabase for verification storage");
-    attemptStore = new AttemptStore(dbUrl, serviceRoleKey);
-    claimStore = new ClaimStore(dbUrl, serviceRoleKey);
-  }
-
-  // Generate or use existing signing key
-  let signingKeyPEM: string;
-  if (privateKey) {
-    signingKeyPEM = privateKey;
-  } else {
-    console.log("  🔑 Generating ephemeral signing key (not persisted)");
-    const keys = await generateSigningKey();
-    signingKeyPEM = keys.privateKey;
-  }
-
-  // Set up email provider
-  const emailProvider = new EmailVerificationProvider({
-    attemptStore: attemptStore as AttemptStore,
-    claimStore: claimStore as ClaimStore,
-    privateKey: signingKeyPEM,
-    keyId,
-    sendEmail,
-  });
-
-  // Initialize verification service
-  const verificationService = new VerificationService({
-    databaseUrl: dbUrl,
-    serviceRoleKey,
-    privateKey: signingKeyPEM,
-    keyId,
-    defaultProvider: emailProvider,
-  });
-
-  // Mount verification routes
-  const verificationRoutes = createVerificationRoutes(verificationService);
-  app.route("/api/v1/verify", verificationRoutes);
 
   // Initialize watchlists asynchronously
   console.log("⬇️  Loading sanctions watchlists...");
