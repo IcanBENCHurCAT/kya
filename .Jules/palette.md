@@ -62,3 +62,8 @@
 
 **Learning:** Single-key keyboard shortcuts (such as pressing `[c]` to copy a command) provide great efficiency, but without immediate visual feedback on the shortcut indicator element (`<kbd>`), users may be uncertain whether the shortcut was triggered or if focus was lost. Temporarily applying an active visual class (`.kbd-hint.active`) during shortcut execution confirms key registration instantly.
 **Action:** Toggling a brief active CSS state on `<kbd>` shortcut hints during keydown execution provides clear visual confirmation of keyboard shortcut invocation.
+
+## 2026-10-01 - Screen Reader Announcements on Keyboard Dismissal of Temporary States
+
+**Learning:** Dismissing transient UI feedback states via keyboard shortcuts (e.g., `Escape` key) resets visual indicators but leaves screen reader users uninformed unless explicitly communicated. Asynchronously updating an `aria-live` polite status region with "Status reset" when active feedback is dismissed provides complete parity between visual and assistive interactions.
+**Action:** Ensure keyboard dismissal handlers check for active temporary states and trigger an asynchronous `aria-live` announcement upon reset.
