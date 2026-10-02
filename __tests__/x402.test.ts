@@ -33,14 +33,14 @@ describe("x402 Payment Gate Middleware", () => {
       const res = await app.request("/health");
       expect(res.status).toBe(200);
       const json = await res.json();
-      expect(json.status).toBe("ok");
+      expect(json.status).toBe("healthy");
     });
 
     it("should bypass payment challenge for /api/v1/health", async () => {
       const res = await app.request("/api/v1/health");
       expect(res.status).toBe(200);
       const json = await res.json();
-      expect(json.status).toBe("ok");
+      expect(json.status).toBe("healthy");
     });
   });
 
