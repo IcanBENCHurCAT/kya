@@ -233,7 +233,9 @@ export function loadAuditLog(): void {
   try {
     const data = JSON.parse(fs.readFileSync(AUDIT_LOG_PATH, 'utf-8'));
     if (Array.isArray(data)) {
-      auditLog.push(...data);
+      for (let i = 0; i < data.length; i++) {
+        auditLog.push(data[i]);
+      }
       console.log(`[Audit] Loaded ${data.length} audit entries from disk.`);
     }
   } catch (err) {
