@@ -121,26 +121,10 @@ export function resolveForScreening(walletAddress: string): ResolutionResult {
     };
   }
 
-  const beneficiaries: string[] = [];
-  const associatedWallets: string[] = [];
-  let maxConfidence = 0;
-
-  // Primary: verified owner
-  if (identity.verifiedOwner) {
-    beneficiaries.push(identity.verifiedOwner.name);
-    maxConfidence = Math.max(maxConfidence, 1.0);
-  }
-
-  // Secondary: known associated wallets (sibling wallets)
-  if (identity.altAddresses) {
-    for (const altAddr of identity.altAddresses) {
-      associatedWallets.push(altAddr);
-      const altIdentity = walletIdentities.get(altAddr);
-      if (altIdentity?.verifiedOwner) {
-        beneficiaries.push(altIdentity.verifiedOwner.name);
-      }
-    }
-  }
+  // Performance optimization: Avoid dead beneficiaries array allocation and redundant Map lookups
+  // for associated wallets when building ResolutionResult.
+  const associatedWallets = identity.altAddresses ? [...identity.altAddresses] : [];
+  const confidence = identity.verifiedOwner ? 1.0 : 0.0;
 
   return {
     walletAddress,
@@ -155,7 +139,7 @@ export function resolveForScreening(walletAddress: string): ResolutionResult {
         }
       : undefined,
     associatedWallets,
-    confidence: maxConfidence,
+    confidence,
     notes: identity.verifiedOwner
       ? `Verified owner: ${identity.verifiedOwner.name} (${identity.verifiedOwner.verificationMethod})`
       : 'Wallet exists but has no verified owner. Use address-based screening.',
