@@ -38,6 +38,7 @@ import {
   getAuditLog,
   getAuditSummary,
   clearAuditLog,
+  loadAuditLog,
 } from "../src/services/audit.js";
 import {
   refreshWatchlists,
@@ -705,6 +706,31 @@ describe("Bulk Screening", () => {
     const body2 = await res2.json();
     expect(body2.success).toBe(true);
   });
+
+  it("should safely handle JSON null request body with HTTP 400 Bad Request instead of throwing 500", async () => {
+    const app = (await import("../src/routes/screening.js")).default;
+
+    const res1 = await app.request("/api/v1/screen", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "null",
+    });
+    expect(res1.status).toBe(400);
+
+    const res2 = await app.request("/api/v1/screen/bulk", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "null",
+    });
+    expect(res2.status).toBe(400);
+
+    const res3 = await app.request("/api/v1/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "null",
+    });
+    expect(res3.status).toBe(400);
+  });
 });
 
 // ─── Beneficial Owner Resolution Tests ─────────────────────────────
@@ -836,6 +862,26 @@ describe("Audit Logging", () => {
     const entry = logError("Something went wrong", { code: 500 });
     assert(entry.eventType === "error");
     assert(entry.result === "ERROR");
+  });
+
+  it("should safely load large audit logs from disk without throwing stack overflow RangeError", () => {
+    const largeDataset = new Array(150000).fill(null).map((_, i) => ({
+      id: `id-${i}`,
+      timestamp: "2025-01-01T00:00:00.000Z",
+      eventType: "screening" as const,
+      result: "NO_MATCH_FOUND" as const,
+      confidence: 0,
+      matchedEntries: [],
+      matchedListNames: [],
+      screenableTarget: `target-${i}`,
+    }));
+
+    vi.spyOn(fs, "existsSync").mockReturnValue(true);
+    vi.spyOn(fs, "readFileSync").mockReturnValue(JSON.stringify(largeDataset));
+
+    expect(() => loadAuditLog()).not.toThrow();
+    const loaded = getAuditLog({ limit: 10 });
+    expect(loaded.length).toBe(10);
   });
 
   it("should filter audit log", () => {

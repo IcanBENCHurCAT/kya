@@ -35,20 +35,52 @@ import { InMemoryClaimStore } from "./verification/in-memory-claim-store.js";
 import { InMemoryAttemptStore } from "./verification/in-memory-store.js";
 import { EmailVerificationProvider } from "./verification/providers/email-provider.js";
 import { VerificationService } from "./verification/service.js";
+import { sendEmail } from "./utils/email.js";
+import { checkHealth } from "./services/health.js";
 
 // Mount all apps into a single router
 const app = new Hono();
 
-// Apply CORS middleware globally
-app.use("*", cors());
+// Apply CORS middleware globally with restricted allowed origins
+const defaultAllowedOrigins = [
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
+  "https://kya-service.duckdns.org",
+];
+
+const getAllowedOrigins = (): string[] => {
+  if (process.env.ALLOWED_ORIGINS) {
+    return process.env.ALLOWED_ORIGINS.split(",")
+      .map((origin) => origin.trim())
+      .filter((origin) => origin.length > 0);
+  }
+  return defaultAllowedOrigins;
+};
+
+app.use(
+  "*",
+  cors({
+    origin: (origin) => {
+      if (!origin) return null;
+      const allowed = getAllowedOrigins();
+      return allowed.includes(origin) ? origin : null;
+    },
+    allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowHeaders: ["Content-Type", "Authorization", "X-Payment"],
+    exposeHeaders: ["X-Payment-Receipt"],
+    maxAge: 86400,
+  }),
+);
 
 // Global health check routes (exempt)
-app.get("/health", (c) =>
-  c.json({ status: "ok", timestamp: new Date().toISOString() }),
-);
-app.get("/api/v1/health", (c) =>
-  c.json({ status: "ok", timestamp: new Date().toISOString() }),
-);
+app.get("/health", async (c) => {
+  const result = await checkHealth();
+  return c.json(result, result.status === 'healthy' ? 200 : 503);
+});
+app.get("/api/v1/health", async (c) => {
+  const result = await checkHealth();
+  return c.json(result, result.status === 'healthy' ? 200 : 503);
+});
 
 // Root developer landing page
 app.get("/", (c) => {
@@ -76,8 +108,9 @@ code.copied{color:#4ade80!important}
 code.failed{color:#fca5a5!important}
 .badge{background:#166534;color:#4ade80;font-size:.75rem;padding:.2rem .5rem;border-radius:99px;font-weight:600}
 ul{padding-left:1.25rem}li{margin-bottom:.5rem}
+.method-badge{background:#0284c7;color:#ffffff;font-size:.65rem;font-weight:700;padding:.1rem .35rem;border-radius:.25rem;margin-right:.4rem;display:inline-block;vertical-align:middle}
 .code-box{background:#0f172a;padding:.75rem 1rem;border-radius:.5rem;border:1px solid #334155;display:flex;align-items:center;justify-content:space-between;gap:.5rem}
-.copy-btn{background:#334155;color:#f8fafc;border:none;padding:.35rem .75rem;border-radius:.375rem;cursor:pointer;font-size:.75rem;font-weight:500;white-space:nowrap;transition:all 0.15s ease;display:inline-flex;align-items:center;gap:.35rem}
+.copy-btn{background:#334155;color:#f8fafc;border:none;padding:.35rem .75rem;border-radius:.375rem;cursor:pointer;font-size:.75rem;font-weight:500;white-space:nowrap;flex-shrink:0;transition:all 0.15s ease;display:inline-flex;align-items:center;gap:.35rem}
 .copy-btn:hover{background:#475569}
 .copy-btn:active{transform:scale(0.96)}
 .copy-btn.copied{background:#166534;color:#4ade80}
@@ -86,13 +119,14 @@ ul{padding-left:1.25rem}li{margin-bottom:.5rem}
 .cmd-tab:hover{color:#f8fafc;border-color:#475569}
 .cmd-tab.active{background:#334155;color:#38bdf8;border-color:#38bdf8}
 .cmd-tab:focus-visible{outline:2px solid #38bdf8;outline-offset:2px}
-.kbd-hint{font-family:inherit;font-size:.65rem;background:#0f172a;border:1px solid #475569;padding:0 .25rem;border-radius:.2rem;color:#94a3b8;margin-left:.25rem}
+.kbd-hint{font-family:inherit;font-size:.65rem;background:#0f172a;border:1px solid #475569;padding:0 .25rem;border-radius:.2rem;color:#94a3b8;margin-left:.25rem;transition:all 0.15s ease}
+.kbd-hint.active{background:#38bdf8;color:#0f172a;border-color:#38bdf8}
 @media (forced-colors: active){.cmd-tab.active{outline:2px solid Highlight;border-color:Highlight}.copy-btn.copied{outline:2px solid Highlight}.code-box code:focus-visible{outline:2px solid Highlight}}
 footer{margin-top:1.5rem;border-top:1px solid #334155;padding-top:1rem;color:#94a3b8;font-size:.875rem}
 </style></head><body><a href="#main-content" class="sr-only">Skip to main content</a><main id="main-content"><header><h1>KYA Service <span class="badge" role="status" aria-label="System status: Operational">● Operational</span></h1><p>Trust Infrastructure for AI Agents — On-chain Karma, ZK Identity & Sanctions Screening.</p></header>
-<section aria-label="Discovery & System Links"><h2 style="font-size:1.1rem;color:#94a3b8">Discovery Links</h2><ul><li><a href="/health" aria-label="View health check status">/health</a> — Service Health & Timestamp</li><li><a href="/.well-known/x402.json" aria-label="View x402 merchant discovery metadata">/.well-known/x402.json</a> — x402 Merchant Metadata</li><li><a href="/.well-known/agent-card.json" aria-label="View A2A Agent Card manifest">/.well-known/agent-card.json</a> — Agent Card Capabilities Manifest</li></ul></section>
-<section aria-label="Quick Start API Example"><h2 style="font-size:1.1rem;color:#94a3b8;margin-top:1.5rem;margin-bottom:.5rem">Quick Start Command</h2><div role="tablist" aria-label="Quick start endpoint selector" style="display:flex;gap:.375rem;margin-bottom:.5rem"><button type="button" role="tab" id="tab-health" aria-selected="true" tabindex="0" aria-controls="curl-tabpanel" class="cmd-tab active" title="Query service health status and timestamp (GET /health)" onclick="setCmd('/health',this)" onkeydown="handleTabKeydown(event,this)">/health</button><button type="button" role="tab" id="tab-x402" aria-selected="false" tabindex="-1" aria-controls="curl-tabpanel" class="cmd-tab" title="Query x402 merchant discovery metadata &amp; pricing (GET /.well-known/x402.json)" onclick="setCmd('/.well-known/x402.json',this)" onkeydown="handleTabKeydown(event,this)">x402.json</button><button type="button" role="tab" id="tab-agent" aria-selected="false" tabindex="-1" aria-controls="curl-tabpanel" class="cmd-tab" title="Query A2A Agent Card capabilities manifest (GET /.well-known/agent-card.json)" onclick="setCmd('/.well-known/agent-card.json',this)" onkeydown="handleTabKeydown(event,this)">agent-card.json</button></div><div id="curl-tabpanel" role="tabpanel" aria-labelledby="tab-health" aria-live="polite" aria-atomic="true" class="code-box"><code id="curl-cmd" role="button" tabindex="0" onclick="copyCmd()" onkeydown="handleCodeKeydown(event)" title="Click or press Enter to copy command" aria-label="cURL health check command, click or press Enter to copy" style="color:#e2e8f0;font-size:.875rem;word-break:break-all;cursor:pointer">curl -s /health</code><div style="display:inline-flex;align-items:center;gap:.375rem"><a id="endpoint-link" href="/health" target="_blank" rel="noopener noreferrer" title="Open GET /health in browser tab" aria-label="Open GET /health in browser tab" class="copy-btn" style="text-decoration:none"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg><span>Open</span></a><button id="copy-btn" type="button" aria-keyshortcuts="c" onclick="copyCmd()" title="Copy cURL health check command" aria-label="Copy cURL health check command" class="copy-btn"><svg id="copy-btn-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg><span id="copy-btn-text">Copy</span><kbd class="kbd-hint" title="Press C to copy command" aria-label="Keyboard shortcut: press C">C</kbd></button></div></div><div id="copy-status" class="sr-only" aria-live="polite"></div></section>
-<footer><p>Protected by x402 micro-payments on Algorand. Built with Hono & TypeScript.</p></footer></main><script>var currentPath='/health';var copyTimer=null;var copySvg='<svg id="copy-btn-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';function setIcon(svg){var iconEl=document.getElementById('copy-btn-icon');if(iconEl&&iconEl.parentNode){var temp=document.createElement('div');temp.innerHTML=svg;if(temp.firstChild)iconEl.parentNode.replaceChild(temp.firstChild,iconEl);}}function getCopyLabel(){return currentPath==='/health'?'Copy cURL health check command':'Copy cURL '+currentPath+' command';}function resetCopyBtn(){if(copyTimer){clearTimeout(copyTimer);copyTimer=null;}var btn=document.getElementById('copy-btn');var cmdEl=document.getElementById('curl-cmd');if(cmdEl){cmdEl.classList.remove('copied','failed');}var btnText=document.getElementById('copy-btn-text')||btn;if(btn){btn.classList.remove('copied','failed');btn.setAttribute('aria-label',getCopyLabel());btn.setAttribute('title',getCopyLabel());}if(btnText){btnText.innerText='Copy';}setIcon(copySvg);var status=document.getElementById('copy-status');if(status){status.innerText='';}updateCmdText();}function setCmd(path,btn){currentPath=path;var tabs=document.querySelectorAll('.cmd-tab');for(var i=0;i<tabs.length;i++){tabs[i].classList.remove('active');tabs[i].setAttribute('aria-selected','false');tabs[i].setAttribute('tabindex','-1');}resetCopyBtn();if(btn){btn.classList.add('active');btn.setAttribute('aria-selected','true');btn.setAttribute('tabindex','0');var panel=document.getElementById('curl-tabpanel');if(panel&&btn.id){panel.setAttribute('aria-labelledby',btn.id);}var status=document.getElementById('copy-status');if(status){status.innerText='';setTimeout(function(){if(status)status.innerText='Selected '+btn.innerText+' endpoint';},10);}}updateCmdText();}function handleTabKeydown(e,btn){var tabs=Array.from(document.querySelectorAll('.cmd-tab'));var idx=tabs.indexOf(btn);if(idx===-1)return;var nextIdx=-1;if(e.key==='ArrowRight'||e.key==='ArrowDown'){nextIdx=(idx+1)%tabs.length;}else if(e.key==='ArrowLeft'||e.key==='ArrowUp'){nextIdx=(idx-1+tabs.length)%tabs.length;}else if(e.key==='Home'){nextIdx=0;}else if(e.key==='End'){nextIdx=tabs.length-1;}if(nextIdx!==-1){e.preventDefault();tabs[nextIdx].focus();tabs[nextIdx].click();}}function handleCodeKeydown(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();copyCmd();}}function updateCmdText(){var origin=(window.location&&window.location.origin)?window.location.origin:'';var fullUrl=origin?origin+currentPath:currentPath;var cmdEl=document.getElementById('curl-cmd');if(cmdEl){cmdEl.innerText='curl -s '+fullUrl;var cmdLbl='cURL '+currentPath+' command, click or press Enter to copy';cmdEl.setAttribute('aria-label',cmdLbl);cmdEl.setAttribute('title',cmdLbl);}var openLink=document.getElementById('endpoint-link');if(openLink){openLink.setAttribute('href',fullUrl);var openLbl='Open GET '+currentPath+' in browser tab';openLink.setAttribute('aria-label',openLbl);openLink.setAttribute('title',openLbl);}var btn=document.getElementById('copy-btn');if(btn&&!btn.classList.contains('copied')&&!btn.classList.contains('failed')){var lbl=getCopyLabel();btn.setAttribute('aria-label',lbl);btn.setAttribute('title',lbl);}}if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',updateCmdText);}else{updateCmdText();}function copyCmd(){var origin=(window.location&&window.location.origin)?window.location.origin:'';var cmdEl=document.getElementById('curl-cmd');var cmd=cmdEl?cmdEl.innerText:('curl -s '+(origin?origin+currentPath:currentPath));var btn=document.getElementById('copy-btn');var btnText=document.getElementById('copy-btn-text')||btn;var status=document.getElementById('copy-status');var checkSvg='<svg id="copy-btn-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>';var errorSvg='<svg id="copy-btn-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>';function onSuccess(){if(cmdEl){cmdEl.classList.remove('failed');cmdEl.classList.add('copied');cmdEl.setAttribute('aria-label','Command copied to clipboard');cmdEl.setAttribute('title','Command copied to clipboard');}if(btn){btn.classList.remove('failed');btn.classList.add('copied');btn.setAttribute('aria-label','Command copied to clipboard');btn.setAttribute('title','Command copied to clipboard');}if(btnText){btnText.innerText='Copied!';}setIcon(checkSvg);if(status){status.innerText='';setTimeout(function(){if(status)status.innerText='Command copied to clipboard';},10);}if(copyTimer){clearTimeout(copyTimer);}copyTimer=setTimeout(resetCopyBtn,2000);}function onError(){if(cmdEl){cmdEl.classList.remove('copied');cmdEl.classList.add('failed');cmdEl.setAttribute('aria-label','Failed to copy command to clipboard');cmdEl.setAttribute('title','Failed to copy command to clipboard');}if(btn){btn.classList.remove('copied');btn.classList.add('failed');btn.setAttribute('aria-label','Failed to copy command to clipboard');btn.setAttribute('title','Failed to copy command to clipboard');}if(btnText){btnText.innerText='Failed';}setIcon(errorSvg);if(status){status.innerText='';setTimeout(function(){if(status)status.innerText='Failed to copy command to clipboard';},10);}if(copyTimer){clearTimeout(copyTimer);}copyTimer=setTimeout(resetCopyBtn,2000);}function fallbackCopy(text){try{var ta=document.createElement('textarea');ta.value=text;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.focus();ta.select();var ok=document.execCommand('copy');document.body.removeChild(ta);return ok;}catch(e){return false;}}if(!navigator.clipboard||!navigator.clipboard.writeText){if(fallbackCopy(cmd)){onSuccess();}else{onError();}return;}navigator.clipboard.writeText(cmd).then(onSuccess).catch(function(){if(fallbackCopy(cmd)){onSuccess();}else{onError();}})}document.addEventListener('keydown',function(e){if(e.key==='Escape'){resetCopyBtn();}else if((e.key==='c'||e.key==='C')&&!e.ctrlKey&&!e.metaKey&&!e.altKey){var t=document.activeElement?document.activeElement.tagName.toLowerCase():'';if(t!=='input'&&t!=='textarea'){copyCmd();}}});</script></body></html>`);
+<section aria-label="Discovery & System Links"><h2 style="font-size:1.1rem;color:#94a3b8">Discovery Links</h2><ul><li><span class="method-badge">GET</span><a href="/health" aria-label="View health check status">/health</a> — Service Health & Timestamp</li><li><span class="method-badge">GET</span><a href="/.well-known/x402.json" aria-label="View x402 merchant discovery metadata">/.well-known/x402.json</a> — x402 Merchant Metadata</li><li><span class="method-badge">GET</span><a href="/.well-known/agent-card.json" aria-label="View A2A Agent Card manifest">/.well-known/agent-card.json</a> — Agent Card Capabilities Manifest</li></ul></section>
+<section aria-label="Quick Start API Example"><h2 style="font-size:1.1rem;color:#94a3b8;margin-top:1.5rem;margin-bottom:.5rem">Quick Start Command</h2><div role="tablist" aria-label="Quick start endpoint selector" style="display:flex;gap:.375rem;margin-bottom:.5rem"><button type="button" role="tab" id="tab-health" aria-selected="true" tabindex="0" aria-controls="curl-tabpanel" class="cmd-tab active" title="Query service health status and timestamp (GET /health)" onclick="setCmd('/health',this)" onkeydown="handleTabKeydown(event,this)">/health</button><button type="button" role="tab" id="tab-x402" aria-selected="false" tabindex="-1" aria-controls="curl-tabpanel" class="cmd-tab" title="Query x402 merchant discovery metadata &amp; pricing (GET /.well-known/x402.json)" onclick="setCmd('/.well-known/x402.json',this)" onkeydown="handleTabKeydown(event,this)">x402.json</button><button type="button" role="tab" id="tab-agent" aria-selected="false" tabindex="-1" aria-controls="curl-tabpanel" class="cmd-tab" title="Query A2A Agent Card capabilities manifest (GET /.well-known/agent-card.json)" onclick="setCmd('/.well-known/agent-card.json',this)" onkeydown="handleTabKeydown(event,this)">agent-card.json</button></div><div id="curl-tabpanel" role="tabpanel" aria-labelledby="tab-health" aria-live="polite" aria-atomic="true" class="code-box"><code id="curl-cmd" role="button" tabindex="0" onclick="copyCmd()" onkeydown="handleCodeKeydown(event)" title="Click or press Enter to copy command" aria-label="cURL health check command, click or press Enter to copy" style="color:#e2e8f0;font-size:.875rem;word-break:break-all;cursor:pointer">curl -s /health</code><div style="display:inline-flex;align-items:center;gap:.375rem;flex-shrink:0"><a id="endpoint-link" href="/health" target="_blank" rel="noopener noreferrer" title="Open GET /health in browser tab" aria-label="Open GET /health in browser tab" class="copy-btn" style="text-decoration:none"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg><span>Open</span></a><button id="copy-btn" type="button" aria-keyshortcuts="c" onclick="copyCmd()" title="Copy cURL health check command" aria-label="Copy cURL health check command" class="copy-btn"><svg id="copy-btn-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg><span id="copy-btn-text">Copy</span><kbd class="kbd-hint" title="Press C to copy command" aria-label="Keyboard shortcut: press C">C</kbd></button></div></div><div id="copy-status" class="sr-only" aria-live="polite"></div></section>
+<footer><p>Protected by x402 micro-payments on Algorand. Built with Hono & TypeScript.</p></footer></main><script>var currentPath='/health';var copyTimer=null;var copySvg='<svg id="copy-btn-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';function setIcon(svg){var iconEl=document.getElementById('copy-btn-icon');if(iconEl&&iconEl.parentNode){var temp=document.createElement('div');temp.innerHTML=svg;if(temp.firstChild)iconEl.parentNode.replaceChild(temp.firstChild,iconEl);}}function getCopyLabel(){return currentPath==='/health'?'Copy cURL health check command':'Copy cURL '+currentPath+' command';}function resetCopyBtn(){if(copyTimer){clearTimeout(copyTimer);copyTimer=null;}var btn=document.getElementById('copy-btn');var cmdEl=document.getElementById('curl-cmd');if(cmdEl){cmdEl.classList.remove('copied','failed');}var btnText=document.getElementById('copy-btn-text')||btn;if(btn){btn.classList.remove('copied','failed');btn.setAttribute('aria-label',getCopyLabel());btn.setAttribute('title',getCopyLabel());}if(btnText){btnText.innerText='Copy';}setIcon(copySvg);var status=document.getElementById('copy-status');if(status){status.innerText='';}updateCmdText();}function setCmd(path,btn){currentPath=path;var tabs=document.querySelectorAll('.cmd-tab');for(var i=0;i<tabs.length;i++){tabs[i].classList.remove('active');tabs[i].setAttribute('aria-selected','false');tabs[i].setAttribute('tabindex','-1');}resetCopyBtn();if(btn){btn.classList.add('active');btn.setAttribute('aria-selected','true');btn.setAttribute('tabindex','0');var panel=document.getElementById('curl-tabpanel');if(panel&&btn.id){panel.setAttribute('aria-labelledby',btn.id);}var status=document.getElementById('copy-status');if(status){status.innerText='';setTimeout(function(){if(status)status.innerText='Selected '+btn.innerText+' endpoint';},10);}}updateCmdText();}function handleTabKeydown(e,btn){var tabs=Array.from(document.querySelectorAll('.cmd-tab'));var idx=tabs.indexOf(btn);if(idx===-1)return;var nextIdx=-1;if(e.key==='ArrowRight'||e.key==='ArrowDown'){nextIdx=(idx+1)%tabs.length;}else if(e.key==='ArrowLeft'||e.key==='ArrowUp'){nextIdx=(idx-1+tabs.length)%tabs.length;}else if(e.key==='Home'){nextIdx=0;}else if(e.key==='End'){nextIdx=tabs.length-1;}if(nextIdx!==-1){e.preventDefault();tabs[nextIdx].focus();tabs[nextIdx].click();}}function handleCodeKeydown(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();copyCmd();}}function updateCmdText(){var origin=(window.location&&window.location.origin)?window.location.origin:'';var fullUrl=origin?origin+currentPath:currentPath;var cmdEl=document.getElementById('curl-cmd');if(cmdEl){cmdEl.innerText='curl -s '+fullUrl;var cmdLbl='cURL '+currentPath+' command, click or press Enter to copy';cmdEl.setAttribute('aria-label',cmdLbl);cmdEl.setAttribute('title',cmdLbl);}var openLink=document.getElementById('endpoint-link');if(openLink){openLink.setAttribute('href',fullUrl);var openLbl='Open GET '+currentPath+' in browser tab';openLink.setAttribute('aria-label',openLbl);openLink.setAttribute('title',openLbl);}var btn=document.getElementById('copy-btn');if(btn&&!btn.classList.contains('copied')&&!btn.classList.contains('failed')){var lbl=getCopyLabel();btn.setAttribute('aria-label',lbl);btn.setAttribute('title',lbl);}}if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',updateCmdText);}else{updateCmdText();}function copyCmd(){var origin=(window.location&&window.location.origin)?window.location.origin:'';var cmdEl=document.getElementById('curl-cmd');var cmd=cmdEl?cmdEl.innerText:('curl -s '+(origin?origin+currentPath:currentPath));var btn=document.getElementById('copy-btn');var btnText=document.getElementById('copy-btn-text')||btn;var status=document.getElementById('copy-status');var checkSvg='<svg id="copy-btn-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>';var errorSvg='<svg id="copy-btn-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>';function onSuccess(){if(cmdEl){cmdEl.classList.remove('failed');cmdEl.classList.add('copied');cmdEl.setAttribute('aria-label','Command copied to clipboard');cmdEl.setAttribute('title','Command copied to clipboard');}if(btn){btn.classList.remove('failed');btn.classList.add('copied');btn.setAttribute('aria-label','Command copied to clipboard');btn.setAttribute('title','Command copied to clipboard');}if(btnText){btnText.innerText='Copied!';}setIcon(checkSvg);if(status){status.innerText='';setTimeout(function(){if(status)status.innerText='Command copied to clipboard';},10);}if(copyTimer){clearTimeout(copyTimer);}copyTimer=setTimeout(resetCopyBtn,2000);}function onError(){if(cmdEl){cmdEl.classList.remove('copied');cmdEl.classList.add('failed');cmdEl.setAttribute('aria-label','Failed to copy command to clipboard');cmdEl.setAttribute('title','Failed to copy command to clipboard');}if(btn){btn.classList.remove('copied');btn.classList.add('failed');btn.setAttribute('aria-label','Failed to copy command to clipboard');btn.setAttribute('title','Failed to copy command to clipboard');}if(btnText){btnText.innerText='Failed';}setIcon(errorSvg);if(status){status.innerText='';setTimeout(function(){if(status)status.innerText='Failed to copy command to clipboard';},10);}if(copyTimer){clearTimeout(copyTimer);}copyTimer=setTimeout(resetCopyBtn,2000);}function fallbackCopy(text){try{var ta=document.createElement('textarea');ta.value=text;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.focus();ta.select();var ok=document.execCommand('copy');document.body.removeChild(ta);return ok;}catch(e){return false;}}if(!navigator.clipboard||!navigator.clipboard.writeText){if(fallbackCopy(cmd)){onSuccess();}else{onError();}return;}navigator.clipboard.writeText(cmd).then(onSuccess).catch(function(){if(fallbackCopy(cmd)){onSuccess();}else{onError();}})}document.addEventListener('keydown',function(e){if(e.key==='Escape'){resetCopyBtn();}else if((e.key==='c'||e.key==='C')&&!e.ctrlKey&&!e.metaKey&&!e.altKey){var t=document.activeElement?document.activeElement.tagName.toLowerCase():'';if(t!=='input'&&t!=='textarea'){var kbd=document.querySelector('.kbd-hint');if(kbd){kbd.classList.add('active');setTimeout(function(){kbd.classList.remove('active');},200);}copyCmd();}}});</script></body></html>`);
 });
 
 // Custom 404 handler with content negotiation and accessibility landmarks
@@ -115,8 +149,10 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#0f172a;color:#f8
 main{max-width:540px;margin:4rem auto 0;background:#1e293b;padding:2rem;border-radius:.75rem;border:1px solid #334155;text-align:center}
 h1{color:#38bdf8;margin:0 0 .5rem;font-size:1.75rem}
 p{color:#94a3b8;margin-bottom:1.5rem}
-.btn-primary{color:#0f172a;background:#38bdf8;padding:.6rem 1.2rem;border-radius:.375rem;text-decoration:none;font-weight:600;display:inline-block;transition:background 0.15s ease}
+.btn-primary{color:#0f172a;background:#38bdf8;padding:.6rem 1.2rem;border-radius:.375rem;text-decoration:none;font-weight:600;display:inline-block;transition:all 0.15s ease}
 .btn-primary:hover{background:#7dd3fc}
+.btn-primary:active{transform:scale(0.97)}
+.method-badge{background:#0284c7;color:#ffffff;font-size:.65rem;font-weight:700;padding:.1rem .35rem;border-radius:.25rem;margin-right:.4rem;display:inline-block;vertical-align:middle}
 a:focus-visible{outline:2px solid #38bdf8;outline-offset:3px}
 .discovery-nav{margin-top:1.5rem;text-align:left;border-top:1px solid #334155;padding-top:1rem}
 .discovery-nav h2{font-size:.875rem;color:#94a3b8;margin:0 0 .5rem;font-weight:600}
@@ -282,10 +318,26 @@ app.get("/.well-known/agent-card.json", (c) => {
 // Mount x402 payment gate over /api/v1/*
 const defaultEscrowWallet =
   "W5IRXJWPSXNUJVSN2MOEJGTDGKUGFKUDVPTR5ZQVMDG5O4KYD5M3QPG3TE";
+
+if (!process.env.KYA_TREASURY_ADDRESS && !process.env.ESCROW_ADDRESS) {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "FATAL: KYA_TREASURY_ADDRESS and ESCROW_ADDRESS are both unset. " +
+        "In production, one must be set to prevent routing payments to the default fallback address."
+    );
+  } else {
+    console.warn(
+      "WARNING: KYA_TREASURY_ADDRESS and ESCROW_ADDRESS are both unset. " +
+        "Routing x402 payments to the default fallback address. Do not do this in production."
+    );
+  }
+}
+
 const configuredReceiver =
   process.env.KYA_TREASURY_ADDRESS ||
   process.env.ESCROW_ADDRESS ||
   defaultEscrowWallet;
+
 app.use(
   "/api/v1/*",
   x402PaymentGate({
@@ -295,34 +347,85 @@ app.use(
   }),
 );
 
-const defaultAttemptStore = new InMemoryAttemptStore();
-const defaultClaimStore = new InMemoryClaimStore();
-const defaultEphemeralKey = await generateSigningKey();
-const defaultEmailProvider = new EmailVerificationProvider({
-  attemptStore: defaultAttemptStore as any,
-  claimStore: defaultClaimStore as any,
-  privateKey: defaultEphemeralKey.privateKey,
-  keyId: "default-key",
+// ─── Initialize Verification Service ───────────────────────────────
+console.log("🔐 Initializing KYA verification service...");
+
+const dbUrl = process.env.SUPABASE_URL || "";
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+const privateKey = process.env.KYA_PRIVATE_KEY || "";
+const keyId = process.env.KYA_KEY_ID || "default-key";
+const useInMemory = !dbUrl || !serviceRoleKey || !privateKey;
+
+let attemptStore: AttemptStore | InMemoryAttemptStore;
+let claimStore: ClaimStore | InMemoryClaimStore;
+
+if (useInMemory) {
+  console.log("  ⚠️  No DB credentials found — running in in-memory mode");
+  attemptStore = new InMemoryAttemptStore();
+  claimStore = new InMemoryClaimStore();
+} else {
+  console.log("  ✅ Connected to Supabase for verification storage");
+  attemptStore = new AttemptStore(dbUrl, serviceRoleKey);
+  claimStore = new ClaimStore(dbUrl, serviceRoleKey);
+}
+
+// Generate or use existing signing key
+let signingKeyPEM: string;
+if (privateKey) {
+  signingKeyPEM = privateKey;
+} else {
+  console.log("  🔑 Generating ephemeral signing key (not persisted)");
+  const keys = await generateSigningKey();
+  signingKeyPEM = keys.privateKey;
+}
+
+// Set up email provider
+const emailProvider = new EmailVerificationProvider({
+  attemptStore: attemptStore as AttemptStore,
+  claimStore: claimStore as ClaimStore,
+  privateKey: signingKeyPEM,
+  keyId,
+  sendEmail,
 });
-const defaultVerificationService = new VerificationService({
-  claimStore: defaultClaimStore,
-  attemptStore: defaultAttemptStore,
-  defaultProvider: defaultEmailProvider,
-  privateKey: defaultEphemeralKey.privateKey,
-  keyId: "default-key",
+
+// Initialize verification service
+const verificationService = new VerificationService({
+  databaseUrl: dbUrl,
+  serviceRoleKey,
+  privateKey: signingKeyPEM,
+  keyId,
+  defaultProvider: emailProvider,
 });
-const defaultVerificationApp = createVerificationRoutes(defaultVerificationService);
+
+// Mount verification routes
+const verificationRoutes = createVerificationRoutes(verificationService);
 
 app.route("/api/v1", screeningApp);
 app.route("/api/v1", walletAnalysisApp);
 app.route("/api/v1", karmaApp);
 app.route("/api/v1", zkProofApp);
 app.route("/api/v1", a2aApp);
-app.route("/api/v1/verify", defaultVerificationApp);
+app.route("/api/v1/verify", verificationRoutes);
 
 const PORT = parseInt(process.env.PORT || "3000", 10);
 
+export function checkProductionGuards(env: NodeJS.ProcessEnv = process.env) {
+  if (env.NODE_ENV === "production") {
+    if (!env.KYA_PRIVATE_KEY) {
+      throw new Error(
+        "FATAL: KYA_PRIVATE_KEY is missing. In production, this would cause Verifiable Credentials to become unverifiable after restart."
+      );
+    }
+    if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
+      throw new Error(
+        "FATAL: SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is missing. In production, this would cause verification state to be lost on restart."
+      );
+    }
+  }
+}
+
 async function main() {
+  checkProductionGuards(process.env);
   console.log("🔍 KYA Service starting...\n");
 
   // Start HTTP server immediately so health checks pass without delay
@@ -335,65 +438,6 @@ async function main() {
   // Load audit log from disk
   loadAuditLog();
 
-  // ─── Initialize Verification Service ───────────────────────────────
-  console.log("🔐 Initializing KYA verification service...");
-
-  const dbUrl = process.env.SUPABASE_URL || "";
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
-  const privateKey = process.env.KYA_PRIVATE_KEY || "";
-  const keyId = process.env.KYA_KEY_ID || "default-key";
-  const useInMemory = !dbUrl || !serviceRoleKey || !privateKey;
-
-  let attemptStore: AttemptStore | InMemoryAttemptStore;
-  let claimStore: ClaimStore | InMemoryClaimStore;
-
-  if (useInMemory) {
-    console.log("  ⚠️  No DB credentials found — running in in-memory mode");
-    attemptStore = new InMemoryAttemptStore();
-    claimStore = new InMemoryClaimStore();
-  } else {
-    console.log("  ✅ Connected to Supabase for verification storage");
-    attemptStore = new AttemptStore(dbUrl, serviceRoleKey);
-    claimStore = new ClaimStore(dbUrl, serviceRoleKey);
-  }
-
-  // Generate or use existing signing key
-  let signingKeyPEM: string;
-  if (privateKey) {
-    signingKeyPEM = privateKey;
-  } else {
-    console.log("  🔑 Generating ephemeral signing key (not persisted)");
-    const keys = await generateSigningKey();
-    signingKeyPEM = keys.privateKey;
-  }
-
-  // Set up email provider
-  const emailProvider = new EmailVerificationProvider({
-    attemptStore: attemptStore as AttemptStore,
-    claimStore: claimStore as ClaimStore,
-    privateKey: signingKeyPEM,
-    keyId,
-    sendEmail: async (to, subject, body) => {
-      if (process.env.NODE_ENV === "production") {
-        console.log(`📧 Email to ${to}: ${subject}`);
-      } else {
-        console.log(`📧 Email to ${to}: ${subject} — ${body}`);
-      }
-    },
-  });
-
-  // Initialize verification service
-  const verificationService = new VerificationService({
-    databaseUrl: dbUrl,
-    serviceRoleKey,
-    privateKey: signingKeyPEM,
-    keyId,
-    defaultProvider: emailProvider,
-  });
-
-  // Mount verification routes
-  const verificationRoutes = createVerificationRoutes(verificationService);
-  app.route("/api/v1/verify", verificationRoutes);
 
   // Initialize watchlists asynchronously
   console.log("⬇️  Loading sanctions watchlists...");

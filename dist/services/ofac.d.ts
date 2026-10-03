@@ -78,5 +78,9 @@ export declare function parseOFACJSON(data: any): SanctionedEntry[];
 export declare function saveSanctionsList(list: SanctionsList, filepath: string): void;
 /**
  * Load sanctions list from disk.
+ *
+ * Performance optimization:
+ * Caches loaded sanctions lists in-memory keyed by file path and file modification time (mtimeMs).
+ * Avoids reading and parsing multi-megabyte JSON files from disk on repeated queries or watchlist summary calls.
  */
 export declare function loadSanctionsList(filepath: string): SanctionsList | null;

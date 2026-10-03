@@ -37,3 +37,8 @@
 **Vulnerability:** `GET /verify/identity/:hash` in `src/routes/verification-routes.ts` validated SHA-256 identity hash parameters using strict lowercase regex `/^[0-9a-f]{64}$/`, causing uppercase hex hashes (e.g. `E3B0...`) to be rejected with HTTP 400 errors and breaking identity lookups.
 **Learning:** SHA-256 hexadecimal representations can be generated in uppercase or lowercase depending on the client environment. Validating strict lowercase hex without parameter normalization breaks valid identity hash checks.
 **Prevention:** Always convert hex input parameters to lowercase using `.toLowerCase()` before applying regex validation and querying hash indexes.
+
+## 2025-05-18 - Call Stack Overflow in Persistent Audit Log Loading
+**Vulnerability:** `loadAuditLog` in `src/services/audit.ts` used spread argument syntax `auditLog.push(...data)` when loading audit entries from JSON storage on disk, causing `RangeError: Maximum call stack size exceeded` crashes when the audit log contained large record counts (>= 125,000 entries).
+**Learning:** In V8 and JavaScript runtimes, spreading arrays (`...array`) converts elements into function arguments on the call stack, hitting engine argument limits (~65k-125k arguments) and causing application startup crashes.
+**Prevention:** Always use explicit iterative loops or chunked batch processing instead of argument spread syntax when populating arrays from external files or unbounded datasets.

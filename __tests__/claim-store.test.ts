@@ -654,4 +654,38 @@ describe('ClaimStore', () => {
       expect(mockAttemptStore.incrementAttempt).not.toHaveBeenCalled();
     });
   });
+
+  describe('EmailVerificationProvider Sensitive Data Logging Prevention', () => {
+    it('should not log sensitive OTP code or body content when using default sendEmail handler', async () => {
+      const keys = await generateSigningKey();
+      const mockAttemptStore = {
+        createAttempt: vi.fn().mockResolvedValue({ id: 'att-safe-123' }),
+      };
+
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      const provider = new EmailVerificationProvider({
+        attemptStore: mockAttemptStore as any,
+        claimStore: claimStore,
+        privateKey: keys.privateKey,
+        keyId: 'test-key-id',
+      });
+
+      await provider.initiateVerification({
+        identifier: 'secure-user@example.com',
+        walletAddress: 'W5IRXJWPSXNUJVSN2MOEJGTDGKUGFKUDVPTR5ZQVMDG5O4KYD5M3QPG3TE',
+      });
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[EmailProvider] Would send email to secure-user@example.com: Verify your AlgoBounty identity — [REDACTED]'
+      );
+
+      // Verify no 6-digit OTP code or body text leaked into any console logs
+      const allLogMessages = consoleSpy.mock.calls.flat().join(' ');
+      expect(allLogMessages).not.toContain('Your verification code is');
+      expect(allLogMessages).not.toMatch(/\b\d{6}\b/);
+
+      consoleSpy.mockRestore();
+    });
+  });
 });

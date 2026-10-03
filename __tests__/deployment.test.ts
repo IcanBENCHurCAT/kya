@@ -67,6 +67,8 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       expect(html).toContain("resetCopyBtn()");
       expect(html).toContain("btn.setAttribute('aria-label',lbl)");
       expect(html).toContain('kbd class="kbd-hint"');
+      expect(html).toContain('.kbd-hint.active');
+      expect(html).toContain("kbd.classList.add");
       expect(html).toContain('title="Press C to copy command"');
       expect(html).toContain('aria-label="Keyboard shortcut: press C"');
       expect(html).toContain('aria-keyshortcuts="c"');
@@ -143,7 +145,7 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       const res = await app.request("/health");
       expect(res.status).toBe(200);
       const data = await res.json();
-      expect(data.status).toBe("ok");
+      expect(data.status).toBe("healthy");
       expect(data.timestamp).toBeDefined();
       expect(new Date(data.timestamp).toString()).not.toBe("Invalid Date");
     });
@@ -152,7 +154,7 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       const res = await app.request("/api/v1/health");
       expect(res.status).toBe(200);
       const data = await res.json();
-      expect(data.status).toBe("ok");
+      expect(data.status).toBe("healthy");
       expect(data.timestamp).toBeDefined();
     });
 
@@ -245,7 +247,7 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
 
       expect(res.status).toBe(200);
       const json = await res.json();
-      expect(json.status).toBe("ok");
+      expect(json.status).toBe("healthy");
     });
 
     it("should honor X-Payment and return X-Payment-Receipt in response headers when valid", async () => {
