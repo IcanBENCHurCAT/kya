@@ -4,7 +4,7 @@ import { defaultZKPVerifierService } from '../services/zkp.js';
 export function createZKProofRoutes(zkpService = defaultZKPVerifierService) {
     const zkApp = new Hono();
     const handleVerifyZKProof = async (c) => {
-        const body = (await c.req.json().catch(() => ({})));
+        const body = ((await c.req.json().catch(() => ({}))) || {});
         if (!body || !body.agentAddress || typeof body.agentAddress !== 'string' || body.agentAddress.length > 255) {
             return c.json({ success: false, error: 'agentAddress is required' }, 400);
         }

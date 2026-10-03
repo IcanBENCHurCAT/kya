@@ -91,7 +91,7 @@ app.get("/api/v1/watchlist", (c) => {
 app.post("/api/v1/watchlist/refresh", async (c) => {
     const { WATCHLIST } = c.env || {};
     const watchlist = WATCHLIST || {};
-    const body = await c.req.json().catch(() => ({}));
+    const body = (await c.req.json().catch(() => ({}))) || {};
     const force = body.force === true;
     const updated = await refreshWatchlists(watchlist, force);
     if (!updated) {
@@ -121,7 +121,7 @@ app.post("/api/v1/watchlist/refresh", async (c) => {
 app.post("/api/v1/screen", async (c) => {
     const { WATCHLIST, SCREENING_CONFIG } = c.env || {};
     const watchlist = WATCHLIST || {};
-    const body = await c.req.json().catch(() => ({}));
+    const body = (await c.req.json().catch(() => ({}))) || {};
     const address = body.address;
     if (typeof address !== "string" ||
         address.trim().length === 0 ||
@@ -189,7 +189,7 @@ app.post("/api/v1/screen", async (c) => {
 app.post("/api/v1/screen/bulk", async (c) => {
     const { WATCHLIST, SCREENING_CONFIG } = c.env || {};
     const watchlist = WATCHLIST || {};
-    const body = await c.req.json().catch(() => ({}));
+    const body = (await c.req.json().catch(() => ({}))) || {};
     const targets = body.targets;
     if (!Array.isArray(targets) || targets.length === 0) {
         return c.json({ error: "targets array is required and must be non-empty" }, 400);
@@ -324,7 +324,7 @@ app.get("/api/v1/audit/summary", (c) => {
  * }
  */
 app.post("/api/v1/register", async (c) => {
-    const body = await c.req.json().catch(() => ({}));
+    const body = (await c.req.json().catch(() => ({}))) || {};
     const address = body.address;
     const ownerName = body.ownerName;
     if (typeof address !== "string" ||

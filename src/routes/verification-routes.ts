@@ -26,7 +26,7 @@ export function createVerificationRoutes(
   // Route Handlers
   const handleInitiate = async (c: any) => {
     try {
-      const body = (await c.req.json().catch(() => ({}))) as {
+      const body = ((await c.req.json().catch(() => ({}))) || {}) as {
         email?: string;
         walletAddress?: string;
       };
@@ -71,7 +71,7 @@ export function createVerificationRoutes(
 
   const handleComplete = async (c: any) => {
     try {
-      const body = (await c.req.json().catch(() => ({}))) as {
+      const body = ((await c.req.json().catch(() => ({}))) || {}) as {
         attemptId?: string;
         code?: string;
         walletAddress?: string;

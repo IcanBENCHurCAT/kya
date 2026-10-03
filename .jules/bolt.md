@@ -97,3 +97,7 @@
 ## 2025-03-26 - Mtime-Based In-Memory File Caching for Disk Sanctions Lists
 **Learning:** Calling `loadWatchlist()` / `loadSanctionsList()` on every `/api/v1/watchlist` summary or status query forces synchronous re-reading and JSON parsing of multi-megabyte watchlist files from disk (`~53ms` per call). This blocks the Node.js event loop and creates high memory allocation pressure during status queries.
 **Action:** Cache parsed sanctions lists in memory keyed by filepath and file modification time (`mtimeMs` from `fs.statSync`), invalidating on write or file modification. Reduces repeated load/summary overhead by ~30x (~53ms to ~1.8ms) with zero risk of stale data.
+
+## 2025-03-27 - Elimination of Dead Array Allocations and Redundant Map Lookups in Beneficial Owner Resolution
+**Learning:** In beneficial owner resolution (`resolveForScreening`), instantiating an unused `beneficiaries` array and querying `walletIdentities.get(altAddr)` for every associated wallet address creates dead GC allocations and redundant Map traversals on every screening request.
+**Action:** Remove unreferenced data structures and inner loop Map lookups when building screening resolution responses, assigning shallow array copies (`[...identity.altAddresses]`) directly.

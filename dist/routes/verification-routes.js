@@ -18,7 +18,7 @@ export function createVerificationRoutes(verificationService) {
     // Route Handlers
     const handleInitiate = async (c) => {
         try {
-            const body = (await c.req.json().catch(() => ({})));
+            const body = ((await c.req.json().catch(() => ({}))) || {});
             if (!body.email ||
                 typeof body.email !== "string" ||
                 body.email.length > MAX_STRING_LENGTH ||
@@ -48,7 +48,7 @@ export function createVerificationRoutes(verificationService) {
     };
     const handleComplete = async (c) => {
         try {
-            const body = (await c.req.json().catch(() => ({})));
+            const body = ((await c.req.json().catch(() => ({}))) || {});
             if (!body.attemptId ||
                 typeof body.attemptId !== "string" ||
                 body.attemptId.length > MAX_STRING_LENGTH ||
