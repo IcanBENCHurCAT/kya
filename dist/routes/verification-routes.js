@@ -15,14 +15,10 @@ const MAX_STRING_LENGTH = 255;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export function createVerificationRoutes(verificationService) {
     const router = new Hono();
-    // -----------------------------------------------------------------------
-    // POST /verify/email/initiate
-    // Request: { email: string, walletAddress: string }
-    // Response: { attemptId: string }
-    // -----------------------------------------------------------------------
-    router.post("/verify/email/initiate", async (c) => {
+    // Route Handlers
+    const handleInitiate = async (c) => {
         try {
-            const body = await c.req.json();
+            const body = ((await c.req.json().catch(() => ({}))) || {});
             if (!body.email ||
                 typeof body.email !== "string" ||
                 body.email.length > MAX_STRING_LENGTH ||
@@ -32,7 +28,6 @@ export function createVerificationRoutes(verificationService) {
                 body.walletAddress.length > MAX_STRING_LENGTH) {
                 return c.json({ error: "Valid email address and walletAddress are required" }, 400);
             }
-            // Validate wallet address format
             if (!isValidAddress(body.walletAddress)) {
                 return c.json({ error: "Invalid wallet address format (expected Algorand base32)" }, 400);
             }
@@ -50,15 +45,10 @@ export function createVerificationRoutes(verificationService) {
             }
             return c.json({ error: "Internal server error" }, 500);
         }
-    });
-    // -----------------------------------------------------------------------
-    // POST /verify/email/complete
-    // Request: { attemptId: string, code: string, walletAddress: string }
-    // Response: { claim: VerificationClaim, isNew: boolean }
-    // -----------------------------------------------------------------------
-    router.post("/verify/email/complete", async (c) => {
+    };
+    const handleComplete = async (c) => {
         try {
-            const body = await c.req.json();
+            const body = ((await c.req.json().catch(() => ({}))) || {});
             if (!body.attemptId ||
                 typeof body.attemptId !== "string" ||
                 body.attemptId.length > MAX_STRING_LENGTH ||
@@ -70,11 +60,9 @@ export function createVerificationRoutes(verificationService) {
                 body.walletAddress.length > MAX_STRING_LENGTH) {
                 return c.json({ error: "attemptId, code, and walletAddress are required" }, 400);
             }
-            // Validate code format (6-digit OTP)
             if (!/^\d{6}$/.test(body.code)) {
                 return c.json({ error: "Code must be a 6-digit number" }, 400);
             }
-            // Validate wallet address format
             if (!isValidAddress(body.walletAddress)) {
                 return c.json({ error: "Invalid wallet address format (expected Algorand base32)" }, 400);
             }
@@ -93,12 +81,8 @@ export function createVerificationRoutes(verificationService) {
             }
             return c.json({ error: "Internal server error" }, 500);
         }
-    });
-    // -----------------------------------------------------------------------
-    // GET /verify/wallet/:address
-    // Response: { isVerified, claimCount, ... }
-    // -----------------------------------------------------------------------
-    router.get("/verify/wallet/:address", async (c) => {
+    };
+    const handleWalletCheck = async (c) => {
         try {
             const walletAddress = c.req.param("address");
             if (!walletAddress || !isValidAddress(walletAddress)) {
@@ -115,14 +99,11 @@ export function createVerificationRoutes(verificationService) {
             }
             return c.json({ error: "Internal server error" }, 500);
         }
-    });
-    // -----------------------------------------------------------------------
-    // GET /verify/identity/:hash
-    // Response: { found, walletAddresses, claimCount }
-    // -----------------------------------------------------------------------
-    router.get("/verify/identity/:hash", async (c) => {
+    };
+    const handleIdentityCheck = async (c) => {
         try {
-            const identityHash = c.req.param("hash");
+            const rawHash = c.req.param("hash");
+            const identityHash = typeof rawHash === "string" ? rawHash.toLowerCase() : "";
             if (!identityHash || !/^[0-9a-f]{64}$/.test(identityHash)) {
                 return c.json({ error: "Valid SHA-256 hex hash required" }, 400);
             }
@@ -137,21 +118,22 @@ export function createVerificationRoutes(verificationService) {
             }
             return c.json({ error: "Internal server error" }, 500);
         }
-    });
-    // -----------------------------------------------------------------------
-    // GET /verify/methods
-    // Response: { methods: string[] }
-    // -----------------------------------------------------------------------
-    router.get("/verify/methods", async (c) => {
+    };
+    const handleMethods = async (c) => {
         const methods = verificationService.getAvailableMethods();
         return c.json({ methods }, 200);
-    });
-    // -----------------------------------------------------------------------
-    // GET /health
-    // Simple health check endpoint
-    // -----------------------------------------------------------------------
-    router.get("/health", (c) => {
-        return c.json({ status: "ok", service: "kya-verification" }, 200);
-    });
+    };
+    // Register routes with and without /verify prefix for sub-app mounting & standalone usage
+    router.post("/email/initiate", handleInitiate);
+    router.post("/verify/email/initiate", handleInitiate);
+    router.post("/email/complete", handleComplete);
+    router.post("/verify/email/complete", handleComplete);
+    router.get("/wallet/:address", handleWalletCheck);
+    router.get("/verify/wallet/:address", handleWalletCheck);
+    router.get("/identity/:hash", handleIdentityCheck);
+    router.get("/verify/identity/:hash", handleIdentityCheck);
+    router.get("/methods", handleMethods);
+    router.get("/verify/methods", handleMethods);
+    router.get("/health", (c) => c.json({ status: "ok", service: "kya-verification" }, 200));
     return router;
 }

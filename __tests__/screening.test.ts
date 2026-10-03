@@ -706,6 +706,31 @@ describe("Bulk Screening", () => {
     const body2 = await res2.json();
     expect(body2.success).toBe(true);
   });
+
+  it("should safely handle JSON null request body with HTTP 400 Bad Request instead of throwing 500", async () => {
+    const app = (await import("../src/routes/screening.js")).default;
+
+    const res1 = await app.request("/api/v1/screen", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "null",
+    });
+    expect(res1.status).toBe(400);
+
+    const res2 = await app.request("/api/v1/screen/bulk", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "null",
+    });
+    expect(res2.status).toBe(400);
+
+    const res3 = await app.request("/api/v1/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "null",
+    });
+    expect(res3.status).toBe(400);
+  });
 });
 
 // ─── Beneficial Owner Resolution Tests ─────────────────────────────
