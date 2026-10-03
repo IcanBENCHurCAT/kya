@@ -79,6 +79,9 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       );
       expect(html).toContain("e.key==='c'");
       expect(html).toContain("e.key==='Escape'");
+      expect(html).toContain("resetCopyBtn(true)");
+      expect(html).toContain("wasActive");
+      expect(html).toContain("Status reset");
       expect(html).toContain('id="endpoint-link"');
       expect(html).toContain('target="_blank"');
       expect(html).toContain('rel="noopener noreferrer"');
