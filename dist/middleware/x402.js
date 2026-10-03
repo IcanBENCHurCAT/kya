@@ -1,3 +1,52 @@
+import { AlgorandClient } from "../algorand/client.js";
+export async function verifyPaymentTransaction(txid, expectedReceiver, minPriceMicroAlgo, client) {
+    try {
+        const res = await client.getTransactionByID(txid);
+        if (!res) {
+            return { valid: false, error: "Transaction not found on Algorand network" };
+        }
+        const tx = res.transaction || res.tx || res;
+        if (!tx || typeof tx !== "object") {
+            return { valid: false, error: "Invalid transaction payload from indexer" };
+        }
+        const confirmedRound = tx["confirmed-round"] ?? tx.confirmedRound ?? tx["confirmedRound"] ?? 0;
+        if (!confirmedRound || Number(confirmedRound) <= 0) {
+            return { valid: false, error: "Transaction is not confirmed on-chain" };
+        }
+        const txType = tx["tx-type"] ?? tx.txType ?? tx.type;
+        if (txType !== "pay") {
+            return { valid: false, error: `Invalid transaction type '${txType}', expected 'pay'` };
+        }
+        const payerAddress = tx.sender ?? tx.snd ?? tx["sender"];
+        const paymentFields = tx["payment-transaction"] ?? tx.paymentTransaction ?? tx.paymentTxnFields ?? tx;
+        const receiver = paymentFields?.receiver ?? paymentFields?.rcv;
+        const amount = paymentFields?.amount ?? paymentFields?.amt ?? 0;
+        if (!receiver || receiver !== expectedReceiver) {
+            return {
+                valid: false,
+                error: `Transaction receiver '${receiver}' does not match expected address '${expectedReceiver}'`,
+            };
+        }
+        if (typeof amount !== "number" || amount < minPriceMicroAlgo) {
+            return {
+                valid: false,
+                error: `Transaction amount ${amount} microALGO is less than required ${minPriceMicroAlgo} microALGO`,
+            };
+        }
+        return {
+            valid: true,
+            payerAddress: typeof payerAddress === "string" ? payerAddress : undefined,
+        };
+    }
+    catch (err) {
+        return {
+            valid: false,
+            error: `Failed to verify payment transaction on-chain: ${err?.message || String(err)}`,
+        };
+    }
+}
+// Maximum number of redeemed payment receipts stored in memory for replay protection
+export const MAX_RECEIPTS_CAP = 10000;
 const usedTxIds = new Map();
 export function resetX402Receipts() {
     usedTxIds.clear();
@@ -59,13 +108,43 @@ export function x402PaymentGate(options = {}) {
                 message: "Transaction ID already redeemed",
             }, 400);
         }
+        let payerAddress;
+        const skipVerification = options.skipOnChainVerification ??
+            (process.env.NODE_ENV === "test" || process.env.VITEST ? !options.algorandClient : false);
+        if (!skipVerification) {
+            const client = options.algorandClient || new AlgorandClient();
+            const verification = await verifyPaymentTransaction(paymentTxId, receiver, price, client);
+            if (!verification.valid) {
+                return c.json({
+                    error: "Payment Required",
+                    message: verification.error || "Payment transaction verification failed",
+                    paymentOffer: {
+                        priceMicroAlgo: price,
+                        receiverAddress: receiver,
+                        expiresInSeconds: ttl,
+                        tag: tag,
+                        instructions: "Submit payment transaction to receiverAddress and include transaction ID in X-Payment header.",
+                    },
+                }, 402);
+            }
+            payerAddress = verification.payerAddress;
+        }
         const receipt = {
             receiptId: `receipt_${paymentTxId}_${Date.now()}`,
             txid: paymentTxId,
+            payerAddress,
             amountMicroAlgo: price,
             endpoint: path,
             timestamp: new Date().toISOString(),
         };
+        // Performance optimization: Bounded FIFO eviction prevents unbounded memory growth
+        // and V8 garbage collection pauses under high micro-payment traffic volume.
+        if (usedTxIds.size >= MAX_RECEIPTS_CAP) {
+            const oldestKey = usedTxIds.keys().next().value;
+            if (oldestKey !== undefined) {
+                usedTxIds.delete(oldestKey);
+            }
+        }
         usedTxIds.set(paymentTxId, receipt);
         c.header("X-Payment-Receipt", receipt.receiptId);
         return await next();

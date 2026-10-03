@@ -5,10 +5,10 @@ const MAX_STRING_LENGTH = 255;
 export function createA2ARoutes(a2aService = defaultA2AService) {
     const a2aApp = new Hono();
     const handleHandshake = async (c) => {
-        const body = (await c.req.json().catch((err) => {
+        const body = ((await c.req.json().catch((err) => {
             console.error('Failed to parse request JSON body:', err);
             return {};
-        }));
+        })) || {});
         const watchlist = c.env?.WATCHLIST || {};
         const { initiatorAddress, targetAddress, requiredVerificationLevel, minKarmaScore } = body;
         if (typeof initiatorAddress !== 'string' ||

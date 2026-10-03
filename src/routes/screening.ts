@@ -124,7 +124,7 @@ app.get("/api/v1/watchlist", (c) => {
 app.post("/api/v1/watchlist/refresh", async (c) => {
   const { WATCHLIST } = c.env || {};
   const watchlist = WATCHLIST || {};
-  const body = await c.req.json().catch(() => ({}));
+  const body = (await c.req.json().catch(() => ({}))) || {};
   const force = body.force === true;
 
   const updated = await refreshWatchlists(watchlist, force);
@@ -161,7 +161,7 @@ app.post("/api/v1/watchlist/refresh", async (c) => {
 app.post("/api/v1/screen", async (c) => {
   const { WATCHLIST, SCREENING_CONFIG } = c.env || {};
   const watchlist = WATCHLIST || {};
-  const body = await c.req.json().catch(() => ({}));
+  const body = (await c.req.json().catch(() => ({}))) || {};
 
   const address = body.address;
   if (
@@ -253,7 +253,7 @@ app.post("/api/v1/screen", async (c) => {
 app.post("/api/v1/screen/bulk", async (c) => {
   const { WATCHLIST, SCREENING_CONFIG } = c.env || {};
   const watchlist = WATCHLIST || {};
-  const body = await c.req.json().catch(() => ({}));
+  const body = (await c.req.json().catch(() => ({}))) || {};
 
   const targets = body.targets as {
     address: string;
@@ -431,7 +431,7 @@ app.get("/api/v1/audit/summary", (c) => {
  * }
  */
 app.post("/api/v1/register", async (c) => {
-  const body = await c.req.json().catch(() => ({}));
+  const body = (await c.req.json().catch(() => ({}))) || {};
 
   const address = body.address;
   const ownerName = body.ownerName;

@@ -264,5 +264,19 @@ describe('Karma Ledger & KarmaService', () => {
       const json = await resBadAgentAddr.json();
       expect(json.error).toBe('Invalid parameters');
     });
+
+    it('should safely handle JSON null payload on POST /api/v1/karma/event with HTTP 400', async () => {
+      const resNullBody = await app.request('/api/v1/karma/event', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Payment': 'tx_karma_null_body',
+        },
+        body: 'null',
+      });
+      expect(resNullBody.status).toBe(400);
+      const json = await resNullBody.json();
+      expect(json.error).toBe('Invalid parameters');
+    });
   });
 });

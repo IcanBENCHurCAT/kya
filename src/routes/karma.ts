@@ -30,7 +30,7 @@ export function createKarmaRoutes(karmaService: KarmaService = defaultKarmaServi
   };
 
   const handlePostKarmaEvent = async (c: any) => {
-    const body = await c.req.json().catch(() => ({}));
+    const body = (await c.req.json().catch(() => ({}))) || {};
     const { agentAddress, eventType, amount, reason, txid } = body;
 
     // Security: Validate required parameters and strictly enforce finite, positive amount
