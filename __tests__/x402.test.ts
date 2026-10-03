@@ -1,6 +1,14 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { Hono } from "hono";
 import { app } from "../src/app.js";
-import { resetX402Receipts, getX402Receipts, MAX_RECEIPTS_CAP } from "../src/middleware/x402.js";
+import {
+  resetX402Receipts,
+  getX402Receipts,
+  MAX_RECEIPTS_CAP,
+  x402PaymentGate,
+  verifyPaymentTransaction,
+} from "../src/middleware/x402.js";
+import { AlgorandClient } from "../src/algorand/client.js";
 
 describe("x402 Payment Gate Middleware", () => {
   beforeEach(() => {
@@ -25,14 +33,14 @@ describe("x402 Payment Gate Middleware", () => {
       const res = await app.request("/health");
       expect(res.status).toBe(200);
       const json = await res.json();
-      expect(json.status).toBe("ok");
+      expect(json.status).toBe("healthy");
     });
 
     it("should bypass payment challenge for /api/v1/health", async () => {
       const res = await app.request("/api/v1/health");
       expect(res.status).toBe(200);
       const json = await res.json();
-      expect(json.status).toBe("ok");
+      expect(json.status).toBe("healthy");
     });
   });
 
@@ -80,6 +88,179 @@ describe("x402 Payment Gate Middleware", () => {
     });
   });
 
+  describe("On-Chain Payment Verification", () => {
+    const receiver = "W5IRXJWPSXNUJVSN2MOEJGTDGKUGFKUDVPTR5ZQVMDG5O4KYD5M3QPG3TE";
+    const price = 1000;
+
+    it("should return valid result for confirmed, matching payment transaction", async () => {
+      const mockClient = {
+        getTransactionByID: vi.fn().mockResolvedValue({
+          transaction: {
+            "confirmed-round": 12345,
+            "tx-type": "pay",
+            sender: "KBWP7FHVYOKPNQOH7X3MLL6BHRK33WUNPHP3ZLY4JWPEGNXLNB3SNPBY6E",
+            "payment-transaction": {
+              receiver,
+              amount: 1000,
+            },
+          },
+        }),
+      } as unknown as AlgorandClient;
+
+      const res = await verifyPaymentTransaction("tx_valid_1", receiver, price, mockClient);
+      expect(res.valid).toBe(true);
+      expect(res.payerAddress).toBe("KBWP7FHVYOKPNQOH7X3MLL6BHRK33WUNPHP3ZLY4JWPEGNXLNB3SNPBY6E");
+    });
+
+    it("should return invalid when transaction is not found on network", async () => {
+      const mockClient = {
+        getTransactionByID: vi.fn().mockResolvedValue(null),
+      } as unknown as AlgorandClient;
+
+      const res = await verifyPaymentTransaction("tx_missing", receiver, price, mockClient);
+      expect(res.valid).toBe(false);
+      expect(res.error).toContain("Transaction not found");
+    });
+
+    it("should return invalid when transaction is unconfirmed", async () => {
+      const mockClient = {
+        getTransactionByID: vi.fn().mockResolvedValue({
+          transaction: {
+            "confirmed-round": 0,
+            "tx-type": "pay",
+            sender: "KBWP7FHVYOKPNQOH7X3MLL6BHRK33WUNPHP3ZLY4JWPEGNXLNB3SNPBY6E",
+            "payment-transaction": { receiver, amount: 1000 },
+          },
+        }),
+      } as unknown as AlgorandClient;
+
+      const res = await verifyPaymentTransaction("tx_unconfirmed", receiver, price, mockClient);
+      expect(res.valid).toBe(false);
+      expect(res.error).toContain("not confirmed");
+    });
+
+    it("should return invalid when transaction type is not 'pay'", async () => {
+      const mockClient = {
+        getTransactionByID: vi.fn().mockResolvedValue({
+          transaction: {
+            "confirmed-round": 123,
+            "tx-type": "appl",
+            sender: "KBWP7FHVYOKPNQOH7X3MLL6BHRK33WUNPHP3ZLY4JWPEGNXLNB3SNPBY6E",
+          },
+        }),
+      } as unknown as AlgorandClient;
+
+      const res = await verifyPaymentTransaction("tx_appl", receiver, price, mockClient);
+      expect(res.valid).toBe(false);
+      expect(res.error).toContain("Invalid transaction type 'appl'");
+    });
+
+    it("should return invalid when receiver address does not match", async () => {
+      const mockClient = {
+        getTransactionByID: vi.fn().mockResolvedValue({
+          transaction: {
+            "confirmed-round": 123,
+            "tx-type": "pay",
+            sender: "KBWP7FHVYOKPNQOH7X3MLL6BHRK33WUNPHP3ZLY4JWPEGNXLNB3SNPBY6E",
+            "payment-transaction": {
+              receiver: "WRONG_RECEIVER_ADDRESS_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+              amount: 1000,
+            },
+          },
+        }),
+      } as unknown as AlgorandClient;
+
+      const res = await verifyPaymentTransaction("tx_wrong_rcv", receiver, price, mockClient);
+      expect(res.valid).toBe(false);
+      expect(res.error).toContain("Transaction receiver");
+    });
+
+    it("should return invalid when payment amount is less than required price", async () => {
+      const mockClient = {
+        getTransactionByID: vi.fn().mockResolvedValue({
+          transaction: {
+            "confirmed-round": 123,
+            "tx-type": "pay",
+            sender: "KBWP7FHVYOKPNQOH7X3MLL6BHRK33WUNPHP3ZLY4JWPEGNXLNB3SNPBY6E",
+            "payment-transaction": {
+              receiver,
+              amount: 500, // required is 1000
+            },
+          },
+        }),
+      } as unknown as AlgorandClient;
+
+      const res = await verifyPaymentTransaction("tx_low_amt", receiver, price, mockClient);
+      expect(res.valid).toBe(false);
+      expect(res.error).toContain("less than required");
+    });
+
+    it("should handle indexer exception gracefully", async () => {
+      const mockClient = {
+        getTransactionByID: vi.fn().mockRejectedValue(new Error("Indexer timeout")),
+      } as unknown as AlgorandClient;
+
+      const res = await verifyPaymentTransaction("tx_err", receiver, price, mockClient);
+      expect(res.valid).toBe(false);
+      expect(res.error).toContain("Indexer timeout");
+    });
+
+    it("should enforce on-chain verification in x402PaymentGate when client provided", async () => {
+      const mockClient = {
+        getTransactionByID: vi.fn().mockResolvedValue({
+          transaction: {
+            "confirmed-round": 100,
+            "tx-type": "pay",
+            sender: "SENDER_ADDRESS",
+            "payment-transaction": {
+              receiver,
+              amount: 1000,
+            },
+          },
+        }),
+      } as unknown as AlgorandClient;
+
+      const gatedApp = new Hono();
+      gatedApp.use(
+        "/api/*",
+        x402PaymentGate({
+          priceMicroAlgo: 1000,
+          receiverAddress: receiver,
+          algorandClient: mockClient,
+        })
+      );
+      gatedApp.get("/api/data", (c) => c.json({ ok: true }));
+
+      const validRes = await gatedApp.request("/api/data", {
+        headers: { "X-Payment": "tx_verified_ok" },
+      });
+      expect(validRes.status).toBe(200);
+
+      const invalidClient = {
+        getTransactionByID: vi.fn().mockResolvedValue(null),
+      } as unknown as AlgorandClient;
+
+      const gatedAppFailing = new Hono();
+      gatedAppFailing.use(
+        "/api/*",
+        x402PaymentGate({
+          priceMicroAlgo: 1000,
+          receiverAddress: receiver,
+          algorandClient: invalidClient,
+        })
+      );
+      gatedAppFailing.get("/api/data", (c) => c.json({ ok: true }));
+
+      const invalidRes = await gatedAppFailing.request("/api/data", {
+        headers: { "X-Payment": "tx_unverified" },
+      });
+      expect(invalidRes.status).toBe(402);
+      const json = await invalidRes.json();
+      expect(json.error).toBe("Payment Required");
+      expect(json.message).toContain("Transaction not found");
+    });
+  });
+
   describe("Replay Protection", () => {
     it("should reject duplicate transaction ID with HTTP 400 Bad Request", async () => {
       const txid = "tx_replay_test_9999";
@@ -106,15 +287,15 @@ describe("x402 Payment Gate Middleware", () => {
       expect(json2.message).toContain("already redeemed");
     });
 
-    it("should bound receipts cache size to MAX_RECEIPTS_CAP and evict oldest entry", async () => {
+    it("should bound receipt cache size and perform FIFO eviction when capacity is reached", async () => {
       const validAddress =
         "KBWP7FHVYOKPNQOH7X3MLL6BHRK33WUNPHP3ZLY4JWPEGNXLNB3SNPBY6E";
 
-      // Fill up to capacity
+      // Fill receipt store up to capacity
       for (let i = 0; i < MAX_RECEIPTS_CAP; i++) {
         const res = await app.request(`/api/v1/karma/${validAddress}`, {
           headers: {
-            "X-Payment": `tx_capacity_test_${i}`,
+            "X-Payment": `tx_batch_${i}`,
           },
         });
         expect(res.status).toBe(200);
@@ -122,27 +303,19 @@ describe("x402 Payment Gate Middleware", () => {
 
       expect(getX402Receipts().length).toBe(MAX_RECEIPTS_CAP);
 
-      // Submit one more request beyond capacity
-      const resExtra = await app.request(`/api/v1/karma/${validAddress}`, {
+      // Overflow by 1 entry to trigger FIFO eviction of tx_batch_0
+      const overflowRes = await app.request(`/api/v1/karma/${validAddress}`, {
         headers: {
-          "X-Payment": "tx_capacity_test_overflow",
+          "X-Payment": "tx_overflow_entry",
         },
       });
-      expect(resExtra.status).toBe(200);
+      expect(overflowRes.status).toBe(200);
 
-      // Cache size must remain bounded at MAX_RECEIPTS_CAP
+      // Receipt store size should remain bounded at MAX_RECEIPTS_CAP
       const receipts = getX402Receipts();
       expect(receipts.length).toBe(MAX_RECEIPTS_CAP);
-
-      // The oldest entry (tx_capacity_test_0) should have been evicted
-      const hasOldest = receipts.some((r) => r.txid === "tx_capacity_test_0");
-      expect(hasOldest).toBe(false);
-
-      // The newest entry (tx_capacity_test_overflow) should be present
-      const hasNewest = receipts.some(
-        (r) => r.txid === "tx_capacity_test_overflow",
-      );
-      expect(hasNewest).toBe(true);
+      expect(receipts.some((r) => r.txid === "tx_batch_0")).toBe(false);
+      expect(receipts.some((r) => r.txid === "tx_overflow_entry")).toBe(true);
     });
   });
 });

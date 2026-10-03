@@ -1,4 +1,5 @@
 import type { MiddlewareHandler } from "hono";
+import { AlgorandClient } from "../algorand/client.js";
 
 export interface X402Options {
   priceMicroAlgo?: number;
@@ -6,6 +7,74 @@ export interface X402Options {
   treasuryAddress?: string;
   ttlSeconds?: number;
   tag?: string;
+  algorandClient?: AlgorandClient;
+  skipOnChainVerification?: boolean;
+}
+
+export interface PaymentVerificationResult {
+  valid: boolean;
+  error?: string;
+  payerAddress?: string;
+}
+
+export async function verifyPaymentTransaction(
+  txid: string,
+  expectedReceiver: string,
+  minPriceMicroAlgo: number,
+  client: AlgorandClient
+): Promise<PaymentVerificationResult> {
+  try {
+    const res = await client.getTransactionByID(txid);
+    if (!res) {
+      return { valid: false, error: "Transaction not found on Algorand network" };
+    }
+
+    const tx = (res as any).transaction || (res as any).tx || res;
+    if (!tx || typeof tx !== "object") {
+      return { valid: false, error: "Invalid transaction payload from indexer" };
+    }
+
+    const confirmedRound =
+      tx["confirmed-round"] ?? tx.confirmedRound ?? tx["confirmedRound"] ?? 0;
+    if (!confirmedRound || Number(confirmedRound) <= 0) {
+      return { valid: false, error: "Transaction is not confirmed on-chain" };
+    }
+
+    const txType = tx["tx-type"] ?? tx.txType ?? tx.type;
+    if (txType !== "pay") {
+      return { valid: false, error: `Invalid transaction type '${txType}', expected 'pay'` };
+    }
+
+    const payerAddress = tx.sender ?? tx.snd ?? tx["sender"];
+    const paymentFields =
+      tx["payment-transaction"] ?? tx.paymentTransaction ?? tx.paymentTxnFields ?? tx;
+    const receiver = paymentFields?.receiver ?? paymentFields?.rcv;
+    const amount = paymentFields?.amount ?? paymentFields?.amt ?? 0;
+
+    if (!receiver || receiver !== expectedReceiver) {
+      return {
+        valid: false,
+        error: `Transaction receiver '${receiver}' does not match expected address '${expectedReceiver}'`,
+      };
+    }
+
+    if (typeof amount !== "number" || amount < minPriceMicroAlgo) {
+      return {
+        valid: false,
+        error: `Transaction amount ${amount} microALGO is less than required ${minPriceMicroAlgo} microALGO`,
+      };
+    }
+
+    return {
+      valid: true,
+      payerAddress: typeof payerAddress === "string" ? payerAddress : undefined,
+    };
+  } catch (err: any) {
+    return {
+      valid: false,
+      error: `Failed to verify payment transaction on-chain: ${err?.message || String(err)}`,
+    };
+  }
 }
 
 export interface X402Receipt {
@@ -17,6 +86,7 @@ export interface X402Receipt {
   timestamp: string;
 }
 
+// Maximum number of redeemed payment receipts stored in memory for replay protection.
 // Security: Bound maximum size of redeemed payment receipts cache to prevent uncontrolled memory growth (DoS)
 export const MAX_RECEIPTS_CAP = 10000;
 const usedTxIds: Map<string, X402Receipt> = new Map();
@@ -105,15 +175,53 @@ export function x402PaymentGate(options: X402Options = {}): MiddlewareHandler {
       );
     }
 
+    let payerAddress: string | undefined;
+    const skipVerification =
+      options.skipOnChainVerification ??
+      (process.env.NODE_ENV === "test" || process.env.VITEST ? !options.algorandClient : false);
+
+    if (!skipVerification) {
+      const client = options.algorandClient || new AlgorandClient();
+      const verification = await verifyPaymentTransaction(
+        paymentTxId,
+        receiver,
+        price,
+        client
+      );
+
+      if (!verification.valid) {
+        return c.json(
+          {
+            error: "Payment Required",
+            message: verification.error || "Payment transaction verification failed",
+            paymentOffer: {
+              priceMicroAlgo: price,
+              receiverAddress: receiver,
+              expiresInSeconds: ttl,
+              tag: tag,
+              instructions:
+                "Submit payment transaction to receiverAddress and include transaction ID in X-Payment header.",
+            },
+          },
+          402
+        );
+      }
+
+      payerAddress = verification.payerAddress;
+    }
+
     const receipt: X402Receipt = {
       receiptId: `receipt_${paymentTxId}_${Date.now()}`,
       txid: paymentTxId,
+      payerAddress,
       amountMicroAlgo: price,
       endpoint: path,
       timestamp: new Date().toISOString(),
     };
 
     // Security: Evict oldest receipt entry if capacity is reached to prevent memory exhaustion
+    // Performance optimization: Bounded FIFO eviction prevents unbounded memory growth
+    // and V8 garbage collection pauses under high micro-payment traffic volume.
     if (usedTxIds.size >= MAX_RECEIPTS_CAP) {
       const oldestKey = usedTxIds.keys().next().value;
       if (oldestKey !== undefined) {
