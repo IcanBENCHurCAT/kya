@@ -38,6 +38,35 @@ export async function generateSigningKey(): Promise<{
   };
 }
 
+// Optimization: Key promises cache for importPKCS8 and importSPKI to avoid repeated PEM parsing
+// and Web Crypto key generation on every signature and verification operation.
+const pkcs8KeyCache = new Map<string, Promise<any>>();
+const spkiKeyCache = new Map<string, Promise<any>>();
+
+async function getPrivateKey(pem: string) {
+  let cached = pkcs8KeyCache.get(pem);
+  if (!cached) {
+    cached = importPKCS8(pem, "EdDSA").catch((err) => {
+      pkcs8KeyCache.delete(pem);
+      throw err;
+    });
+    pkcs8KeyCache.set(pem, cached);
+  }
+  return cached;
+}
+
+async function getPublicKey(pem: string) {
+  let cached = spkiKeyCache.get(pem);
+  if (!cached) {
+    cached = importSPKI(pem, "EdDSA").catch((err) => {
+      spkiKeyCache.delete(pem);
+      throw err;
+    });
+    spkiKeyCache.set(pem, cached);
+  }
+  return cached;
+}
+
 /**
  * Sign a verification claim.
  *
@@ -58,11 +87,10 @@ export async function signClaim(params: {
   keyId: string;
   verifiedAt: number;
 }> {
-  // jose v5 importPKCS8 takes a PEM string directly (not decoded bytes)
-  const privateKey = await importPKCS8(params.privateKey, "EdDSA");
+  // Performance optimization: Cached importPKCS8 key lookup avoids re-parsing PKCS8 PEM on every sign operation.
+  const privateKey = await getPrivateKey(params.privateKey);
 
   const message = `${params.walletAddress}|${params.identityHash}|${params.verifiedAt}`;
-  const encoder = new TextEncoder();
 
   // Use jose v5 CompactSign API for EdDSA signing
   const signer = new CompactSign(new TextEncoder().encode(message));
@@ -93,8 +121,8 @@ export async function verifyClaimSignature(params: {
   signature: string;
   publicKey: string;
 }): Promise<boolean> {
-  // jose v5 importSPKI takes a PEM string directly (not decoded bytes)
-  const publicKey = await importSPKI(params.publicKey, "EdDSA");
+  // Performance optimization: Cached importSPKI key lookup avoids re-parsing SPKI PEM on every verification operation.
+  const publicKey = await getPublicKey(params.publicKey);
 
   const message = `${params.walletAddress}|${params.identityHash}|${params.verifiedAt}`;
 
