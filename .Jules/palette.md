@@ -67,3 +67,8 @@
 
 **Learning:** Dismissing transient UI feedback states via keyboard shortcuts (e.g., `Escape` key) resets visual indicators but leaves screen reader users uninformed unless explicitly communicated. Asynchronously updating an `aria-live` polite status region with "Status reset" when active feedback is dismissed provides complete parity between visual and assistive interactions.
 **Action:** Ensure keyboard dismissal handlers check for active temporary states and trigger an asynchronous `aria-live` announcement upon reset.
+
+## 2026-10-02 - Single-Key Numeric Tab Navigation & Accessible Shortcut Hints
+
+**Learning:** In multi-tab code snippet components, keyboard users often navigate tabs using arrow keys or tab cycles. Adding single-key numeric shortcuts (`1`, `2`, `3`) paired with explicit `aria-keyshortcuts="1"`, visible `<kbd>` badges, and transient `.active` state toggling enables rapid direct-access tab selection while ensuring screen readers natively announce available shortcut key bindings.
+**Action:** Decorate `role="tab"` buttons with `aria-keyshortcuts` attributes and `<kbd>` badges, and bind guarded numeric keydown handlers (`e.key === '1'`) to activate corresponding tabs directly.
