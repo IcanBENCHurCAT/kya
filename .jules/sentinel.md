@@ -42,3 +42,8 @@
 **Vulnerability:** `loadAuditLog` in `src/services/audit.ts` used spread argument syntax `auditLog.push(...data)` when loading audit entries from JSON storage on disk, causing `RangeError: Maximum call stack size exceeded` crashes when the audit log contained large record counts (>= 125,000 entries).
 **Learning:** In V8 and JavaScript runtimes, spreading arrays (`...array`) converts elements into function arguments on the call stack, hitting engine argument limits (~65k-125k arguments) and causing application startup crashes.
 **Prevention:** Always use explicit iterative loops or chunked batch processing instead of argument spread syntax when populating arrays from external files or unbounded datasets.
+
+## 2025-05-18 - Unhandled Null or Non-Object Input Crashes in Sanctions Watchlist Parsers
+**Vulnerability:** `parseOFACJSON` and `parseOFACCSV` in `src/services/ofac.ts` processed external or unit-test payload inputs without verifying input types or object element bounds, causing unhandled `TypeError` exceptions and service crashes when receiving `null`, primitive, or non-object payload structures.
+**Learning:** Assuming external data feeds or parser arguments are always valid non-null objects leads to uncaught `TypeError: Cannot read properties of null` exceptions when handling network feed anomalies or malformed inputs.
+**Prevention:** Always perform explicit `typeof` and `Array.isArray()` checks at parser boundaries before accessing properties or invoking array methods.

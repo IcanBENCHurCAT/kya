@@ -155,6 +155,7 @@ export function buildDefaultData(): SanctionedEntry[] {
  * This parser handles the OFAC SDN CSV format.
  */
 export function parseOFACCSV(csvText: string): SanctionedEntry[] {
+  if (!csvText || typeof csvText !== 'string') return [];
   const lines = csvText.split('\n').filter(l => l.trim());
   if (lines.length < 2) return [];
 
@@ -250,26 +251,36 @@ export async function downloadOFACSDN(): Promise<SanctionedEntry[]> {
  * Parse OFAC SDN JSON v2 format (from sanctionslistservice.ofac.gov).
  */
 export function parseOFACJSON(data: any): SanctionedEntry[] {
+  if (!data || (typeof data !== 'object' && !Array.isArray(data))) {
+    return [];
+  }
   const entries: SanctionedEntry[] = [];
-  const list = Array.isArray(data) ? data : data.SDNList || [];
+  const list = Array.isArray(data)
+    ? data
+    : Array.isArray(data.SDNList)
+      ? data.SDNList
+      : [];
 
   for (const item of list) {
+    if (!item || typeof item !== 'object') continue;
     entries.push({
-      id: item.uid || item.id || `unknown-${randomUUID()}`,
-      name: item.name || '',
-      type: (item.entityType || 'Individual').toLowerCase() === 'entity' ? 'entity'
-        : (item.entityType || 'Individual').toLowerCase().includes('vessel') ? 'vessel'
+      id: typeof item.uid === 'string' && item.uid ? item.uid : typeof item.id === 'string' && item.id ? item.id : `unknown-${randomUUID()}`,
+      name: typeof item.name === 'string' ? item.name : '',
+      type: (typeof item.entityType === 'string' ? item.entityType : 'Individual').toLowerCase() === 'entity' ? 'entity'
+        : (typeof item.entityType === 'string' ? item.entityType : 'Individual').toLowerCase().includes('vessel') ? 'vessel'
         : 'individual',
       source: 'OFAC-SDN',
       program: Array.isArray(item.type) ? item.type.join(',') : 'SDN',
-      addresses: (item.address || []).map((a: any) => typeof a === 'string' ? a : JSON.stringify(a)).filter(Boolean),
-      aliases: (item.aka || []).map((a: any) => typeof a === 'string' ? a : JSON.stringify(a)).filter(Boolean),
-      nationalities: (item.nationalities || []).map((n: any) => typeof n === 'string' ? n : JSON.stringify(n)).filter(Boolean),
-      nationalIds: (item.identifications || []).map((id: any) => {
+      addresses: Array.isArray(item.address) ? item.address.map((a: any) => typeof a === 'string' ? a : JSON.stringify(a)).filter(Boolean) : [],
+      aliases: Array.isArray(item.aka) ? item.aka.map((a: any) => typeof a === 'string' ? a : JSON.stringify(a)).filter(Boolean) : [],
+      nationalities: Array.isArray(item.nationalities) ? item.nationalities.map((n: any) => typeof n === 'string' ? n : JSON.stringify(n)).filter(Boolean) : [],
+      nationalIds: Array.isArray(item.identifications) ? item.identifications.map((id: any) => {
+        if (!id) return '';
         if (typeof id === 'string') return id;
-        return [id.country, id.idNumber, id.type].filter(Boolean).join(' ') || '';
-      }).filter(Boolean),
-      birthdates: (item.associatedPersons || []).map((p: any) => p.dob || '').filter(Boolean),
+        if (typeof id === 'object') return [id.country, id.idNumber, id.type].filter(Boolean).join(' ') || '';
+        return '';
+      }).filter(Boolean) : [],
+      birthdates: Array.isArray(item.associatedPersons) ? item.associatedPersons.map((p: any) => (p && typeof p === 'object') ? p.dob || '' : '').filter(Boolean) : [],
       lastUpdated: new Date().toISOString().split('T')[0],
     });
   }

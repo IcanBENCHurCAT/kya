@@ -34,9 +34,12 @@ describe("OFAC Service Unit Tests", () => {
   });
 
   describe("parseOFACCSV", () => {
-    it("should return empty array if csv has fewer than 2 lines or empty text", () => {
+    it("should return empty array if csv has fewer than 2 lines, empty text, or non-string input", () => {
       expect(parseOFACCSV("")).toEqual([]);
       expect(parseOFACCSV("Header Line Only")).toEqual([]);
+      expect(parseOFACCSV(null as any)).toEqual([]);
+      expect(parseOFACCSV(undefined as any)).toEqual([]);
+      expect(parseOFACCSV(12345 as any)).toEqual([]);
     });
 
     it("should parse valid CSV lines and handle comment/empty lines", () => {
@@ -111,9 +114,15 @@ describe("OFAC Service Unit Tests", () => {
   });
 
   describe("parseOFACJSON", () => {
-    it("should handle empty or null input gracefully", () => {
+    it("should handle empty, null, or malformed input gracefully", () => {
       expect(parseOFACJSON([])).toEqual([]);
       expect(parseOFACJSON({})).toEqual([]);
+      expect(parseOFACJSON(null)).toEqual([]);
+      expect(parseOFACJSON(undefined)).toEqual([]);
+      expect(parseOFACJSON(12345)).toEqual([]);
+      expect(parseOFACJSON("invalid string")).toEqual([]);
+      expect(parseOFACJSON({ SDNList: null })).toEqual([]);
+      expect(parseOFACJSON([null, undefined, 123, "string"])).toEqual([]);
     });
 
     it("should parse an array of JSON items correctly", () => {
