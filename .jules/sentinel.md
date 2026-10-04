@@ -47,3 +47,8 @@
 **Vulnerability:** `parseOFACJSON` and `parseOFACCSV` in `src/services/ofac.ts` processed external or unit-test payload inputs without verifying input types or object element bounds, causing unhandled `TypeError` exceptions and service crashes when receiving `null`, primitive, or non-object payload structures.
 **Learning:** Assuming external data feeds or parser arguments are always valid non-null objects leads to uncaught `TypeError: Cannot read properties of null` exceptions when handling network feed anomalies or malformed inputs.
 **Prevention:** Always perform explicit `typeof` and `Array.isArray()` checks at parser boundaries before accessing properties or invoking array methods.
+
+## 2025-05-18 - Unbounded In-Memory Wallet Identities Store Memory Exhaustion
+**Vulnerability:** `walletIdentities` Map in `src/services/resolution.ts` grew unbounded as callers invoked `registerWalletIdentity` via `POST /api/v1/register`, allowing unauthenticated Denial of Service (DoS) attacks via memory exhaustion.
+**Learning:** In-memory maps populated by external API endpoints must be bounded using capacity caps and FIFO/LRU eviction to prevent heap allocation exhaustion.
+**Prevention:** Always enforce a capacity limit (`MAX_CAP = 10000`) and FIFO eviction on in-memory Map stores populated by API requests.

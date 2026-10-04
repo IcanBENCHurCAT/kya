@@ -29,6 +29,8 @@ import {
   hasVerifiedOwner,
   seedTestData,
   resolveForScreening,
+  clearWalletIdentities,
+  MAX_WALLET_IDENTITIES_CAP,
   WalletIdentity,
 } from "../src/services/resolution.js";
 import {
@@ -738,6 +740,22 @@ describe("Bulk Screening", () => {
 describe("Beneficial Owner Resolution", () => {
   beforeEach(() => {
     clearAuditLog();
+    clearWalletIdentities();
+  });
+
+  it("should enforce MAX_WALLET_IDENTITIES_CAP and evict oldest entry when capacity is exceeded", () => {
+    clearWalletIdentities();
+    for (let i = 0; i < MAX_WALLET_IDENTITIES_CAP; i++) {
+      registerWalletIdentity(`WALLET_${i}`, `User ${i}`);
+    }
+    expect(resolveWalletIdentity("WALLET_0")).not.toBeNull();
+
+    // Register 10,001st wallet identity
+    registerWalletIdentity("WALLET_10000", "User 10000");
+
+    // WALLET_0 should be evicted, WALLET_10000 should exist
+    expect(resolveWalletIdentity("WALLET_0")).toBeNull();
+    expect(resolveWalletIdentity("WALLET_10000")).not.toBeNull();
   });
 
   it("should register a wallet identity", () => {

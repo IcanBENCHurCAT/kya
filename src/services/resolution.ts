@@ -46,9 +46,17 @@ export interface ResolutionResult {
 
 /**
  * In-memory wallet identity store (dev/testing only).
- * In production: Supabase, Algorand indexer, identity attestation provider APIs.
+ * Maximum capacity bounded to prevent memory exhaustion and DoS from unauthenticated registration requests.
  */
+export const MAX_WALLET_IDENTITIES_CAP = 10000;
 const walletIdentities: Map<string, WalletIdentity> = new Map();
+
+/**
+ * Clear wallet identities (for testing).
+ */
+export function clearWalletIdentities(): void {
+  walletIdentities.clear();
+}
 
 /**
  * Register a wallet-to-owner mapping.
@@ -77,6 +85,17 @@ export function registerWalletIdentity(
     altAddresses: options.altAddresses,
     lastSeen: new Date().toISOString(),
   };
+
+  // Security: Evict oldest entry if capacity is reached to prevent memory exhaustion (DoS)
+  if (
+    walletIdentities.size >= MAX_WALLET_IDENTITIES_CAP &&
+    !walletIdentities.has(walletAddress)
+  ) {
+    const oldestKey = walletIdentities.keys().next().value;
+    if (oldestKey !== undefined) {
+      walletIdentities.delete(oldestKey);
+    }
+  }
 
   walletIdentities.set(walletAddress, identity);
   return identity;
