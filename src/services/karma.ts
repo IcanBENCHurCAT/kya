@@ -51,9 +51,12 @@ export class InMemoryKarmaStore {
   }
 
   public addEvent(event: KarmaEvent): void {
-    const list = this.events.get(event.agentAddress) || [];
+    let list = this.events.get(event.agentAddress);
+    if (!list) {
+      list = [];
+      this.events.set(event.agentAddress, list);
+    }
     list.push(event);
-    this.events.set(event.agentAddress, list);
   }
 
   public clear(): void {
@@ -199,10 +202,38 @@ export class KarmaService {
       delta = -amount;
     }
 
-    const currentRecord = await this.getProfile(agentAddress);
-    const newScore = Math.max(0, currentRecord.score + delta);
-    const newTier = this.calculateTier(newScore);
     const now = new Date().toISOString();
+
+    // Performance optimization: Retrieve scalar profile data directly from in-memory store or target DB table
+    // instead of calling getProfile() which executes full events query and array cloning prior to event insertion.
+    let currentScore = 100;
+    let registeredAt = now;
+
+    const existingProfile = this.inMemoryStore.getProfile(agentAddress);
+    if (existingProfile) {
+      currentScore = existingProfile.karmaScore;
+      registeredAt = existingProfile.registeredAt;
+    } else if (this.supabase) {
+      try {
+        const profileRes = await withTimeout<any>(
+          this.supabase
+            .from('agent_profiles')
+            .select('karma_score, registered_at')
+            .eq('agent_address', agentAddress)
+            .single(),
+          1000
+        );
+        if (profileRes?.data) {
+          currentScore = profileRes.data.karma_score ?? 100;
+          registeredAt = profileRes.data.registered_at || now;
+        }
+      } catch {
+        // Fallback to defaults
+      }
+    }
+
+    const newScore = Math.max(0, currentScore + delta);
+    const newTier = this.calculateTier(newScore);
 
     const event: KarmaEvent = {
       // Use cryptographically secure randomUUID for event identifiers
@@ -246,17 +277,29 @@ export class KarmaService {
     }
 
     // Always update in-memory store as primary/fallback
-    const existingProfile = this.inMemoryStore.getProfile(agentAddress);
     const updatedProfile: AgentProfile = {
       agentAddress,
       karmaScore: newScore,
       tier: newTier,
-      registeredAt: existingProfile?.registeredAt || currentRecord.registeredAt || now,
+      registeredAt,
       lastUpdated: now,
     };
 
     this.inMemoryStore.saveProfile(updatedProfile);
     this.inMemoryStore.addEvent(event);
+
+    if (!this.supabase) {
+      const events = this.inMemoryStore.getEvents(agentAddress);
+      return {
+        agentAddress,
+        score: newScore,
+        tier: newTier,
+        totalEvents: events.length,
+        lastUpdated: now,
+        events: [...events],
+        registeredAt,
+      };
+    }
 
     return this.getProfile(agentAddress);
   }
