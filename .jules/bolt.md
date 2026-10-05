@@ -105,3 +105,7 @@
 ## 2025-03-28 - In-Memory Promise Caching for Ed25519 Web Crypto Key Imports
 **Learning:** In cryptographic utilities (`src/utils/crypto.ts`), calling `jose`'s `importPKCS8` and `importSPKI` on every claim signature or verification request forces repeated PEM string parsing, ASN.1 decoding, and WebCrypto key generation (~847ms per 1,000 operations).
 **Action:** Cache parsed key promises in module-level `pkcs8KeyCache` and `spkiKeyCache` Maps (with deletion on promise rejection), reducing sign/verify execution time by ~25% (~637ms per 1,000 operations) and eliminating redundant WebCrypto key parsing allocations.
+
+## 2025-03-29 - Direct Scalar Profile Lookups in Karma Event Recording
+**Learning:** Calling full record/profile fetching routines (`getProfile`) before event insertion triggers redundant database queries over all historical event records (`karma_events`) and executes duplicate event array cloning/mapping. On agents with long event histories, this double-fetch pattern doubles database round-trips and memory copying on every event recorded.
+**Action:** Retrieve scalar profile fields (`karmaScore`, `registeredAt`) directly from `inMemoryStore` or `agent_profiles` prior to event insertion, avoiding full `karma_events` queries and double array cloning/mapping per event.
