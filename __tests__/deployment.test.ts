@@ -72,13 +72,16 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       expect(html).toContain('title="Press C to copy command"');
       expect(html).toContain('aria-label="Keyboard shortcut: press C"');
       expect(html).toContain('aria-keyshortcuts="c"');
+      expect(html).toContain('aria-keyshortcuts="o"');
       expect(html).toContain('aria-keyshortcuts="1"');
       expect(html).toContain('aria-keyshortcuts="2"');
       expect(html).toContain('aria-keyshortcuts="3"');
       expect(html).toContain('Press 1 to select tab');
       expect(html).toContain('Press 2 to select tab');
       expect(html).toContain('Press 3 to select tab');
+      expect(html).toContain('Press O to open in new tab');
       expect(html).toContain("e.key==='1'");
+      expect(html).toContain("e.key==='o'");
       expect(html).toContain("forced-colors: active");
       expect(html).toContain("status.innerText=''");
       expect(html).toContain(
