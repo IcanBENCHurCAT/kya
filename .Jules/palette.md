@@ -72,3 +72,8 @@
 
 **Learning:** In multi-tab code snippet components, keyboard users often navigate tabs using arrow keys or tab cycles. Adding single-key numeric shortcuts (`1`, `2`, `3`) paired with explicit `aria-keyshortcuts="1"`, visible `<kbd>` badges, and transient `.active` state toggling enables rapid direct-access tab selection while ensuring screen readers natively announce available shortcut key bindings.
 **Action:** Decorate `role="tab"` buttons with `aria-keyshortcuts` attributes and `<kbd>` badges, and bind guarded numeric keydown handlers (`e.key === '1'`) to activate corresponding tabs directly.
+
+## 2026-10-03 - Single-Key Endpoint Open Shortcuts & Visual Badge Parity
+
+**Learning:** Pairing cURL copy actions with direct browser opening links (`target="_blank" rel="noopener noreferrer"`) benefits keyboard power users when adorned with single-key shortcuts (`aria-keyshortcuts="o"`) and matching visual `<kbd>` badges. Toggling transient `.kbd-hint.active` visual feedback on keydown reinforces keyboard input registration across all quick-start code block action controls.
+**Action:** Include `aria-keyshortcuts="o"` attributes and `<kbd>O</kbd>` badges on "Open Endpoint" action links alongside copy controls.
