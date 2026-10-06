@@ -45,11 +45,9 @@ export class InMemoryCache<K extends string, V> {
    * Set a value in the cache with TTL
    */
   set(key: K, value: V, ttl?: number): void {
-    // Performance optimization: Delete existing key first to refresh insertion order
-    // and prevent premature eviction of valid keys when updating an existing entry at capacity.
-    if (this.store.has(key)) {
-      this.store.delete(key);
-    } else if (this.store.size >= this.maxSize) {
+    // Performance optimization: Direct delete attempt returns true if key existed,
+    // refreshing insertion order and eliminating redundant .has() Map lookups per set call.
+    if (!this.store.delete(key) && this.store.size >= this.maxSize) {
       this.evictOldest();
     }
 
