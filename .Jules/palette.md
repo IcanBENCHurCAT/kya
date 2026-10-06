@@ -82,3 +82,8 @@
 
 **Learning:** When interactive controls contain visual shortcut badge elements (such as `<kbd>`), reading `element.innerText` includes child badge text, causing screen readers to announce concatenated strings (e.g. `Selected /health1 endpoint`). Using explicit path variables ensures accurate, clean `aria-live` status announcements.
 **Action:** Always use explicit data values or clean target strings rather than `element.innerText` when populating `aria-live` polite status regions for controls with child badge elements.
+
+## 2026-10-06 - 404 Page Keyboard Navigation & Discovery Method Badges
+
+**Learning:** Custom 404 error pages often present dead ends for keyboard and screen reader users. Adding a primary CTA with a single-key keyboard shortcut (`aria-keyshortcuts="h"`, `<kbd>H</kbd>`, and guarded `h`/`H` keydown listener) alongside HTTP method badges (`<span class="method-badge">GET</span>`) and `@media (forced-colors: active)` CSS rules maintains visual and navigational consistency across service error pages.
+**Action:** Pair 404 recovery CTA buttons with single-key keyboard shortcuts (`H`), visual `<kbd>` badges, method-labeled endpoint discovery links, and high-contrast CSS overrides.

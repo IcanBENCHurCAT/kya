@@ -134,6 +134,14 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       expect(html).toContain('href="#main-content"');
       expect(html).toContain("focus-visible");
       expect(html).toContain("Return to Landing Page");
+      expect(html).toContain('id="home-link"');
+      expect(html).toContain('aria-keyshortcuts="h"');
+      expect(html).toContain('title="Return to KYA Service landing page (Press H)"');
+      expect(html).toContain('kbd class="kbd-hint"');
+      expect(html).toContain('Press H to return to landing page');
+      expect(html).toContain("e.key==='h'||e.key==='H'");
+      expect(html).toContain("method-badge");
+      expect(html).toContain("forced-colors: active");
       expect(html).toContain('aria-label="Active discovery endpoints"');
       expect(html).toContain('href="/health"');
       expect(html).toContain('href="/.well-known/x402.json"');
