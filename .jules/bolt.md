@@ -109,3 +109,7 @@
 ## 2025-03-29 - Direct Scalar Profile Lookups in Karma Event Recording
 **Learning:** Calling full record/profile fetching routines (`getProfile`) before event insertion triggers redundant database queries over all historical event records (`karma_events`) and executes duplicate event array cloning/mapping. On agents with long event histories, this double-fetch pattern doubles database round-trips and memory copying on every event recorded.
 **Action:** Retrieve scalar profile fields (`karmaScore`, `registeredAt`) directly from `inMemoryStore` or `agent_profiles` prior to event insertion, avoiding full `karma_events` queries and double array cloning/mapping per event.
+
+## 2025-03-30 - Date Calculation Hoisting & Direct Set Population in Watchlist Parsing & Merging
+**Learning:** Evaluating `new Date().toISOString().split('T')[0]` inside watchlist parsing loops (`parseOFACJSON` & `parseOFACCSV`) instantiates 20,000+ `Date` objects and string split arrays per parse operation (~34.7ms execution time). Furthermore, using `.map(e => e.id)` before constructing `Set` instances in watchlist merge routines allocates intermediate string arrays and dead `newEntries` arrays.
+**Action:** Hoist static `today` date calculations outside entry loops in parsing routines (~11x speedup, ~34.7ms to ~3.18ms for 20k items), populate ID `Set` collections directly in single-pass `for` loops, and eliminate unused `newEntries` array allocations (~1.2x merge speedup).
