@@ -52,3 +52,8 @@
 **Vulnerability:** `walletIdentities` Map in `src/services/resolution.ts` grew unbounded as callers invoked `registerWalletIdentity` via `POST /api/v1/register`, allowing unauthenticated Denial of Service (DoS) attacks via memory exhaustion.
 **Learning:** In-memory maps populated by external API endpoints must be bounded using capacity caps and FIFO/LRU eviction to prevent heap allocation exhaustion.
 **Prevention:** Always enforce a capacity limit (`MAX_CAP = 10000`) and FIFO eviction on in-memory Map stores populated by API requests.
+
+## 2025-05-18 - Invalid Supabase Object Update Syntax Bypasses OTP Rate Limiting
+**Vulnerability:** `incrementAttempt` in `src/verification/attempt-store.ts` passed `{ attempt_count: { increment: 1 } }` to Supabase `update()`. PostgREST serialized this as JSON object `{ "increment": 1 }`, causing PostgreSQL to throw an integer type error, silently fail the update, and allow attackers to brute force 6-digit OTP codes without hitting attempt limits.
+**Learning:** PostgREST/Supabase JavaScript client does not support object expressions like `{ increment: 1 }` for numeric database columns. Unhandled DB errors in update calls result in silent rate-limiting bypasses.
+**Prevention:** Always fetch current records to compute explicit numeric increments or use database RPC functions when updating numeric counts with Supabase.
