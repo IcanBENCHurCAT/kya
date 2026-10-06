@@ -64,4 +64,11 @@ describe('CORS Middleware Configuration', () => {
     expect(res.headers.get('access-control-allow-origin')).toBe('http://localhost:3000');
     expect(res.headers.get('access-control-allow-headers')).toContain('X-Payment');
   });
+
+  it('should attach standard security headers (nosniff, frame-options) to HTTP responses', async () => {
+    const res = await app.request('/health', { method: 'GET' });
+    expect(res.status).toBe(200);
+    expect(res.headers.get('x-content-type-options')).toBe('nosniff');
+    expect(res.headers.get('x-frame-options')).toBe('SAMEORIGIN');
+  });
 });

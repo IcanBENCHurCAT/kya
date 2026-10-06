@@ -18,6 +18,7 @@
 
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { secureHeaders } from "hono/secure-headers";
 import { serve } from "@hono/node-server";
 import screeningApp from "./routes/screening.js";
 import walletAnalysisApp from "./routes/wallet-analysis.js";
@@ -40,6 +41,9 @@ import { checkHealth } from "./services/health.js";
 
 // Mount all apps into a single router
 const app = new Hono();
+
+// Apply secure headers middleware globally
+app.use("*", secureHeaders());
 
 // Apply CORS middleware globally with restricted allowed origins
 const defaultAllowedOrigins = [
