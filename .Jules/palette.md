@@ -77,3 +77,8 @@
 
 **Learning:** Pairing cURL copy actions with direct browser opening links (`target="_blank" rel="noopener noreferrer"`) benefits keyboard power users when adorned with single-key shortcuts (`aria-keyshortcuts="o"`) and matching visual `<kbd>` badges. Toggling transient `.kbd-hint.active` visual feedback on keydown reinforces keyboard input registration across all quick-start code block action controls.
 **Action:** Include `aria-keyshortcuts="o"` attributes and `<kbd>O</kbd>` badges on "Open Endpoint" action links alongside copy controls.
+
+## 2026-10-05 - Clean ARIA-Live Announcements for Composite Button Labels
+
+**Learning:** When interactive controls contain visual shortcut badge elements (such as `<kbd>`), reading `element.innerText` includes child badge text, causing screen readers to announce concatenated strings (e.g. `Selected /health1 endpoint`). Using explicit path variables ensures accurate, clean `aria-live` status announcements.
+**Action:** Always use explicit data values or clean target strings rather than `element.innerText` when populating `aria-live` polite status regions for controls with child badge elements.

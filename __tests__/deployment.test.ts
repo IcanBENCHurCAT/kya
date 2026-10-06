@@ -84,6 +84,7 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       expect(html).toContain("e.key==='o'");
       expect(html).toContain("forced-colors: active");
       expect(html).toContain("status.innerText=''");
+      expect(html).toContain("status.innerText='Selected '+path+' endpoint'");
       expect(html).toContain(
         'title="Query service health status and timestamp (GET /health)"',
       );
