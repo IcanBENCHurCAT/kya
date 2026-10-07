@@ -90,9 +90,15 @@ export class AttemptStore {
    * Returns the updated attempt or null if not found.
    */
   async incrementAttempt(id: string): Promise<VerificationAttempt | null> {
+    // Security: Fetch current attempt to calculate explicit numeric increment.
+    // PostgREST/Supabase JS client does not support object expressions like { increment: 1 }
+    // for integer columns, which previously caused SQL type errors and allowed OTP brute force bypass.
+    const current = await this.getAttempt(id);
+    if (!current) return null;
+
     const { data, error } = await this.supabase
       .from("verification_attempts")
-      .update({ attempt_count: { increment: 1 } })
+      .update({ attempt_count: current.attemptCount + 1 })
       .eq("id", id)
       .select()
       .single();

@@ -164,23 +164,30 @@ describe('AttemptStore', () => {
   describe('incrementAttempt', () => {
     it('should increment attempt count and return updated attempt', async () => {
       const store = new AttemptStore(dummyDbUrl, dummyServiceKey);
-      const mockDbRow = {
+      const initialDbRow = {
         id: 'attempt-uuid-1',
         identifier: 'test@example.com',
         method: 'email',
         code_hash: 'hash',
         code_salt: 'salt',
         expires_at: Date.now() + 60000,
-        attempt_count: 2,
+        attempt_count: 1,
         max_attempts: 3,
         created_at: Date.now() - 1000,
       };
+      const updatedDbRow = {
+        ...initialDbRow,
+        attempt_count: 2,
+      };
 
-      mockFrom.single.mockResolvedValueOnce({ data: mockDbRow, error: null });
+      // First call (from getAttempt) returns initialDbRow
+      mockFrom.single.mockResolvedValueOnce({ data: initialDbRow, error: null });
+      // Second call (from update) returns updatedDbRow
+      mockFrom.single.mockResolvedValueOnce({ data: updatedDbRow, error: null });
 
       const result = await store.incrementAttempt('attempt-uuid-1');
 
-      expect(mockFrom.update).toHaveBeenCalledWith({ attempt_count: { increment: 1 } });
+      expect(mockFrom.update).toHaveBeenCalledWith({ attempt_count: 2 });
       expect(mockFrom.eq).toHaveBeenCalledWith('id', 'attempt-uuid-1');
       expect(result).toEqual({
         id: 'attempt-uuid-1',
@@ -188,10 +195,10 @@ describe('AttemptStore', () => {
         method: 'email',
         codeHash: 'hash',
         codeSalt: 'salt',
-        expiresAt: mockDbRow.expires_at,
+        expiresAt: initialDbRow.expires_at,
         attemptCount: 2,
         maxAttempts: 3,
-        createdAt: mockDbRow.created_at,
+        createdAt: initialDbRow.created_at,
       });
     });
 
