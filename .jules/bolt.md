@@ -113,3 +113,7 @@
 ## 2025-03-30 - Date Calculation Hoisting & Direct Set Population in Watchlist Parsing & Merging
 **Learning:** Evaluating `new Date().toISOString().split('T')[0]` inside watchlist parsing loops (`parseOFACJSON` & `parseOFACCSV`) instantiates 20,000+ `Date` objects and string split arrays per parse operation (~34.7ms execution time). Furthermore, using `.map(e => e.id)` before constructing `Set` instances in watchlist merge routines allocates intermediate string arrays and dead `newEntries` arrays.
 **Action:** Hoist static `today` date calculations outside entry loops in parsing routines (~11x speedup, ~34.7ms to ~3.18ms for 20k items), populate ID `Set` collections directly in single-pass `for` loops, and eliminate unused `newEntries` array allocations (~1.2x merge speedup).
+
+## 2025-03-31 - Single-Pass Consolidation & Pre-Allocated Arrays in Bulk Sanctions Screening
+**Learning:** In bulk screening API routes (`POST /api/v1/screen/bulk`), performing separate `.map()` passes for identity resolution, screening execution/logging, and a post-pass loop for status count aggregation allocates intermediate target arrays (`resolvedTargets`), $N$ temporary object allocations, and iterates the dataset 3 times per request.
+**Action:** Consolidate identity resolution, screening execution, audit logging, result construction, and summary status count accumulation into a single $O(N)$ pass over `targets` with a pre-allocated results array (`new Array(targetCount)`).

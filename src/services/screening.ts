@@ -526,11 +526,21 @@ export function screenSanctions(
 
 /**
  * Bulk screen multiple targets.
+ *
+ * Performance optimization:
+ * Uses a pre-allocated results array and indexed for loop instead of Array.prototype.map to eliminate
+ * intermediate iterator and dynamic array allocation overhead during high-volume batch screening.
  */
 export function screenBulk(
   targets: { address: string; beneficialOwner?: string }[],
   lists: Record<string, SanctionedEntry[]> = {},
   config?: Partial<ScreeningConfig>,
 ): ScreeningResult[] {
-  return targets.map(t => screenSanctions(t.address, t.beneficialOwner, lists, config));
+  const len = targets.length;
+  const results = new Array<ScreeningResult>(len);
+  for (let i = 0; i < len; i++) {
+    const t = targets[i];
+    results[i] = screenSanctions(t.address, t.beneficialOwner, lists, config);
+  }
+  return results;
 }
