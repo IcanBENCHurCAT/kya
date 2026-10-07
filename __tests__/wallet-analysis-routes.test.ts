@@ -10,6 +10,7 @@ describe("Algorand Wallet Analysis REST API Security Tests", () => {
   const validAddress =
     "KBWP7FHVYOKPNQOH7X3MLL6BHRK33WUNPHP3ZLY4JWPEGNXLNB3SNPBY6E";
   const invalidAddress = "invalid_algo_address_string";
+  const overlyLongAddress = "A".repeat(300);
 
   describe("Input Validation on :address Parameter", () => {
     it("should return HTTP 400 for invalid address in /api/v1/wallet/:address", async () => {
@@ -63,6 +64,16 @@ describe("Algorand Wallet Analysis REST API Security Tests", () => {
       expect(res.status).toBe(200);
       const json = await res.json();
       expect(json.address).toBe(validAddress);
+    });
+
+    it("should return HTTP 400 for overly long address exceeding max length limit", async () => {
+      const res = await app.request(`/api/v1/wallet/${overlyLongAddress}`, {
+        method: "GET",
+        headers: { "X-Payment": "tx_wallet_test_long_1" },
+      });
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json.error).toBe("Invalid Algorand address format");
     });
   });
 
