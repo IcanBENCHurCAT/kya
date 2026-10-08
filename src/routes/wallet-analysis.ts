@@ -19,6 +19,7 @@ import { WalletGraph } from "../graph/walletGraph.js";
 import { InMemoryCache } from "../cache/inMemoryCache.js";
 import type { AlgorandConfig } from "../types/index.js";
 
+const MAX_STRING_LENGTH = 255;
 const app = new Hono();
 
 // Shared instances (initialized lazily)
@@ -117,7 +118,12 @@ app.get("/api/v1/wallet/graph", handleFullGraph);
 
 const handleWalletInfo = async (c: any) => {
   const address = c.req.param("address");
-  if (!address || !isValidAddress(address)) {
+  if (
+    !address ||
+    typeof address !== "string" ||
+    address.length > MAX_STRING_LENGTH ||
+    !isValidAddress(address)
+  ) {
     return c.json({ error: "Invalid Algorand address format" }, 400);
   }
   try {
@@ -156,7 +162,12 @@ app.get("/api/v1/wallet/:address", handleWalletInfo);
 
 const handleWalletTxs = async (c: any) => {
   const address = c.req.param("address");
-  if (!address || !isValidAddress(address)) {
+  if (
+    !address ||
+    typeof address !== "string" ||
+    address.length > MAX_STRING_LENGTH ||
+    !isValidAddress(address)
+  ) {
     return c.json({ error: "Invalid Algorand address format" }, 400);
   }
   const limitParam = c.req.query("limit");
@@ -227,7 +238,12 @@ app.get("/api/v1/wallet/:address/txs", handleWalletTxs);
 
 const handleWalletSiblings = async (c: any) => {
   const address = c.req.param("address");
-  if (!address || !isValidAddress(address)) {
+  if (
+    !address ||
+    typeof address !== "string" ||
+    address.length > MAX_STRING_LENGTH ||
+    !isValidAddress(address)
+  ) {
     return c.json({ error: "Invalid Algorand address format" }, 400);
   }
   try {
@@ -273,7 +289,12 @@ app.get("/api/v1/wallet/:address/siblings", handleWalletSiblings);
 
 const handleWalletGraph = async (c: any) => {
   const address = c.req.param("address");
-  if (!address || !isValidAddress(address)) {
+  if (
+    !address ||
+    typeof address !== "string" ||
+    address.length > MAX_STRING_LENGTH ||
+    !isValidAddress(address)
+  ) {
     return c.json({ error: "Invalid Algorand address format" }, 400);
   }
   try {
