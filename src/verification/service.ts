@@ -74,9 +74,11 @@ export class VerificationService {
   async initiateVerification({
     email,
     walletAddress,
+    callbackUrl,
   }: {
     email: string;
     walletAddress: string;
+    callbackUrl?: string;
   }): Promise<{ attemptId: string }> {
     // Resolve provider
     const provider = this.registry.resolve("email");
@@ -99,7 +101,7 @@ export class VerificationService {
     }
 
     // Delegate to provider (which handles OTP generation and email sending)
-    return provider.initiateVerification({ identifier: email, walletAddress });
+    return provider.initiateVerification({ identifier: email, walletAddress, callbackUrl });
   }
 
   /**

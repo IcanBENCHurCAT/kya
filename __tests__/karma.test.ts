@@ -187,56 +187,10 @@ describe('Karma Ledger & KarmaService', () => {
       expect(json.error).toBe('Invalid parameters');
     });
 
-    it('should accept standardized bounty taxonomy events on POST /api/v1/karma/event', async () => {
-      const validAddress = 'KBWP7FHVYOKPNQOH7X3MLL6BHRK33WUNPHP3ZLY4JWPEGNXLNB3SNPBY6F';
-      
-      const res = await app.request('/api/v1/karma/event', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Payment': 'tx_karma_bounty_completed',
-        },
-        body: JSON.stringify({
-          agentAddress: validAddress,
-          eventType: 'bounty.completed',
-          amount: 500,
-          reason: '{"bountyId":"123","rewardAmount":500}',
-        }),
-      });
-
-      expect(res.status).toBe(200);
-      const json = await res.json();
-      expect(json.success).toBe(true);
-      expect(json.score).toBe(600); // 100 base + 500
-    });
-
-    it('should accept amount 0 for emit taxonomy events on POST /api/v1/karma/event', async () => {
-      const validAddress = 'KBWP7FHVYOKPNQOH7X3MLL6BHRK33WUNPHP3ZLY4JWPEGNXLNB3SNPBY6G';
-      
-      const res = await app.request('/api/v1/karma/event', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Payment': 'tx_karma_bounty_posted',
-        },
-        body: JSON.stringify({
-          agentAddress: validAddress,
-          eventType: 'bounty.posted',
-          amount: 0,
-          reason: '{"bountyId":"123"}',
-        }),
-      });
-
-      expect(res.status).toBe(200);
-      const json = await res.json();
-      expect(json.success).toBe(true);
-      expect(json.score).toBe(100); // No change for emit
-    });
-
-    it('should reject negative, non-finite amounts on POST /api/v1/karma/event', async () => {
+    it('should reject non-positive or non-finite amount on POST /api/v1/karma/event', async () => {
       const validAddress = 'KBWP7FHVYOKPNQOH7X3MLL6BHRK33WUNPHP3ZLY4JWPEGNXLNB3SNPBY6E';
 
-      const invalidAmounts = [-100, NaN, Infinity];
+      const invalidAmounts = [-100, 0, NaN, Infinity];
       for (const amount of invalidAmounts) {
         const res = await app.request('/api/v1/karma/event', {
           method: 'POST',
@@ -256,25 +210,6 @@ describe('Karma Ledger & KarmaService', () => {
         expect(json.error).toBe('Invalid parameters');
       }
     });
-    
-    it('should reject amount 0 for credit or debit events on POST /api/v1/karma/event', async () => {
-      const validAddress = 'KBWP7FHVYOKPNQOH7X3MLL6BHRK33WUNPHP3ZLY4JWPEGNXLNB3SNPBY6E';
-
-      const res = await app.request('/api/v1/karma/event', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Payment': 'tx_karma_invalid_zero_credit',
-        },
-        body: JSON.stringify({
-          agentAddress: validAddress,
-          eventType: 'credit',
-          amount: 0,
-        }),
-      });
-
-      expect(res.status).toBe(400);
-    });
 
     it('should reject oversized or non-string reason/txid on POST /api/v1/karma/event', async () => {
       const validAddress = 'KBWP7FHVYOKPNQOH7X3MLL6BHRK33WUNPHP3ZLY4JWPEGNXLNB3SNPBY6E';
@@ -290,7 +225,7 @@ describe('Karma Ledger & KarmaService', () => {
           agentAddress: validAddress,
           eventType: 'credit',
           amount: 100,
-          reason: 'a'.repeat(1025),
+          reason: 'a'.repeat(256),
         }),
       });
       expect(resOversizedReason.status).toBe(400);

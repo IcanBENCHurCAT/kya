@@ -27,7 +27,8 @@ CREATE TABLE IF NOT EXISTS verification_attempts (
   expires_at BIGINT NOT NULL,          -- Unix epoch ms (TTL)
   attempt_count INTEGER NOT NULL DEFAULT 0,
   max_attempts INTEGER NOT NULL DEFAULT 5,
-  created_at BIGINT NOT NULL           -- Unix epoch ms
+  created_at BIGINT NOT NULL,          -- Unix epoch ms
+  callback_url TEXT                    -- Optional webhook URL
 );
 
 -- Index for TTL-based cleanup

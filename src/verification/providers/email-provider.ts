@@ -20,6 +20,7 @@ import { ClaimStore } from "../claim-store.js";
 import { InMemoryAttemptStore } from "../in-memory-store.js";
 import { verifyAndSignClaim } from "../../utils/crypto.js";
 import { VerificationSuccess } from "../types.js";
+import { WebhookService } from "../webhook.js";
 
 export interface EmailProviderOptions {
   /** Attempt store for OTP persistence */
@@ -38,6 +39,8 @@ export interface EmailProviderOptions {
   otpTtlMs?: number;
   /** Max OTP attempts (default: 5) */
   maxAttempts?: number;
+  /** Optional webhook service to notify upon completion */
+  webhookService?: WebhookService;
 }
 
 export class EmailVerificationProvider implements VerificationProvider {
@@ -51,6 +54,7 @@ export class EmailVerificationProvider implements VerificationProvider {
   private otpLength: number;
   private otpTtlMs: number;
   private maxAttempts: number;
+  private webhookService?: WebhookService;
 
   constructor(options: EmailProviderOptions) {
     this.attemptStore = options.attemptStore;
@@ -60,6 +64,7 @@ export class EmailVerificationProvider implements VerificationProvider {
     this.otpLength = options.otpLength ?? 6;
     this.otpTtlMs = options.otpTtlMs ?? 600_000; // 10 minutes
     this.maxAttempts = options.maxAttempts ?? 5;
+    this.webhookService = options.webhookService;
 
     // Default sendEmail does nothing (for testing/development)
     this.sendEmail =
@@ -94,9 +99,11 @@ export class EmailVerificationProvider implements VerificationProvider {
   async initiateVerification({
     identifier: email,
     walletAddress,
+    callbackUrl,
   }: {
     identifier: string;
     walletAddress: string;
+    callbackUrl?: string;
   }): Promise<{ attemptId: string }> {
     // 1. Validate email format
     this.validateIdentifier(email);
@@ -131,6 +138,7 @@ export class EmailVerificationProvider implements VerificationProvider {
       attemptCount: 0,
       maxAttempts: this.maxAttempts,
       createdAt: Date.now(),
+      callbackUrl,
     });
 
     // 5. "Send" email
@@ -262,13 +270,34 @@ export class EmailVerificationProvider implements VerificationProvider {
       keyId: this.keyId,
     });
 
-    // 10. Store claim (attemptId already deleted, so null)
-    const result = await this.claimStore.createClaim({
-      ...claim,
-      attemptId: null, // attempt was deleted
-    });
+    try {
+      // 10. Store claim (attemptId already deleted, so null)
+      const result = await this.claimStore.createClaim({
+        ...claim,
+        attemptId: null, // attempt was deleted
+      });
 
-    return { claim: result, isNew: true };
+      if (attempt.callbackUrl && this.webhookService) {
+        this.webhookService.dispatch(attempt.callbackUrl, {
+          status: "success",
+          walletAddress,
+          identityHash,
+          method: "email",
+          verifiedAt: result.verifiedAt,
+        });
+      }
+
+      return { claim: result, isNew: true };
+    } catch (error) {
+      if (attempt.callbackUrl && this.webhookService) {
+        this.webhookService.dispatch(attempt.callbackUrl, {
+          status: "failure",
+          walletAddress,
+          error: (error as Error).message,
+        });
+      }
+      throw error;
+    }
   }
 }
 
