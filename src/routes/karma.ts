@@ -33,12 +33,6 @@ export function createKarmaRoutes(karmaService: KarmaService = defaultKarmaServi
     const body = (await c.req.json().catch(() => ({}))) || {};
     const { agentAddress, eventType, amount, reason, txid } = body;
 
-    const allowedEventTypes = [
-      'credit', 'debit', 'emit', 'CREDIT', 'DEBIT', 'EMIT',
-      'bounty.posted', 'bounty.claimed', 'bounty.completed',
-      'bounty.rejected', 'bounty.disputed', 'dispute.resolved', 'payout.released'
-    ];
-
     // Security: Validate required parameters and strictly enforce finite, positive amount
     // and string type bounds to prevent NaN score corruption, type confusion, and unhandled exceptions.
     if (
@@ -47,23 +41,16 @@ export function createKarmaRoutes(karmaService: KarmaService = defaultKarmaServi
       agentAddress.length > MAX_STRING_LENGTH ||
       !isValidAddress(agentAddress) ||
       !eventType ||
-      typeof eventType !== 'string' ||
       typeof amount !== 'number' ||
       !Number.isFinite(amount) ||
-      amount < 0 || // allow 0 for 'emit' types
-      !allowedEventTypes.includes(eventType)
+      amount <= 0 ||
+      !['credit', 'debit', 'emit', 'CREDIT', 'DEBIT', 'EMIT'].includes(eventType)
     ) {
       return c.json({ error: 'Invalid parameters' }, 400);
     }
-    
-    if (amount === 0 && !eventType.toLowerCase().includes('emit') && !eventType.toLowerCase().includes('bounty.posted') && !eventType.toLowerCase().includes('bounty.claimed') && !eventType.toLowerCase().includes('bounty.disputed') && !eventType.toLowerCase().includes('payout.released')) {
-       return c.json({ error: 'Invalid parameters' }, 400);
-    }
 
     // Security: Validate optional reason and txid types and bounds to prevent DoS / payload injection
-    // Now reason can be larger to support JSON stringified payload metadata (up to 1024 bytes)
-    const MAX_REASON_LENGTH = 1024;
-    if (reason !== undefined && (typeof reason !== 'string' || reason.length > MAX_REASON_LENGTH)) {
+    if (reason !== undefined && (typeof reason !== 'string' || reason.length > MAX_STRING_LENGTH)) {
       return c.json({ error: 'Invalid parameters' }, 400);
     }
 

@@ -29,6 +29,7 @@ export function createVerificationRoutes(
       const body = ((await c.req.json().catch(() => ({}))) || {}) as {
         email?: string;
         walletAddress?: string;
+        callbackUrl?: string;
       };
 
       if (
@@ -53,9 +54,14 @@ export function createVerificationRoutes(
         );
       }
 
+      if (body.callbackUrl && (typeof body.callbackUrl !== "string" || body.callbackUrl.length > MAX_STRING_LENGTH || !body.callbackUrl.startsWith("http"))) {
+        return c.json({ error: "Invalid callbackUrl format" }, 400);
+      }
+
       const { attemptId } = await verificationService.initiateVerification({
         email: body.email,
         walletAddress: body.walletAddress,
+        callbackUrl: body.callbackUrl,
       });
 
       return c.json({ attemptId }, 200);

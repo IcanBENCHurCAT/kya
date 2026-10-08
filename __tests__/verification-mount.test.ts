@@ -33,7 +33,7 @@ describe("Verification Route Mounts", () => {
   it("should configure Supabase stores when env vars are present", async () => {
     process.env.SUPABASE_URL = "http://localhost:54321";
     process.env.SUPABASE_SERVICE_ROLE_KEY = "dummy-service-role-key";
-    process.env.KYA_PRIVATE_KEY = "dummy-private-key-for-testing";
+    process.env.KYA_PRIVATE_KEY = "-----BEGIN PRIVATE KEY-----\nMC4CAQAwBQYDK2VwBCIEILIqrwgWkSP8bD3qgQaB3oEas6dNG3VJyuuiVvzpRf2Q\n-----END PRIVATE KEY-----";
 
     const consoleSpy = vi.spyOn(console, "log");
 

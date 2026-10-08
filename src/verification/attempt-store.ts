@@ -35,6 +35,7 @@ export class AttemptStore {
         attempt_count: attempt.attemptCount,
         max_attempts: attempt.maxAttempts,
         created_at: attempt.createdAt,
+        callback_url: attempt.callbackUrl,
       })
       .select()
       .single();
@@ -53,6 +54,7 @@ export class AttemptStore {
       attemptCount: data.attempt_count,
       maxAttempts: data.max_attempts,
       createdAt: data.created_at,
+      callbackUrl: data.callback_url,
     };
   }
 
@@ -82,6 +84,7 @@ export class AttemptStore {
       attemptCount: data.attempt_count,
       maxAttempts: data.max_attempts,
       createdAt: data.created_at,
+      callbackUrl: data.callback_url,
     };
   }
 
@@ -115,6 +118,7 @@ export class AttemptStore {
       attemptCount: data.attempt_count,
       maxAttempts: data.max_attempts,
       createdAt: data.created_at,
+      callbackUrl: data.callback_url,
     };
   }
 

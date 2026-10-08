@@ -37,6 +37,7 @@ import { InMemoryAttemptStore } from "./verification/in-memory-store.js";
 import { EmailVerificationProvider } from "./verification/providers/email-provider.js";
 import { VerificationService } from "./verification/service.js";
 import { sendEmail } from "./utils/email.js";
+import { WebhookService } from "./verification/webhook.js";
 import { checkHealth } from "./services/health.js";
 
 // Mount all apps into a single router
@@ -386,6 +387,8 @@ if (privateKey) {
   signingKeyPEM = keys.privateKey;
 }
 
+const webhookService = new WebhookService(signingKeyPEM, keyId);
+
 // Set up email provider
 const emailProvider = new EmailVerificationProvider({
   attemptStore: attemptStore as AttemptStore,
@@ -393,6 +396,7 @@ const emailProvider = new EmailVerificationProvider({
   privateKey: signingKeyPEM,
   keyId,
   sendEmail,
+  webhookService,
 });
 
 // Initialize verification service

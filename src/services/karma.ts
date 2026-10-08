@@ -13,15 +13,10 @@ export interface AgentProfile {
   totalQueriesPaid?: number;
 }
 
-export type KarmaEventType = 
-  | 'credit' | 'debit' | 'emit' | 'CREDIT' | 'DEBIT' | 'EMIT'
-  | 'bounty.posted' | 'bounty.claimed' | 'bounty.completed'
-  | 'bounty.rejected' | 'bounty.disputed' | 'dispute.resolved' | 'payout.released';
-
 export interface KarmaEvent {
   id: string;
   agentAddress: string;
-  eventType: KarmaEventType;
+  eventType: 'credit' | 'debit' | 'emit' | 'CREDIT' | 'DEBIT' | 'EMIT';
   amount: number;
   reason: string;
   timestamp: string;
@@ -192,27 +187,20 @@ export class KarmaService {
 
   public async recordEvent(params: {
     agentAddress: string;
-    eventType: string; // broadened to accept taxonomy types
+    eventType: 'credit' | 'debit' | 'emit' | 'CREDIT' | 'DEBIT' | 'EMIT';
     amount: number;
     reason: string;
     txid?: string;
   }): Promise<KarmaRecord> {
     const { agentAddress, eventType, amount, reason, txid } = params;
-    const normalizedType = eventType.toLowerCase() as KarmaEventType;
+    const normalizedType = eventType.toLowerCase() as 'credit' | 'debit' | 'emit';
 
     let delta = 0;
-    if (normalizedType === 'credit' || normalizedType === 'bounty.completed') {
+    if (normalizedType === 'credit') {
       delta = amount;
-    } else if (normalizedType === 'debit' || normalizedType === 'bounty.rejected') {
+    } else if (normalizedType === 'debit') {
       delta = -amount;
-    } else if (normalizedType === 'dispute.resolved') {
-      // For resolved disputes, the delta can be positive or negative depending on the passed amount.
-      // E.g. If positive amount, it's a credit, if negative it's a debit (though amounts are usually absolute positive,
-      // in which case it requires further signaling. For now, assume amount is positive and behaves like a credit,
-      // or rely on a wrapper logic). Assuming amount acts as credit here if positive.
-      delta = amount; 
     }
-    // 'emit', 'bounty.posted', 'bounty.claimed', 'bounty.disputed', 'payout.released' have delta = 0 unless amount specified (we treat them as emits).
 
     const now = new Date().toISOString();
 

@@ -43,6 +43,8 @@ export interface VerificationAttempt {
   maxAttempts: number;
   /** Created timestamp */
   createdAt: number;
+  /** Optional webhook callback URL to notify upon completion */
+  callbackUrl?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -182,6 +184,7 @@ export interface VerificationProvider {
   initiateVerification(params: {
     identifier: string;
     walletAddress: string;
+    callbackUrl?: string;
   }): Promise<{ attemptId: string }>;
 
   /**
