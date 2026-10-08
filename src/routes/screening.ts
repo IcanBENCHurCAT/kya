@@ -309,8 +309,18 @@ app.post("/api/v1/screen/bulk", async (c) => {
 
   const config = { ...SCREENING_CONFIG, ...body.config };
 
-  // Resolve beneficial owners for each target
-  const resolvedTargets = targets.map((t) => {
+  // Performance optimization: Single-pass consolidation over targets array.
+  // Resolves beneficial owner, executes screening, logs audit event, constructs result payload,
+  // and aggregates status counts in a single pass with a pre-allocated array (new Array(targets.length)).
+  // Eliminates intermediate resolvedTargets array, temporary target objects, and post-pass counting loops.
+  const targetCount = targets.length;
+  const results = new Array(targetCount);
+  let noMatchFound = 0;
+  let potentialMatch = 0;
+  let requiresReview = 0;
+
+  for (let i = 0; i < targetCount; i++) {
+    const t = targets[i];
     let owner = t.beneficialOwner;
     if (!owner && hasVerifiedOwner(t.address)) {
       const identity = resolveWalletIdentity(t.address);
@@ -318,42 +328,11 @@ app.post("/api/v1/screen/bulk", async (c) => {
         owner = identity.verifiedOwner.name;
       }
     }
-    return { address: t.address, beneficialOwner: owner };
-  });
 
-  // Run screening for each target
-  const results = resolvedTargets.map((t) => {
-    const result = screenSanctions(
-      t.address,
-      t.beneficialOwner,
-      watchlist,
-      config,
-    );
+    const result = screenSanctions(t.address, owner, watchlist, config);
     logScreening(result);
-    return {
-      address: t.address,
-      result,
-      screeningResult: {
-        status: result.status,
-        recommendation:
-          result.status === "POTENTIAL_MATCH"
-            ? "ESCALATE"
-            : result.status === "MATCH_REQUIRES_REVIEW"
-              ? "REVIEW"
-              : "NO_ACTION_REQUIRED",
-        reason: result.details,
-      },
-    };
-  });
 
-  // Performance optimization: Single pass counting over results array.
-  // Replaces 3 separate results.filter() calls to eliminate temporary array allocations and redundant iterations.
-  let noMatchFound = 0;
-  let potentialMatch = 0;
-  let requiresReview = 0;
-
-  for (let i = 0; i < results.length; i++) {
-    const status = results[i].screeningResult.status;
+    const status = result.status;
     if (status === "NO_MATCH_FOUND") {
       noMatchFound++;
     } else if (status === "POTENTIAL_MATCH") {
@@ -361,10 +340,25 @@ app.post("/api/v1/screen/bulk", async (c) => {
     } else if (status === "MATCH_REQUIRES_REVIEW") {
       requiresReview++;
     }
+
+    results[i] = {
+      address: t.address,
+      result,
+      screeningResult: {
+        status,
+        recommendation:
+          status === "POTENTIAL_MATCH"
+            ? "ESCALATE"
+            : status === "MATCH_REQUIRES_REVIEW"
+              ? "REVIEW"
+              : "NO_ACTION_REQUIRED",
+        reason: result.details,
+      },
+    };
   }
 
   const summary = {
-    total: results.length,
+    total: targetCount,
     noMatchFound,
     potentialMatch,
     requiresReview,
