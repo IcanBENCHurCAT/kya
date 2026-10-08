@@ -43,6 +43,29 @@ class KyaClient:
         response.raise_for_status()
         return response.json()
 
+    def initiate_email_verification(self, email: str, wallet_address: str) -> Dict[str, Any]:
+        """Start email OTP verification."""
+        url = f"{self.base_url}/api/v1/verify/email/initiate"
+        payload = {
+            "email": email,
+            "walletAddress": wallet_address,
+        }
+        response = requests.post(url, json=payload, headers=self._get_headers())
+        response.raise_for_status()
+        return response.json()
+
+    def complete_email_verification(self, attempt_id: str, code: str, wallet_address: str) -> Dict[str, Any]:
+        """Complete email OTP verification."""
+        url = f"{self.base_url}/api/v1/verify/email/complete"
+        payload = {
+            "attemptId": attempt_id,
+            "code": code,
+            "walletAddress": wallet_address,
+        }
+        response = requests.post(url, json=payload, headers=self._get_headers())
+        response.raise_for_status()
+        return response.json()
+
     def execute_a2a_handshake(
         self, initiator_address: str, target_address: str, min_karma_score: int = 600
     ) -> Dict[str, Any]:
