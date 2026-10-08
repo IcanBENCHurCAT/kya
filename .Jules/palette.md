@@ -87,3 +87,8 @@
 
 **Learning:** Custom 404 error pages often present dead ends for keyboard and screen reader users. Adding a primary CTA with a single-key keyboard shortcut (`aria-keyshortcuts="h"`, `<kbd>H</kbd>`, and guarded `h`/`H` keydown listener) alongside HTTP method badges (`<span class="method-badge">GET</span>`) and `@media (forced-colors: active)` CSS rules maintains visual and navigational consistency across service error pages.
 **Action:** Pair 404 recovery CTA buttons with single-key keyboard shortcuts (`H`), visual `<kbd>` badges, method-labeled endpoint discovery links, and high-contrast CSS overrides.
+
+## 2026-10-07 - Keyboard Shortcut Discoverability & Focus Synchronization on Tab Navigation
+
+**Learning:** Single-key keyboard shortcuts (such as `1`, `2`, `3` for tabs) increase efficiency for power users, but without a visible keyboard shortcut legend and explicit focus management (`element.focus()`), non-mouse users are unaware shortcuts exist and lose focus tracking for arrow-key navigation.
+**Action:** Always pair single-key navigation shortcuts with a concise visual keyboard legend and invoke `element.focus()` when programmatically activating controls via keydown listeners.
