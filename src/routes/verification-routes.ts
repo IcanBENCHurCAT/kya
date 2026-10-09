@@ -14,6 +14,7 @@ import { Hono } from "hono";
 import { isValidAddress } from "algosdk";
 import { VerificationService } from "../verification/service.js";
 import { VerificationError } from "../verification/types.js";
+import { isValidCallbackUrl } from "../verification/webhook.js";
 
 const MAX_STRING_LENGTH = 255;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -54,7 +55,7 @@ export function createVerificationRoutes(
         );
       }
 
-      if (body.callbackUrl && (typeof body.callbackUrl !== "string" || body.callbackUrl.length > MAX_STRING_LENGTH || !body.callbackUrl.startsWith("http"))) {
+      if (body.callbackUrl && !isValidCallbackUrl(body.callbackUrl)) {
         return c.json({ error: "Invalid callbackUrl format" }, 400);
       }
 

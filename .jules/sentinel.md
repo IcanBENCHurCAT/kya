@@ -57,3 +57,8 @@
 **Vulnerability:** `incrementAttempt` in `src/verification/attempt-store.ts` passed `{ attempt_count: { increment: 1 } }` to Supabase `update()`. PostgREST serialized this as JSON object `{ "increment": 1 }`, causing PostgreSQL to throw an integer type error, silently fail the update, and allow attackers to brute force 6-digit OTP codes without hitting attempt limits.
 **Learning:** PostgREST/Supabase JavaScript client does not support object expressions like `{ increment: 1 }` for numeric database columns. Unhandled DB errors in update calls result in silent rate-limiting bypasses.
 **Prevention:** Always fetch current records to compute explicit numeric increments or use database RPC functions when updating numeric counts with Supabase.
+
+## 2025-05-18 - Server-Side Request Forgery (SSRF) and Weak URL Validation in Webhooks
+**Vulnerability:** `POST /verify/email/initiate` validated `callbackUrl` using simple `startsWith("http")` string check, and `WebhookService` dispatched POST requests without checking target hostnames. This allowed callers to specify loopback (`127.0.0.1`, `localhost`), private IP ranges (`10.x`, `172.16-31.x`, `192.168.x`), and cloud metadata IPs (`169.254.169.254`) as webhook targets.
+**Learning:** Checking string prefixes like `startsWith("http")` is insufficient for outbound HTTP request targets because loopback, internal IPs, and cloud metadata services use valid `http://` or `https://` URLs.
+**Prevention:** Always validate callback URLs with `new URL()`, enforce `http:`/`https:` schemes, and block loopback, private IPv4/IPv6 subnets, cloud metadata IPs, and internal domain names (`.local`, `.internal`) before sending outbound requests.

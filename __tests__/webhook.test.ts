@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { WebhookService } from "../src/verification/webhook.js";
+import { WebhookService, isValidCallbackUrl } from "../src/verification/webhook.js";
 import { generateSigningKey } from "../src/utils/crypto.js";
 import { compactVerify, importSPKI } from "jose";
 
@@ -93,6 +93,37 @@ describe("WebhookService", () => {
     await new Promise((resolve) => setTimeout(resolve, 1500));
 
     expect(global.fetch).toHaveBeenCalledTimes(2);
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining("Final webhook delivery failure"),
+      expect.any(Error)
+    );
+  });
+
+  it("should validate callback URLs and block internal/private SSRF targets", () => {
+    expect(isValidCallbackUrl("https://example.com/webhook")).toBe(true);
+    expect(isValidCallbackUrl("http://api.service.org/callback")).toBe(true);
+
+    // Forbidden SSRF targets
+    expect(isValidCallbackUrl("http://127.0.0.1:3000/internal")).toBe(false);
+    expect(isValidCallbackUrl("http://localhost:8080")).toBe(false);
+    expect(isValidCallbackUrl("http://169.254.169.254/latest/meta-data/")).toBe(false);
+    expect(isValidCallbackUrl("http://10.0.0.1/admin")).toBe(false);
+    expect(isValidCallbackUrl("http://192.168.1.1/router")).toBe(false);
+    expect(isValidCallbackUrl("http://[::1]/status")).toBe(false);
+    expect(isValidCallbackUrl("http://internal-service.local")).toBe(false);
+    expect(isValidCallbackUrl("ftp://example.com/upload")).toBe(false);
+    expect(isValidCallbackUrl("not-a-url")).toBe(false);
+    expect(isValidCallbackUrl("")).toBe(false);
+  });
+
+  it("should reject webhook dispatch to internal SSRF targets without invoking fetch", async () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    webhookService.dispatch("http://127.0.0.1/internal-status", { data: 123 });
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(global.fetch).not.toHaveBeenCalled();
     expect(consoleErrorSpy).toHaveBeenCalledWith(
       expect.stringContaining("Final webhook delivery failure"),
       expect.any(Error)

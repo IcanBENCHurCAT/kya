@@ -1,5 +1,38 @@
 import { CompactSign, importPKCS8 } from "jose";
 
+/**
+ * Security: Validates callback URLs to prevent Server-Side Request Forgery (SSRF)
+ * and unhandled URL parsing exceptions. Blocks loopback, private IP ranges,
+ * cloud metadata endpoints, and internal domain suffixes.
+ */
+export function isValidCallbackUrl(urlStr: unknown): boolean {
+  if (typeof urlStr !== "string" || urlStr.length === 0 || urlStr.length > 255) {
+    return false;
+  }
+  try {
+    const parsed = new URL(urlStr);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return false;
+    }
+    const hostname = parsed.hostname.toLowerCase();
+    if (
+      hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname === "0.0.0.0" ||
+      hostname === "::1" ||
+      hostname === "[::1]" ||
+      hostname.endsWith(".local") ||
+      hostname.endsWith(".internal") ||
+      /^10\.|^172\.(1[6-9]|2[0-9]|3[01])\.|^192\.168\.|^169\.254\./.test(hostname)
+    ) {
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export class WebhookService {
   private pkcs8KeyPromise: Promise<any>;
 
@@ -27,6 +60,9 @@ export class WebhookService {
     maxRetries: number,
     attempt: number
   ): Promise<void> {
+    if (!isValidCallbackUrl(url)) {
+      throw new Error(`Invalid or forbidden webhook callback URL: ${url}`);
+    }
     try {
       const payloadString = JSON.stringify(payload);
       
