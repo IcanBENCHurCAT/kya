@@ -348,7 +348,7 @@ function exactMatch(a: string, b: string): boolean {
  * Partial name match: checks if one name contains the other.
  *
  * Performance optimization:
- * Performs length-ratio pruning before regex operations and reuses cached normalized strings.
+ * Performs strict length-ratio pruning (< 0.7) before regex operations and reuses cached normalized strings.
  */
 function partialNameMatch(aNorm: string, bRaw: string, entry?: SanctionedEntry): boolean {
   const bNorm = entry
@@ -359,16 +359,11 @@ function partialNameMatch(aNorm: string, bRaw: string, entry?: SanctionedEntry):
   const bLen = bNorm.length;
   const minLen = aLen < bLen ? aLen : bLen;
   const maxLen = aLen > bLen ? aLen : bLen;
-  if (minLen <= 3 || (minLen / maxLen) < 0.6) {
+  if (minLen <= 3 || (minLen / maxLen) < 0.7) {
     return false;
   }
 
-  if (aNorm.includes(bNorm) || bNorm.includes(aNorm)) {
-    const shorter = Math.min(aNorm.length, bNorm.length);
-    const longer = Math.max(aNorm.length, bNorm.length);
-    if (shorter > 3 && (shorter / longer) >= 0.7) return true;
-  }
-  return false;
+  return aNorm.includes(bNorm) || bNorm.includes(aNorm);
 }
 
 /**
@@ -401,12 +396,15 @@ export function screenSanctions(
   const hasBo = !!(beneficialOwner && beneficialOwner.trim());
   const boTrimmedLower = hasBo ? beneficialOwner!.toLowerCase().trim() : '';
   const boLower = hasBo ? beneficialOwner!.toLowerCase() : '';
+  const boLen = boLower.length;
+  const boFirstChar = hasBo ? boLower.charCodeAt(0) : 0;
   const boNorm = hasBo ? boLower.replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim() : '';
 
   // Performance optimization: character-frequency tables for the histogram
-  // upper-bound pre-filter in combinedSimilarityLower (built once per call).
+  // upper-bound pre-filter in combinedSimilarityLower & BO screening (built once per call).
   const targetFreq = buildCharFreq(targetLower);
   const targetTrimmedFreq = buildCharFreq(targetTrimmedLower);
+  const boFreq = hasBo ? buildCharFreq(boLower) : histBuf;
 
   // Single pass through all entries across lists
   for (const listName in lists) {
@@ -414,7 +412,7 @@ export function screenSanctions(
     for (let eIdx = 0; eIdx < entries.length; eIdx++) {
       const entry = entries[eIdx];
       // 1. Screen wallet address against national IDs
-      if (settings.matchNationalIds) {
+      if (settings.matchNationalIds && entry.nationalIds.length > 0) {
         const nationalIdsLower = (entry.nationalIdsLower ??= entry.nationalIds.map(id => id.toLowerCase().trim()));
         for (let i = 0; i < nationalIdsLower.length; i++) {
           const natIdTrimmedLower = nationalIdsLower[i];
@@ -451,7 +449,7 @@ export function screenSanctions(
         let bestScore = combinedSimilarityLower(targetLower, entryNameLower, settings.fuzzyTolerance, targetLen, targetFirstChar, targetFreq);
         let bestField = 'name';
 
-        if (settings.matchAliases) {
+        if (settings.matchAliases && entry.aliases.length > 0) {
           const aliasesLower = (entry.aliasesLower ??= entry.aliases.map(a => a.toLowerCase()));
           for (let i = 0; i < aliasesLower.length; i++) {
             const thresh = bestScore > settings.fuzzyTolerance ? bestScore : settings.fuzzyTolerance;
@@ -463,7 +461,7 @@ export function screenSanctions(
           }
         }
 
-        if (settings.matchAddresses) {
+        if (settings.matchAddresses && entry.addresses.length > 0) {
           const addressesLower = (entry.addressesLower ??= entry.addresses.map(a => a.toLowerCase()));
           for (let i = 0; i < addressesLower.length; i++) {
             const thresh = bestScore > settings.fuzzyTolerance ? bestScore : settings.fuzzyTolerance;
@@ -499,18 +497,20 @@ export function screenSanctions(
           score = 1.0;
           matchField = 'name';
         } else if (settings.fuzzyMatch) {
-          const lenA = boLower.length;
           const lenB = entryNameLower.length;
-          const minLen = lenA < lenB ? lenA : lenB;
-          const maxLen = lenA > lenB ? lenA : lenB;
+          const minLen = boLen < lenB ? boLen : lenB;
+          const maxLen = boLen > lenB ? boLen : lenB;
           const ratio = maxLen > 0 ? minLen / maxLen : 0;
 
           // Jaro-Winkler theoretical upper-bound check
-          const maxBound = (boLower.charCodeAt(0) === entryNameLower.charCodeAt(0))
+          const maxBound = (boFirstChar === entryNameLower.charCodeAt(0))
             ? (0.2 * ratio + 0.8)
             : ((ratio + 2.0) / 3);
 
-          if (maxBound >= settings.fuzzyTolerance) {
+          if (
+            maxBound >= settings.fuzzyTolerance &&
+            histogramBoundAllows(boLower, boFreq, entryNameLower, boLen, settings.fuzzyTolerance)
+          ) {
             const jw = jaroWinklerSimilarity(boLower, entryNameLower);
             if (jw >= settings.fuzzyTolerance) {
               score = jw;
@@ -518,19 +518,22 @@ export function screenSanctions(
             }
           }
 
-          if (settings.matchAliases && !score) {
+          if (settings.matchAliases && !score && entry.aliases.length > 0) {
             const aliasesLower = (entry.aliasesLower ??= entry.aliases.map(a => a.toLowerCase()));
             for (let i = 0; i < aliasesLower.length; i++) {
               const aliasLower = aliasesLower[i];
               const aLenB = aliasLower.length;
-              const aMinLen = lenA < aLenB ? lenA : aLenB;
-              const aMaxLen = lenA > aLenB ? lenA : aLenB;
+              const aMinLen = boLen < aLenB ? boLen : aLenB;
+              const aMaxLen = boLen > aLenB ? boLen : aLenB;
               const aRatio = aMaxLen > 0 ? aMinLen / aMaxLen : 0;
-              const aMaxBound = (boLower.charCodeAt(0) === aliasLower.charCodeAt(0))
+              const aMaxBound = (boFirstChar === aliasLower.charCodeAt(0))
                 ? (0.2 * aRatio + 0.8)
                 : ((aRatio + 2.0) / 3);
 
-              if (aMaxBound >= settings.fuzzyTolerance) {
+              if (
+                aMaxBound >= settings.fuzzyTolerance &&
+                histogramBoundAllows(boLower, boFreq, aliasLower, boLen, settings.fuzzyTolerance)
+              ) {
                 const aw = jaroWinklerSimilarity(boLower, aliasLower);
                 if (aw >= settings.fuzzyTolerance && aw > score) {
                   score = aw;
