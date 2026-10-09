@@ -133,7 +133,12 @@ export function createVerificationRoutes(
     try {
       const walletAddress = c.req.param("address");
 
-      if (!walletAddress || !isValidAddress(walletAddress)) {
+      if (
+        !walletAddress ||
+        typeof walletAddress !== "string" ||
+        walletAddress.length > MAX_STRING_LENGTH ||
+        !isValidAddress(walletAddress)
+      ) {
         return c.json({ error: "Invalid wallet address format" }, 400);
       }
 

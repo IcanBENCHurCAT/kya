@@ -399,6 +399,27 @@ app.get("/api/v1/audit", (c) => {
     | "ERROR"
     | undefined;
 
+  if (
+    after !== undefined &&
+    (typeof after !== "string" || after.length > MAX_STRING_LENGTH)
+  ) {
+    return c.json({ error: "Invalid after parameter: string exceeds maximum length" }, 400);
+  }
+  if (
+    before !== undefined &&
+    (typeof before !== "string" || before.length > MAX_STRING_LENGTH)
+  ) {
+    return c.json({ error: "Invalid before parameter: string exceeds maximum length" }, 400);
+  }
+  if (
+    result !== undefined &&
+    (typeof result !== "string" ||
+      result.length > MAX_STRING_LENGTH ||
+      !["NO_MATCH_FOUND", "POTENTIAL_MATCH", "MATCH_REQUIRES_REVIEW", "ERROR"].includes(result))
+  ) {
+    return c.json({ error: "Invalid result parameter: must be a valid audit status" }, 400);
+  }
+
   const entries = getAuditLog({ limit, after, before, result });
   return c.json({ success: true, entries });
 });
