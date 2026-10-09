@@ -92,3 +92,8 @@
 
 **Learning:** Single-key keyboard shortcuts (such as `1`, `2`, `3` for tabs) increase efficiency for power users, but without a visible keyboard shortcut legend and explicit focus management (`element.focus()`), non-mouse users are unaware shortcuts exist and lose focus tracking for arrow-key navigation.
 **Action:** Always pair single-key navigation shortcuts with a concise visual keyboard legend and invoke `element.focus()` when programmatically activating controls via keydown listeners.
+
+## 2026-10-08 - 404 Error Page Discovery Shortcuts & Visual Legend Consistency
+
+**Learning:** When custom 404 pages provide quick discovery links to core service endpoints, keyboard users benefit from single-key direct navigation shortcuts (`1`, `2`, `3`) matching the primary landing page navigation patterns. Decorating 404 endpoint discovery links with `aria-keyshortcuts` attributes, visible `<kbd>` badges, transient visual active key states, and a visual keyboard shortcut legend ensures seamless keyboard navigation across error boundaries.
+**Action:** Add `aria-keyshortcuts`, `<kbd>` badges, guarded keydown navigation listeners, and a visible shortcut legend to 404 error page discovery links.
