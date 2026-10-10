@@ -669,7 +669,7 @@ describe("Bulk Screening", () => {
     expect(res6.status).toBe(400);
   });
 
-  it("should validate and bound audit API limit query parameter", async () => {
+  it("should validate and bound audit API query parameters", async () => {
     const app = (await import("../src/routes/screening.js")).default;
 
     // Test negative limit query param
@@ -685,6 +685,25 @@ describe("Bulk Screening", () => {
     // Test valid limit query param is accepted and capped
     const res3 = await app.request("/api/v1/audit?limit=2000");
     expect(res3.status).toBe(200);
+
+    // Test oversized after query parameter
+    const longParam = "2".repeat(300);
+    const res4 = await app.request(`/api/v1/audit?after=${longParam}`);
+    expect(res4.status).toBe(400);
+    const body4 = await res4.json();
+    expect(body4.error).toContain("Invalid after parameter");
+
+    // Test oversized before query parameter
+    const res5 = await app.request(`/api/v1/audit?before=${longParam}`);
+    expect(res5.status).toBe(400);
+    const body5 = await res5.json();
+    expect(body5.error).toContain("Invalid before parameter");
+
+    // Test invalid result enum query parameter
+    const res6 = await app.request("/api/v1/audit?result=INVALID_STATUS");
+    expect(res6.status).toBe(400);
+    const body6 = await res6.json();
+    expect(body6.error).toContain("Invalid result parameter");
   });
 
   it("should safely handle requests when c.env or WATCHLIST is missing or undefined", async () => {

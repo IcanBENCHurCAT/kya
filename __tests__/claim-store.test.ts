@@ -448,6 +448,7 @@ describe('ClaimStore', () => {
       const mockService = {
         initiateVerification: vi.fn(),
         completeVerification: vi.fn(),
+        checkVerification: vi.fn(),
         getAvailableMethods: vi.fn().mockReturnValue(['email']),
       } as unknown as VerificationService;
 
@@ -477,8 +478,15 @@ describe('ClaimStore', () => {
       });
       expect(res3.status).toBe(400);
 
+      // Oversized wallet address on wallet check
+      const longAddress = 'A'.repeat(300);
+      const res4 = await router.request(`/verify/wallet/${longAddress}`);
+      expect(res4.status).toBe(400);
+      expect(await res4.json()).toEqual({ error: 'Invalid wallet address format' });
+
       expect(mockService.initiateVerification).not.toHaveBeenCalled();
       expect(mockService.completeVerification).not.toHaveBeenCalled();
+      expect(mockService.checkVerification).not.toHaveBeenCalled();
     });
   });
 
