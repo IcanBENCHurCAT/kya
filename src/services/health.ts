@@ -83,9 +83,10 @@ export async function checkHealth(): Promise<HealthCheckResult> {
         }
         return { ok: true, latencyMs };
       } catch (err: any) {
+        // Security: Return generic 'probe_failed' to prevent leaking internal database URLs, credentials, hostnames, or system error messages
         return {
           ok: false,
-          detail: err.name === 'AbortError' ? 'timeout' : err.message
+          detail: err.name === 'AbortError' ? 'timeout' : 'probe_failed'
         };
       }
     })(),
@@ -124,9 +125,10 @@ export async function checkHealth(): Promise<HealthCheckResult> {
         }
         return { ok: false, latencyMs, detail: `HTTP ${res.status}` };
       } catch (err: any) {
+        // Security: Return generic 'probe_failed' to prevent leaking internal service URLs, hostnames, or system error messages
         return {
           ok: false,
-          detail: err.name === 'AbortError' ? 'timeout' : err.message
+          detail: err.name === 'AbortError' ? 'timeout' : 'probe_failed'
         };
       }
     })()

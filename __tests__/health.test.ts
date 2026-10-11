@@ -220,6 +220,44 @@ describe('Health Checks', () => {
     expect(result.checks.supabase.detail).toBe('timeout');
   });
 
+  it('should sanitize probe exception details to probe_failed and avoid leaking sensitive internal network info', async () => {
+    // Mock Supabase throwing an error with sensitive internal connection details
+    const sensitiveError = new Error('connect ECONNREFUSED 10.0.1.5:5432 secret_token=xyz');
+    mockFetch.mockRejectedValueOnce(sensitiveError);
+
+    // Mock Watchlist passing
+    vi.mocked(watchlistUpdater.getState).mockReturnValue({
+      totalEntries: 100,
+      lastUpdate: '2023-01-01',
+      lastUpdateSource: 'mock',
+      version: '1',
+      running: false,
+    });
+    vi.mocked(watchlistUpdater.getSummary).mockReturnValue({
+      totalEntries: 100,
+      lastUpdated: '2023-01-01',
+      name: 'mock',
+      version: '1',
+      source: 'mock',
+      cached: true,
+    });
+
+    // Mock Algorand throwing a generic network error
+    mockFetch.mockRejectedValueOnce(new Error('getaddrinfo ENOTFOUND internal-node.local'));
+
+    const result = await checkHealth();
+
+    expect(result.status).toBe('degraded');
+    expect(result.checks.supabase.ok).toBe(false);
+    expect(result.checks.supabase.detail).toBe('probe_failed');
+    expect(result.checks.supabase.detail).not.toContain('10.0.1.5');
+    expect(result.checks.supabase.detail).not.toContain('secret_token');
+
+    expect(result.checks.algorand.ok).toBe(false);
+    expect(result.checks.algorand.detail).toBe('probe_failed');
+    expect(result.checks.algorand.detail).not.toContain('internal-node.local');
+  });
+
   describe('Integration with Hono endpoints', () => {
     it('should return 200 for /health when healthy', async () => {
       // Mock Supabase passing
