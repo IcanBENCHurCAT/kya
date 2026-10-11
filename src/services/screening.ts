@@ -294,6 +294,15 @@ function combinedSimilarityLower(
     const minLen = lenA < lenB ? lenA : lenB;
     const maxLen = lenA > lenB ? lenA : lenB;
     const ratio = minLen / maxLen;
+
+    // Optimization: Fast length-ratio upper bound pruning.
+    // Since Jaro-Winkler score jw <= 1.0 and Levenshtein similarity lv <= ratio,
+    // combined similarity <= 0.7 * 1.0 + 0.3 * ratio. If 0.7 + 0.3 * ratio < threshold,
+    // the true combined score cannot reach threshold, pruning immediately before inspecting character codes.
+    if (0.7 + 0.3 * ratio < threshold) {
+      return 0.0;
+    }
+
     const aFirstChar = aFirstCharParam ?? aLower.charCodeAt(0);
 
     // Theoretical upper bound on combined similarity (0.7 * jw + 0.3 * lv)
