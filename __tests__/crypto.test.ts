@@ -101,4 +101,53 @@ describe("Crypto utilities - verifyExistingClaim", () => {
     const isValid = await verifyExistingClaim(fullClaim, keys2.publicKey);
     expect(isValid).toBe(false);
   });
+
+  it("should return false gracefully without throwing for malformed or non-string inputs", async () => {
+    const keys = await generateSigningKey();
+
+    // Invalid/malformed signature or non-string inputs
+    expect(
+      await verifyClaimSignature({
+        walletAddress: "A".repeat(58),
+        identityHash: "a".repeat(64),
+        verifiedAt: Date.now(),
+        signature: "invalid-non-hex-sig",
+        publicKey: keys.publicKey,
+      })
+    ).toBe(false);
+
+    expect(
+      await verifyClaimSignature({
+        walletAddress: "A".repeat(58),
+        identityHash: "a".repeat(64),
+        verifiedAt: Date.now(),
+        signature: "",
+        publicKey: keys.publicKey,
+      })
+    ).toBe(false);
+
+    expect(
+      await verifyClaimSignature({
+        walletAddress: "A".repeat(58),
+        identityHash: "a".repeat(64),
+        verifiedAt: Date.now(),
+        signature: "abcd",
+        publicKey: "not-a-valid-pem",
+      })
+    ).toBe(false);
+
+    expect(
+      await verifyClaimSignature(null as any)
+    ).toBe(false);
+
+    expect(
+      await verifyClaimSignature({
+        walletAddress: 123 as any,
+        identityHash: "a".repeat(64),
+        verifiedAt: Date.now(),
+        signature: "abcd",
+        publicKey: keys.publicKey,
+      })
+    ).toBe(false);
+  });
 });
