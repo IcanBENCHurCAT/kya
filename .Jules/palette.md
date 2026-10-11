@@ -97,3 +97,8 @@
 
 **Learning:** When custom 404 pages provide quick discovery links to core service endpoints, keyboard users benefit from single-key direct navigation shortcuts (`1`, `2`, `3`) matching the primary landing page navigation patterns. Decorating 404 endpoint discovery links with `aria-keyshortcuts` attributes, visible `<kbd>` badges, transient visual active key states, and a visual keyboard shortcut legend ensures seamless keyboard navigation across error boundaries.
 **Action:** Add `aria-keyshortcuts`, `<kbd>` badges, guarded keydown navigation listeners, and a visible shortcut legend to 404 error page discovery links.
+
+## 2026-10-09 - Landing Page Discovery Links External Tab Affordance & Tooltips
+
+**Learning:** Static service discovery links on developer landing pages that navigate away in-place disrupt user exploration when reviewing raw JSON metadata or health checks. Adding `target="_blank" rel="noopener noreferrer"` paired with explicit `(opens in new tab)` annotations in both `title` tooltips and `aria-label` attributes guarantees secure external tab navigation while giving screen readers explicit context about context switches.
+**Action:** Always complement `target="_blank" rel="noopener noreferrer"` links with explicit `(opens in new tab)` text in `title` tooltips and `aria-label` attributes.

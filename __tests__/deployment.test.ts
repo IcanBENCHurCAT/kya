@@ -110,6 +110,15 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       expect(html).toContain("code.failed");
       expect(html).toContain('aria-label="Available keyboard shortcuts"');
       expect(html).toContain("tabs[num].focus()");
+      expect(html).toContain('href="/health" target="_blank" rel="noopener noreferrer"');
+      expect(html).toContain('title="View health check status (opens in new tab)"');
+      expect(html).toContain('aria-label="View health check status (opens in new tab)"');
+      expect(html).toContain('href="/.well-known/x402.json" target="_blank" rel="noopener noreferrer"');
+      expect(html).toContain('title="View x402 merchant discovery metadata (opens in new tab)"');
+      expect(html).toContain('aria-label="View x402 merchant discovery metadata (opens in new tab)"');
+      expect(html).toContain('href="/.well-known/agent-card.json" target="_blank" rel="noopener noreferrer"');
+      expect(html).toContain('title="View A2A Agent Card manifest (opens in new tab)"');
+      expect(html).toContain('aria-label="View A2A Agent Card manifest (opens in new tab)"');
     });
 
     it("should return JSON service info for GET / when Accept: application/json", async () => {
