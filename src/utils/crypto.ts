@@ -113,6 +113,8 @@ const EDDSA_HEADER_BASE64URL = "eyJhbGciOiJFZERTQSJ9";
 
 /**
  * Verify a verification claim signature.
+ * Security: Performs type, length, and format validation on parameters and wraps
+ * key loading and signature reconstruction in try...catch to fail securely without unhandled exceptions.
  */
 export async function verifyClaimSignature(params: {
   walletAddress: string;
@@ -121,20 +123,32 @@ export async function verifyClaimSignature(params: {
   signature: string;
   publicKey: string;
 }): Promise<boolean> {
-  // Performance optimization: Cached importSPKI key lookup avoids re-parsing SPKI PEM on every verification operation.
-  const publicKey = await getPublicKey(params.publicKey);
-
-  const message = `${params.walletAddress}|${params.identityHash}|${params.verifiedAt}`;
-
-  // Reconstruct the compact JWS: base64url(header).base64url(payload).base64url(signature)
-  // Optimization: Direct hex-to-base64url encoding via Buffer.from(signature, 'hex').toString('base64url')
-  // replaces regex match(/.{1,2}/g), array map/parseInt, and Uint8Array construction.
-  // Reduces reconstruction runtime by ~88% (~9x faster) and avoids GC array allocations.
-  const base64urlSignature = Buffer.from(params.signature, "hex").toString("base64url");
-  const base64urlMessage = Buffer.from(message).toString("base64url");
-  const jws = `${EDDSA_HEADER_BASE64URL}.${base64urlMessage}.${base64urlSignature}`;
+  if (
+    !params ||
+    typeof params.walletAddress !== "string" ||
+    typeof params.identityHash !== "string" ||
+    typeof params.verifiedAt !== "number" ||
+    !Number.isFinite(params.verifiedAt) ||
+    typeof params.signature !== "string" ||
+    params.signature.length === 0 ||
+    typeof params.publicKey !== "string" ||
+    params.publicKey.trim().length === 0
+  ) {
+    return false;
+  }
 
   try {
+    // Performance optimization: Cached importSPKI key lookup avoids re-parsing SPKI PEM on every verification operation.
+    const publicKey = await getPublicKey(params.publicKey);
+
+    const message = `${params.walletAddress}|${params.identityHash}|${params.verifiedAt}`;
+
+    // Reconstruct the compact JWS: base64url(header).base64url(payload).base64url(signature)
+    // Optimization: Direct hex-to-base64url encoding via Buffer.from(signature, 'hex').toString('base64url')
+    const base64urlSignature = Buffer.from(params.signature, "hex").toString("base64url");
+    const base64urlMessage = Buffer.from(message).toString("base64url");
+    const jws = `${EDDSA_HEADER_BASE64URL}.${base64urlMessage}.${base64urlSignature}`;
+
     const result = await compactVerify(jws, publicKey);
     // Verify the payload matches the expected message
     const decoded = new TextDecoder().decode(result.payload);
