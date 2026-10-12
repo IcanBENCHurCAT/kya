@@ -148,6 +148,48 @@ describe('Groth16 ZK-KYC Proof Verifier & REST Routes', () => {
       expect(result3.valid).toBe(false);
       expect(result3.error).toBe('Invalid ZK Proof');
     });
+
+    it('should reject proof payload with publicSignals exceeding 100 elements or overlong signal elements', async () => {
+      const oversizedSignalsPayload = {
+        ...validProofPayload,
+        publicSignals: new Array(101).fill('0x0001'),
+      };
+      const result1 = await zkpService.verifyProof(oversizedSignalsPayload);
+      expect(result1.valid).toBe(false);
+      expect(result1.error).toBe('Invalid ZK Proof');
+
+      const overlongSignalElementPayload = {
+        ...validProofPayload,
+        publicSignals: ['0x0001', 'A'.repeat(256)],
+      };
+      const result2 = await zkpService.verifyProof(overlongSignalElementPayload);
+      expect(result2.valid).toBe(false);
+      expect(result2.error).toBe('Invalid ZK Proof');
+    });
+
+    it('should reject proof payload with proof point arrays exceeding 10 elements or overlong string elements', async () => {
+      const oversizedPiAPayload = {
+        ...validProofPayload,
+        proof: {
+          ...validProofPayload.proof,
+          pi_a: new Array(11).fill('0x12345678'),
+        },
+      };
+      const result1 = await zkpService.verifyProof(oversizedPiAPayload);
+      expect(result1.valid).toBe(false);
+      expect(result1.error).toBe('Invalid ZK Proof');
+
+      const overlongPiAElementPayload = {
+        ...validProofPayload,
+        proof: {
+          ...validProofPayload.proof,
+          pi_a: ['0x12345678', 'B'.repeat(256)],
+        },
+      };
+      const result2 = await zkpService.verifyProof(overlongPiAElementPayload);
+      expect(result2.valid).toBe(false);
+      expect(result2.error).toBe('Invalid ZK Proof');
+    });
   });
 
   describe('REST Endpoint POST /api/v1/verify/zk-proof', () => {
