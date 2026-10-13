@@ -16,13 +16,13 @@
 KYA is a standalone, self-contained microservice (`kya-service`). All package manifests, module exports, and configurations maintain complete structural independence, ensuring KYA operates as an autonomous protocol layer for any blockchain or agent ecosystem.
 
 ### II. On-Chain Micro-Payment Monetization (x402 Gate)
-Every service endpoint (excluding `/health` and `/api/v1/x402/*` negotiation routes) is payment-gated via the HTTP 402 Payment Required (x402) protocol. Requests settle in microALGO or ASA (USDCa) tokens through a 100% service fee to operator; protocol-level revenue distribution deferred pending legal review. All transactions produce immutable, verifiable payment receipts.
+Every service endpoint (excluding `/`, `/health`, `/api/v1/health`, and `/.well-known/*` negotiation routes) is payment-gated via the HTTP 402 Payment Required (x402) protocol. Requests settle in microALGO or ASA (USDCa) tokens through a 100% service fee to operator; protocol-level revenue distribution deferred pending legal review. All transactions produce immutable on-chain payment records; receipts verifiable against the indexer.
 
 ### III. On-Chain Reputation & Optimized Box Storage
-Agent reputation (Karma) is anchored immutably on the Algorand blockchain using packed 77-byte static binary Box Storage (`k_{agent_address}`). State updates emit ARC-28 standard event logs for real-time indexer synchronization, while guaranteeing full Minimum Balance Requirement (0.0469 ALGO MBR) refundability upon profile deregistration.
+Agent reputation (Karma) is anchored immutably on the Algorand blockchain using packed 77-byte static binary Box Storage (`k_{agent_address}`). State updates emit ARC-28 standard event logs for real-time indexer synchronization, while full Minimum Balance Requirement (0.0469 ALGO MBR) refundability upon profile deregistration is planned/deferred.
 
 ### IV. Modular Domain Autonomy & A2A Interoperability
-Domain modules (`screening`, `verification`, `karma`, `wallet-analysis`, `a2a`) maintain decoupled business logic interacting exclusively through typed contracts in `src/types/` and machine-readable W3C Verifiable Credentials. Each module operates and tests independently.
+Domain modules (`screening`, `verification`, `karma`, `wallet-analysis`, `a2a`) maintain decoupled business logic interacting through service interfaces, shared W3C Verifiable Credentials, and typed contracts. Each module operates and tests independently.
 
 ### V. Test-Driven Development & Quality Assurance
 Quality assurance relies on a single unified Vitest test suite (`npm test`). Every production code path, middleware, and service method maintains complete test coverage. Application startup paths evaluate runtime configurations without reliance on synthetic test data seeds.

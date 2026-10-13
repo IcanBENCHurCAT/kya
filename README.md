@@ -71,7 +71,7 @@ npm run typecheck
 # Build TypeScript to dist/
 npm run build
 
-# Execute unified Vitest test suite (165 tests across 12 files)
+# Execute unified Vitest test suite (315 tests across 25 files)
 npm test
 
 # Start development server with hot-reload
