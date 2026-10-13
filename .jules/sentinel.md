@@ -62,3 +62,8 @@
 **Vulnerability:** `POST /verify/email/initiate` validated `callbackUrl` using simple `startsWith("http")` string check, and `WebhookService` dispatched POST requests without checking target hostnames. This allowed callers to specify loopback (`127.0.0.1`, `localhost`), private IP ranges (`10.x`, `172.16-31.x`, `192.168.x`), and cloud metadata IPs (`169.254.169.254`) as webhook targets.
 **Learning:** Checking string prefixes like `startsWith("http")` is insufficient for outbound HTTP request targets because loopback, internal IPs, and cloud metadata services use valid `http://` or `https://` URLs.
 **Prevention:** Always validate callback URLs with `new URL()`, enforce `http:`/`https:` schemes, and block loopback, private IPv4/IPv6 subnets, cloud metadata IPs, and internal domain names (`.local`, `.internal`) before sending outbound requests.
+
+## 2025-05-18 - Unbounded Array Flooding in ZK Proof Verification Payload
+**Vulnerability:** `verifyProof` in `src/services/zkp.ts` checked array types for `publicSignals` and proof point arrays (`pi_a`, `pi_b`, `pi_c`) without enforcing maximum array length or element string length bounds, enabling Denial of Service (DoS) attacks via memory exhaustion and CPU starvation during array iteration.
+**Learning:** Array type checking (`Array.isArray()`) without strict length caps allows malicious payloads with oversized nested arrays to consume excessive CPU cycles and memory during processing loops.
+**Prevention:** Always bound array lengths (e.g. `publicSignals.length <= 100`, `proof.pi_a.length <= 10`) and individual string element lengths (`<= 255`) before iterating over payload arrays.
