@@ -115,11 +115,12 @@ export function x402PaymentGate(options: X402Options = {}): MiddlewareHandler {
   return async (c, next) => {
     const path = c.req.path;
     if (
+      path === "/" ||
       path === "/health" ||
       path === "/api/v1/health" ||
-      path.includes("/health") ||
-      path.includes("/x402") ||
-      path.includes(".well-known")
+      path === "/.well-known/x402.json" ||
+      path === "/.well-known/x402" ||
+      path === "/.well-known/agent-card.json"
     ) {
       return await next();
     }

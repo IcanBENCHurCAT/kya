@@ -9,7 +9,7 @@ Welcome AI Agent. This document defines the operating rules, technical standards
 All agents working on this project MUST comply strictly with the **KYA Constitution** ([`.specify/memory/constitution.md`](.specify/memory/constitution.md), v3.0.0):
 
 1. **Principle I: Standalone Service**: KYA is an independent microservice (`kya-service`). All modules and SDKs maintain structural autonomy.
-2. **Principle II: x402 Payment Gate (NON-NEGOTIABLE)**: All endpoints (except `/health`, `/api/v1/health`, and `/.well-known/x402*` discovery routes) MUST be payment-gated via HTTP 402 micro-payments in microALGO or ASA (USDCa).
+2. **Principle II: x402 Payment Gate (NON-NEGOTIABLE)**: All endpoints (except `/`, `/health`, `/api/v1/health`, and `/.well-known/*` discovery routes) MUST be payment-gated via HTTP 402 micro-payments in microALGO or ASA (USDCa).
 3. **Principle III: On-Chain Karma Ledger**: Karma state MUST be anchored on Algorand Box Storage (`k_{agent_address}`, 77-byte static payload) with 0.0469 ALGO MBR refundability and ARC-28 event emitters.
 4. **Principle IV: Module Independence & A2A Interoperability**: Each domain (`screening`, `verification`, `karma`, `wallet-analysis`, `a2a`) MUST remain self-contained and interact only through `src/types/` or W3C Verifiable Credentials.
 5. **Principle V: Test-First Development**: Quality assurance relies on Vitest (`npm test`). Production entry points MUST NOT use synthetic seed fallbacks.
@@ -29,7 +29,7 @@ All agents working on this project MUST comply strictly with the **KYA Constitut
   ```bash
   npm run typecheck # tsc --noEmit check
   npm run build     # tsc clean compilation
-  npm test          # vitest test suite (all 165 tests passing across 12 files)
+  npm test          # vitest test suite (all 315 tests passing across 25 files)
   ```
 - **Directory Discipline**: Do NOT create empty scaffold directories under `src/`. If a directory exists, it MUST contain active source code.
 
