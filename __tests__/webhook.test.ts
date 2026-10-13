@@ -105,11 +105,16 @@ describe("WebhookService", () => {
 
     // Forbidden SSRF targets
     expect(isValidCallbackUrl("http://127.0.0.1:3000/internal")).toBe(false);
+    expect(isValidCallbackUrl("http://127.0.0.2:3000/internal")).toBe(false);
     expect(isValidCallbackUrl("http://localhost:8080")).toBe(false);
     expect(isValidCallbackUrl("http://169.254.169.254/latest/meta-data/")).toBe(false);
     expect(isValidCallbackUrl("http://10.0.0.1/admin")).toBe(false);
     expect(isValidCallbackUrl("http://192.168.1.1/router")).toBe(false);
     expect(isValidCallbackUrl("http://[::1]/status")).toBe(false);
+    expect(isValidCallbackUrl("http://[::]/status")).toBe(false);
+    expect(isValidCallbackUrl("http://[::ffff:127.0.0.1]/status")).toBe(false);
+    expect(isValidCallbackUrl("http://[::ffff:169.254.169.254]/status")).toBe(false);
+    expect(isValidCallbackUrl("http://[::ffff:10.0.0.1]/status")).toBe(false);
     expect(isValidCallbackUrl("http://internal-service.local")).toBe(false);
     expect(isValidCallbackUrl("ftp://example.com/upload")).toBe(false);
     expect(isValidCallbackUrl("not-a-url")).toBe(false);

@@ -14,16 +14,37 @@ export function isValidCallbackUrl(urlStr: unknown): boolean {
     if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
       return false;
     }
-    const hostname = parsed.hostname.toLowerCase();
+    const rawHost = parsed.hostname.toLowerCase();
+    let clean = rawHost.startsWith("[") && rawHost.endsWith("]") ? rawHost.slice(1, -1) : rawHost;
+    if (clean.startsWith("::ffff:")) {
+      clean = clean.slice(7);
+    } else if (clean.startsWith("0:0:0:0:0:ffff:")) {
+      clean = clean.slice(15);
+    }
+
+    let target = clean;
+    if (!/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(clean)) {
+      const parts = clean.split(":");
+      if (parts.length === 2) {
+        const high = parseInt(parts[0], 16);
+        const low = parseInt(parts[1], 16);
+        if (!isNaN(high) && !isNaN(low)) {
+          target = `${(high >> 8) & 0xff}.${high & 0xff}.${(low >> 8) & 0xff}.${low & 0xff}`;
+        }
+      }
+    }
+
     if (
-      hostname === "localhost" ||
-      hostname === "127.0.0.1" ||
-      hostname === "0.0.0.0" ||
-      hostname === "::1" ||
-      hostname === "[::1]" ||
-      hostname.endsWith(".local") ||
-      hostname.endsWith(".internal") ||
-      /^10\.|^172\.(1[6-9]|2[0-9]|3[01])\.|^192\.168\.|^169\.254\./.test(hostname)
+      target === "localhost" ||
+      target.endsWith(".local") ||
+      target.endsWith(".internal") ||
+      /^0\.|^127\.|^10\.|^172\.(1[6-9]|2[0-9]|3[01])\.|^192\.168\.|^169\.254\./.test(target) ||
+      target === "::" ||
+      target === "::1" ||
+      target === "0:0:0:0:0:0:0:0" ||
+      target === "0:0:0:0:0:0:0:1" ||
+      /^fe[89ab]/i.test(target) ||
+      /^f[cd]/i.test(target)
     ) {
       return false;
     }
