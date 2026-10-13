@@ -41,6 +41,7 @@ import {
   getAuditSummary,
   clearAuditLog,
   loadAuditLog,
+  flushAuditLog,
 } from "../src/services/audit.js";
 import {
   refreshWatchlists,
@@ -1073,6 +1074,9 @@ describe("Audit Logging", () => {
       details: "",
       timestamp: new Date().toISOString(),
     });
+
+    // Explicitly flush pending debounced log entries to disk
+    flushAuditLog();
 
     // Should have created a file in default location
     const exists = fs.existsSync(defaultPath);

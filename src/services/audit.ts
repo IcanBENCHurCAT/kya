@@ -212,10 +212,32 @@ export function getAuditSummary(): {
   };
 }
 
+let persistTimer: NodeJS.Timeout | null = null;
+
 /**
- * Persist audit log to disk.
+ * Persist audit log to disk (debounced).
+ *
+ * Performance optimization:
+ * Debounces disk persistence using a timer (100ms) to coalesce rapid log entries
+ * (such as bulk screening) into a single disk write operation. Avoids executing synchronous
+ * $O(N^2)$ JSON serialization and blocking disk I/O on every single screening event.
  */
 function persistAuditLog(): void {
+  if (persistTimer) return;
+  persistTimer = setTimeout(() => {
+    persistTimer = null;
+    flushAuditLog();
+  }, 100);
+}
+
+/**
+ * Synchronously flush audit log to disk.
+ */
+export function flushAuditLog(): void {
+  if (persistTimer) {
+    clearTimeout(persistTimer);
+    persistTimer = null;
+  }
   try {
     const dir = path.dirname(AUDIT_LOG_PATH);
     fs.mkdirSync(dir, { recursive: true });
@@ -223,6 +245,13 @@ function persistAuditLog(): void {
   } catch (err) {
     console.error('[Audit] Failed to persist audit log:', err);
   }
+}
+
+// Ensure pending debounced audit log entries are synchronously written to disk before process exit
+if (typeof process !== 'undefined' && process.on) {
+  process.on('beforeExit', () => {
+    flushAuditLog();
+  });
 }
 
 /**
@@ -247,6 +276,10 @@ export function loadAuditLog(): void {
  * Clear audit log (for testing).
  */
 export function clearAuditLog(): void {
+  if (persistTimer) {
+    clearTimeout(persistTimer);
+    persistTimer = null;
+  }
   auditLog.length = 0;
   try {
     fs.unlinkSync(AUDIT_LOG_PATH);
