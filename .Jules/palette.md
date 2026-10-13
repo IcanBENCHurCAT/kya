@@ -102,3 +102,8 @@
 
 **Learning:** Static service discovery links on developer landing pages that navigate away in-place disrupt user exploration when reviewing raw JSON metadata or health checks. Adding `target="_blank" rel="noopener noreferrer"` paired with explicit `(opens in new tab)` annotations in both `title` tooltips and `aria-label` attributes guarantees secure external tab navigation while giving screen readers explicit context about context switches.
 **Action:** Always complement `target="_blank" rel="noopener noreferrer"` links with explicit `(opens in new tab)` text in `title` tooltips and `aria-label` attributes.
+
+## 2026-10-12 - 404 Error Page Discovery Links External Tab Affordance & Window.open Shortcuts
+
+**Learning:** When custom 404 error pages provide quick discovery links to JSON metadata or health endpoints, navigating away in-place destroys the user's error context. Adding `target="_blank" rel="noopener noreferrer"` paired with explicit `(opens in new tab)` text in both `aria-label` and `title` attributes, alongside `window.open` in keyboard shortcut handlers, preserves error context while giving screen readers clear notification of tab switches.
+**Action:** Always add `target="_blank" rel="noopener noreferrer"` and explicit `(opens in new tab)` annotations to error page discovery links and invoke `window.open` for associated keydown shortcut handlers.
