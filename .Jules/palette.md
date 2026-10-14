@@ -107,3 +107,8 @@
 
 **Learning:** When custom 404 error pages provide quick discovery links to JSON metadata or health endpoints, navigating away in-place destroys the user's error context. Adding `target="_blank" rel="noopener noreferrer"` paired with explicit `(opens in new tab)` text in both `aria-label` and `title` attributes, alongside `window.open` in keyboard shortcut handlers, preserves error context while giving screen readers clear notification of tab switches.
 **Action:** Always add `target="_blank" rel="noopener noreferrer"` and explicit `(opens in new tab)` annotations to error page discovery links and invoke `window.open` for associated keydown shortcut handlers.
+
+## 2026-10-13 - 404 Error Page Escape Key Navigation & Shortcut Focus Synchronization
+
+**Learning:** When users encounter a custom 404 error page, the standard keyboard mental model for modal dismissal (`Escape` key) should naturally return them to safety (the root landing page). Pairing `Escape` key handling with `aria-keyshortcuts="h Escape"`, explicit focus synchronization (`element.focus()`) on numeric shortcut activation (`1`, `2`, `3`), and visual legend updates provides a predictable, highly accessible recovery experience for keyboard and screen reader users.
+**Action:** Include `Escape` key listeners alongside standard CTA key bindings on error pages, update `aria-keyshortcuts` attributes, and synchronize programmatic focus when triggering keyboard shortcuts.
