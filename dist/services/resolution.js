@@ -14,9 +14,16 @@
 import { randomUUID } from 'node:crypto';
 /**
  * In-memory wallet identity store (dev/testing only).
- * In production: Supabase, Algorand indexer, identity attestation provider APIs.
+ * Maximum capacity bounded to prevent memory exhaustion and DoS from unauthenticated registration requests.
  */
+export const MAX_WALLET_IDENTITIES_CAP = 10000;
 const walletIdentities = new Map();
+/**
+ * Clear wallet identities (for testing).
+ */
+export function clearWalletIdentities() {
+    walletIdentities.clear();
+}
 /**
  * Register a wallet-to-owner mapping.
  * Used for seeding test data and simulating identity registration.
@@ -35,6 +42,14 @@ export function registerWalletIdentity(walletAddress, ownerName, options = {}) {
         altAddresses: options.altAddresses,
         lastSeen: new Date().toISOString(),
     };
+    // Security: Evict oldest entry if capacity is reached to prevent memory exhaustion (DoS)
+    if (walletIdentities.size >= MAX_WALLET_IDENTITIES_CAP &&
+        !walletIdentities.has(walletAddress)) {
+        const oldestKey = walletIdentities.keys().next().value;
+        if (oldestKey !== undefined) {
+            walletIdentities.delete(oldestKey);
+        }
+    }
     walletIdentities.set(walletAddress, identity);
     return identity;
 }
@@ -73,24 +88,10 @@ export function resolveForScreening(walletAddress) {
             timestamp: new Date().toISOString(),
         };
     }
-    const beneficiaries = [];
-    const associatedWallets = [];
-    let maxConfidence = 0;
-    // Primary: verified owner
-    if (identity.verifiedOwner) {
-        beneficiaries.push(identity.verifiedOwner.name);
-        maxConfidence = Math.max(maxConfidence, 1.0);
-    }
-    // Secondary: known associated wallets (sibling wallets)
-    if (identity.altAddresses) {
-        for (const altAddr of identity.altAddresses) {
-            associatedWallets.push(altAddr);
-            const altIdentity = walletIdentities.get(altAddr);
-            if (altIdentity?.verifiedOwner) {
-                beneficiaries.push(altIdentity.verifiedOwner.name);
-            }
-        }
-    }
+    // Performance optimization: Avoid dead beneficiaries array allocation and redundant Map lookups
+    // for associated wallets when building ResolutionResult.
+    const associatedWallets = identity.altAddresses ? [...identity.altAddresses] : [];
+    const confidence = identity.verifiedOwner ? 1.0 : 0.0;
     return {
         walletAddress,
         resolved: true,
@@ -104,7 +105,7 @@ export function resolveForScreening(walletAddress) {
             }
             : undefined,
         associatedWallets,
-        confidence: maxConfidence,
+        confidence,
         notes: identity.verifiedOwner
             ? `Verified owner: ${identity.verifiedOwner.name} (${identity.verifiedOwner.verificationMethod})`
             : 'Wallet exists but has no verified owner. Use address-based screening.',

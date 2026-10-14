@@ -11,6 +11,7 @@
  */
 import { Hono } from "hono";
 import { isValidAddress } from "algosdk";
+import { isValidCallbackUrl } from "../verification/webhook.js";
 const MAX_STRING_LENGTH = 255;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export function createVerificationRoutes(verificationService) {
@@ -31,9 +32,13 @@ export function createVerificationRoutes(verificationService) {
             if (!isValidAddress(body.walletAddress)) {
                 return c.json({ error: "Invalid wallet address format (expected Algorand base32)" }, 400);
             }
+            if (body.callbackUrl && !isValidCallbackUrl(body.callbackUrl)) {
+                return c.json({ error: "Invalid callbackUrl format" }, 400);
+            }
             const { attemptId } = await verificationService.initiateVerification({
                 email: body.email,
                 walletAddress: body.walletAddress,
+                callbackUrl: body.callbackUrl,
             });
             return c.json({ attemptId }, 200);
         }
@@ -85,7 +90,10 @@ export function createVerificationRoutes(verificationService) {
     const handleWalletCheck = async (c) => {
         try {
             const walletAddress = c.req.param("address");
-            if (!walletAddress || !isValidAddress(walletAddress)) {
+            if (!walletAddress ||
+                typeof walletAddress !== "string" ||
+                walletAddress.length > MAX_STRING_LENGTH ||
+                !isValidAddress(walletAddress)) {
                 return c.json({ error: "Invalid wallet address format" }, 400);
             }
             const result = await verificationService.checkVerification(walletAddress);

@@ -15,6 +15,7 @@ import { AttemptStore } from "../attempt-store.js";
 import { ClaimStore } from "../claim-store.js";
 import { InMemoryAttemptStore } from "../in-memory-store.js";
 import { VerificationSuccess } from "../types.js";
+import { WebhookService } from "../webhook.js";
 export interface EmailProviderOptions {
     /** Attempt store for OTP persistence */
     attemptStore: AttemptStore | InMemoryAttemptStore;
@@ -32,6 +33,8 @@ export interface EmailProviderOptions {
     otpTtlMs?: number;
     /** Max OTP attempts (default: 5) */
     maxAttempts?: number;
+    /** Optional webhook service to notify upon completion */
+    webhookService?: WebhookService;
 }
 export declare class EmailVerificationProvider implements VerificationProvider {
     readonly method: "email";
@@ -43,6 +46,7 @@ export declare class EmailVerificationProvider implements VerificationProvider {
     private otpLength;
     private otpTtlMs;
     private maxAttempts;
+    private webhookService?;
     constructor(options: EmailProviderOptions);
     /**
      * Validate that the identifier looks like an email address.
@@ -52,9 +56,10 @@ export declare class EmailVerificationProvider implements VerificationProvider {
      * Generate an OTP and "send" it to the email.
      * Returns attemptId for later verification.
      */
-    initiateVerification({ identifier: email, walletAddress, }: {
+    initiateVerification({ identifier: email, walletAddress, callbackUrl, }: {
         identifier: string;
         walletAddress: string;
+        callbackUrl?: string;
     }): Promise<{
         attemptId: string;
     }>;

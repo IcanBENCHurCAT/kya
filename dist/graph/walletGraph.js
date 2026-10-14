@@ -3,7 +3,6 @@
  * Supports queries like "what wallets are related to address X?" and
  * "what is the connection between wallet A and wallet B?"
  */
-import { InMemoryCache } from '../cache/inMemoryCache.js';
 export class WalletGraph {
     nodes;
     edges;
@@ -11,7 +10,7 @@ export class WalletGraph {
     // Optimization: Allows O(1) lookup of incoming edges without full O(V) graph scans.
     incomingEdges;
     adjacencyList;
-    cache;
+    relatedEdgesCache;
     outgoingEdgesCache;
     incomingEdgesCache;
     constructor() {
@@ -19,7 +18,7 @@ export class WalletGraph {
         this.edges = new Map();
         this.incomingEdges = new Map();
         this.adjacencyList = new Map();
-        this.cache = new InMemoryCache(600_000, 10_000);
+        this.relatedEdgesCache = new Map();
         this.outgoingEdgesCache = new Map();
         this.incomingEdgesCache = new Map();
     }
@@ -117,22 +116,23 @@ export class WalletGraph {
         }
         this.outgoingEdgesCache.delete(source);
         this.incomingEdgesCache.delete(target);
+        this.relatedEdgesCache.delete(source);
+        this.relatedEdgesCache.delete(target);
         this.updateSiblingCount(source);
         this.updateSiblingCount(target);
     }
     /**
      * Query: what wallets are related to address X?
-     * Performance: O(E_out + E_in) map lookups using direct edge maps instead of O(V) full graph scan.
+     *
+     * Performance optimization:
+     * Uses a dedicated `relatedEdgesCache` Map to cache aggregated and sorted related edges
+     * (both outgoing and incoming). Subsequent queries return the cached edge array in O(1) time
+     * without re-aggregating edge maps or re-executing O(E log E) array sorts.
      */
     getRelatedWallets(address) {
-        // Check cache first
-        const cached = this.cache.get(address);
-        if (cached) {
-            // Return edges to cached addresses
-            return cached
-                .map((targetAddr) => this.getEdge(address, targetAddr))
-                .filter((e) => e !== null);
-        }
+        const cached = this.relatedEdgesCache.get(address);
+        if (cached)
+            return cached;
         const edges = [];
         // Outgoing edges (address sent to these wallets)
         const outgoing = this.edges.get(address);
@@ -150,6 +150,7 @@ export class WalletGraph {
         }
         // Sort by weight (descending)
         edges.sort((a, b) => b.weight - a.weight);
+        this.relatedEdgesCache.set(address, edges);
         return edges;
     }
     /**
@@ -422,7 +423,7 @@ export class WalletGraph {
         this.edges.clear();
         this.incomingEdges.clear();
         this.adjacencyList.clear();
-        this.cache.clear();
+        this.relatedEdgesCache.clear();
         this.outgoingEdgesCache.clear();
         this.incomingEdgesCache.clear();
     }

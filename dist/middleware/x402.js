@@ -45,7 +45,8 @@ export async function verifyPaymentTransaction(txid, expectedReceiver, minPriceM
         };
     }
 }
-// Maximum number of redeemed payment receipts stored in memory for replay protection
+// Maximum number of redeemed payment receipts stored in memory for replay protection.
+// Security: Bound maximum size of redeemed payment receipts cache to prevent uncontrolled memory growth (DoS)
 export const MAX_RECEIPTS_CAP = 10000;
 const usedTxIds = new Map();
 export function resetX402Receipts() {
@@ -66,11 +67,12 @@ export function x402PaymentGate(options = {}) {
     const tag = options.tag || "x402-global-challenge";
     return async (c, next) => {
         const path = c.req.path;
-        if (path === "/health" ||
+        if (path === "/" ||
+            path === "/health" ||
             path === "/api/v1/health" ||
-            path.includes("/health") ||
-            path.includes("/x402") ||
-            path.includes(".well-known")) {
+            path === "/.well-known/x402.json" ||
+            path === "/.well-known/x402" ||
+            path === "/.well-known/agent-card.json") {
             return await next();
         }
         const paymentTxId = c.req.header("X-Payment") || c.req.header("x-payment");
@@ -137,6 +139,7 @@ export function x402PaymentGate(options = {}) {
             endpoint: path,
             timestamp: new Date().toISOString(),
         };
+        // Security: Evict oldest receipt entry if capacity is reached to prevent memory exhaustion
         // Performance optimization: Bounded FIFO eviction prevents unbounded memory growth
         // and V8 garbage collection pauses under high micro-payment traffic volume.
         if (usedTxIds.size >= MAX_RECEIPTS_CAP) {

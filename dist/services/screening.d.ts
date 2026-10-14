@@ -62,6 +62,10 @@ export declare function combinedSimilarity(a: string, b: string, threshold?: num
 export declare function screenSanctions(target: string, beneficialOwner?: string, lists?: Record<string, SanctionedEntry[]>, config?: Partial<ScreeningConfig>): ScreeningResult;
 /**
  * Bulk screen multiple targets.
+ *
+ * Performance optimization:
+ * Uses a pre-allocated results array and indexed for loop instead of Array.prototype.map to eliminate
+ * intermediate iterator and dynamic array allocation overhead during high-volume batch screening.
  */
 export declare function screenBulk(targets: {
     address: string;

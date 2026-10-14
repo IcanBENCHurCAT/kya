@@ -81,6 +81,10 @@ export declare function getAuditSummary(): {
     recentScreenings: number;
 };
 /**
+ * Synchronously flush audit log to disk.
+ */
+export declare function flushAuditLog(): void;
+/**
  * Load audit log from disk.
  */
 export declare function loadAuditLog(): void;

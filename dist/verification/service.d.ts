@@ -30,9 +30,10 @@ export declare class VerificationService {
      * Sends an OTP to the provided email address.
      * Returns an attempt ID needed for completion.
      */
-    initiateVerification({ email, walletAddress, }: {
+    initiateVerification({ email, walletAddress, callbackUrl, }: {
         email: string;
         walletAddress: string;
+        callbackUrl?: string;
     }): Promise<{
         attemptId: string;
     }>;

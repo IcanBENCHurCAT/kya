@@ -37,6 +37,8 @@ export declare function signClaim(params: {
 }>;
 /**
  * Verify a verification claim signature.
+ * Security: Performs type, length, and format validation on parameters and wraps
+ * key loading and signature reconstruction in try...catch to fail securely without unhandled exceptions.
  */
 export declare function verifyClaimSignature(params: {
     walletAddress: string;

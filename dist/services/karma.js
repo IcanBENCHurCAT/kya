@@ -13,9 +13,12 @@ export class InMemoryKarmaStore {
         return this.events.get(address) || [];
     }
     addEvent(event) {
-        const list = this.events.get(event.agentAddress) || [];
+        let list = this.events.get(event.agentAddress);
+        if (!list) {
+            list = [];
+            this.events.set(event.agentAddress, list);
+        }
         list.push(event);
-        this.events.set(event.agentAddress, list);
     }
     clear() {
         this.profiles.clear();
@@ -139,10 +142,34 @@ export class KarmaService {
         else if (normalizedType === 'debit') {
             delta = -amount;
         }
-        const currentRecord = await this.getProfile(agentAddress);
-        const newScore = Math.max(0, currentRecord.score + delta);
-        const newTier = this.calculateTier(newScore);
         const now = new Date().toISOString();
+        // Performance optimization: Retrieve scalar profile data directly from in-memory store or target DB table
+        // instead of calling getProfile() which executes full events query and array cloning prior to event insertion.
+        let currentScore = 100;
+        let registeredAt = now;
+        const existingProfile = this.inMemoryStore.getProfile(agentAddress);
+        if (existingProfile) {
+            currentScore = existingProfile.karmaScore;
+            registeredAt = existingProfile.registeredAt;
+        }
+        else if (this.supabase) {
+            try {
+                const profileRes = await withTimeout(this.supabase
+                    .from('agent_profiles')
+                    .select('karma_score, registered_at')
+                    .eq('agent_address', agentAddress)
+                    .single(), 1000);
+                if (profileRes?.data) {
+                    currentScore = profileRes.data.karma_score ?? 100;
+                    registeredAt = profileRes.data.registered_at || now;
+                }
+            }
+            catch {
+                // Fallback to defaults
+            }
+        }
+        const newScore = Math.max(0, currentScore + delta);
+        const newTier = this.calculateTier(newScore);
         const event = {
             // Use cryptographically secure randomUUID for event identifiers
             id: `evt_${Date.now()}_${randomUUID()}`,
@@ -178,16 +205,27 @@ export class KarmaService {
             }
         }
         // Always update in-memory store as primary/fallback
-        const existingProfile = this.inMemoryStore.getProfile(agentAddress);
         const updatedProfile = {
             agentAddress,
             karmaScore: newScore,
             tier: newTier,
-            registeredAt: existingProfile?.registeredAt || currentRecord.registeredAt || now,
+            registeredAt,
             lastUpdated: now,
         };
         this.inMemoryStore.saveProfile(updatedProfile);
         this.inMemoryStore.addEvent(event);
+        if (!this.supabase) {
+            const events = this.inMemoryStore.getEvents(agentAddress);
+            return {
+                agentAddress,
+                score: newScore,
+                tier: newTier,
+                totalEvents: events.length,
+                lastUpdated: now,
+                events: [...events],
+                registeredAt,
+            };
+        }
         return this.getProfile(agentAddress);
     }
     async getHistory(address) {

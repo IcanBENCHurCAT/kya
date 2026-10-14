@@ -24,6 +24,7 @@ export class EmailVerificationProvider {
     otpLength;
     otpTtlMs;
     maxAttempts;
+    webhookService;
     constructor(options) {
         this.attemptStore = options.attemptStore;
         this.claimStore = options.claimStore;
@@ -32,6 +33,7 @@ export class EmailVerificationProvider {
         this.otpLength = options.otpLength ?? 6;
         this.otpTtlMs = options.otpTtlMs ?? 600_000; // 10 minutes
         this.maxAttempts = options.maxAttempts ?? 5;
+        this.webhookService = options.webhookService;
         // Default sendEmail does nothing (for testing/development)
         this.sendEmail =
             options.sendEmail ??
@@ -56,7 +58,7 @@ export class EmailVerificationProvider {
      * Generate an OTP and "send" it to the email.
      * Returns attemptId for later verification.
      */
-    async initiateVerification({ identifier: email, walletAddress, }) {
+    async initiateVerification({ identifier: email, walletAddress, callbackUrl, }) {
         // 1. Validate email format
         this.validateIdentifier(email);
         // 2. Security: Validate wallet address parameter type, bounds, and Algorand base32 checksum
@@ -84,6 +86,7 @@ export class EmailVerificationProvider {
             attemptCount: 0,
             maxAttempts: this.maxAttempts,
             createdAt: Date.now(),
+            callbackUrl,
         });
         // 5. "Send" email
         const subject = "Verify your AlgoBounty identity";
@@ -180,12 +183,33 @@ export class EmailVerificationProvider {
             privateKey: this.privateKey,
             keyId: this.keyId,
         });
-        // 10. Store claim (attemptId already deleted, so null)
-        const result = await this.claimStore.createClaim({
-            ...claim,
-            attemptId: null, // attempt was deleted
-        });
-        return { claim: result, isNew: true };
+        try {
+            // 10. Store claim (attemptId already deleted, so null)
+            const result = await this.claimStore.createClaim({
+                ...claim,
+                attemptId: null, // attempt was deleted
+            });
+            if (attempt.callbackUrl && this.webhookService) {
+                this.webhookService.dispatch(attempt.callbackUrl, {
+                    status: "success",
+                    walletAddress,
+                    identityHash,
+                    method: "email",
+                    verifiedAt: result.verifiedAt,
+                });
+            }
+            return { claim: result, isNew: true };
+        }
+        catch (error) {
+            if (attempt.callbackUrl && this.webhookService) {
+                this.webhookService.dispatch(attempt.callbackUrl, {
+                    status: "failure",
+                    walletAddress,
+                    error: error.message,
+                });
+            }
+            throw error;
+        }
     }
 }
 /**

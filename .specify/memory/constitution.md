@@ -1,7 +1,7 @@
 <!-- SYNC IMPACT REPORT
-  Version: 3.0.0
-  Date: 2026-08-12
-  Action: CONSTITUTION REFACTOR — POSITIVE-ASSERTION PRINCIPLES & GOVERNANCE ALIGNMENT
+  Version: 3.1.0
+  Date: 2026-10-14
+  Action: AMEND PRINCIPLE VI — REALITY CHECK ON 72H PURGE & EPHEMERAL ENCLAVES
   Summary:
     - Refactored all principles from legacy negative constraints ("MUST NOT") to proactive, positive assertions ("SHALL / WILL").
     - Cleaned out legacy historical legacy references, focusing purely on KYA Service core identity.
@@ -28,7 +28,7 @@ Domain modules (`screening`, `verification`, `karma`, `wallet-analysis`, `a2a`) 
 Quality assurance relies on a single unified Vitest test suite (`npm test`). Every production code path, middleware, and service method maintains complete test coverage. Application startup paths evaluate runtime configurations without reliance on synthetic test data seeds.
 
 ### VI. Zero-Knowledge Privacy & Production Readiness
-User and agent privacy is preserved by design. Identity assertions utilize off-chain ephemeral verification enclaves (purged within 72h) and Groth16 ZK-SNARK zero-knowledge proofs, achieving full GDPR Art. 17 compliance with zero on-chain PII exposure. Production entry points enforce strict configuration validation.
+User and agent privacy is preserved by design. Identity assertions are stored off-chain with zero PII on-chain, OTP attempts expire after ~1 hour, and claims are deleted on user request. The use of Groth16 ZK-SNARK zero-knowledge proofs achieves full GDPR Art. 17 compliance with zero on-chain PII exposure. Production entry points enforce strict configuration validation.
 
 ### VII. Architectural Transparency & Documentation Integrity
 Project documentation (`README.md`, `HANDOFF.md`, `docs/ARCHITECTURE.md`) reflects active, verified source code. System capabilities, visual diagrams, and API contracts remain synchronized with production builds.
@@ -61,4 +61,4 @@ KYA provides independently verifiable evidence and risk signals. KYA does not ma
 - **Pre-Commit Gate**: `.githooks/pre-commit` secret scanner must pass cleanly before commits are created.
 - **Priority**: Principle II (x402 Monetization) is non-negotiable. Numerically lower principles guide design precedence in architectural decisions.
 
-**Version**: 3.0.0 | **Ratified**: 2026-08-07 | **Last Amended**: 2026-08-12
+**Version**: 3.1.0 | **Ratified**: 2026-08-07 | **Last Amended**: 2026-10-14

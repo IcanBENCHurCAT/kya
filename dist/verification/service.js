@@ -57,7 +57,7 @@ export class VerificationService {
      * Sends an OTP to the provided email address.
      * Returns an attempt ID needed for completion.
      */
-    async initiateVerification({ email, walletAddress, }) {
+    async initiateVerification({ email, walletAddress, callbackUrl, }) {
         // Resolve provider
         const provider = this.registry.resolve("email");
         // Validate identifier
@@ -71,7 +71,7 @@ export class VerificationService {
             });
         }
         // Delegate to provider (which handles OTP generation and email sending)
-        return provider.initiateVerification({ identifier: email, walletAddress });
+        return provider.initiateVerification({ identifier: email, walletAddress, callbackUrl });
     }
     /**
      * Complete a verification flow.
