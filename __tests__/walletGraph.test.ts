@@ -258,6 +258,36 @@ describe('WalletGraph', () => {
       expect(addressesInComponents).toContainEqual(['E']);
     });
 
+    it('should cache connected components and invalidate on graph mutations', () => {
+      graph.addEdge('A', 'B', 1, 'associated', 100, 1, 2);
+      graph.addEdge('C', 'D', 1, 'associated', 100, 1, 2);
+
+      const initial = graph.getConnectedComponents();
+      expect(initial.length).toBe(2);
+
+      // Verify cached reference is returned on subsequent call
+      const cached = graph.getConnectedComponents();
+      expect(cached).toBe(initial);
+
+      // Add a new node - invalidates cache
+      graph.addNode('E', 1, 0, 0, 1, 2);
+      const afterAddNode = graph.getConnectedComponents();
+      expect(afterAddNode.length).toBe(3);
+      expect(afterAddNode).not.toBe(initial);
+
+      // Connect two components via edge - invalidates cache
+      graph.addEdge('B', 'C', 1, 'associated', 100, 1, 2);
+      const afterAddEdge = graph.getConnectedComponents();
+      expect(afterAddEdge.length).toBe(2);
+      expect(afterAddEdge).not.toBe(afterAddNode);
+
+      // Clear graph - invalidates cache
+      graph.clear();
+      const afterClear = graph.getConnectedComponents();
+      expect(afterClear.length).toBe(0);
+      expect(afterClear).not.toBe(afterAddEdge);
+    });
+
     it('should calculate degree centrality correctly', () => {
       // Graph with 3 nodes: A -> B, A -> C
       graph.addEdge('A', 'B', 1, 'associated', 100, 1, 2);
