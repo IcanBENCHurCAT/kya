@@ -9,7 +9,7 @@ export declare class WalletGraph {
     private edges;
     private incomingEdges;
     private adjacencyList;
-    private cache;
+    private relatedEdgesCache;
     private outgoingEdgesCache;
     private incomingEdgesCache;
     constructor();
@@ -23,7 +23,11 @@ export declare class WalletGraph {
     addEdge(source: string, target: string, weight: number, relationshipType: WalletGraphEdge['relationshipType'], totalValueTransferred: number, firstInteractionRound: number, lastInteractionRound: number, metadata?: Record<string, unknown>): void;
     /**
      * Query: what wallets are related to address X?
-     * Performance: O(E_out + E_in) map lookups using direct edge maps instead of O(V) full graph scan.
+     *
+     * Performance optimization:
+     * Uses a dedicated `relatedEdgesCache` Map to cache aggregated and sorted related edges
+     * (both outgoing and incoming). Subsequent queries return the cached edge array in O(1) time
+     * without re-aggregating edge maps or re-executing O(E log E) array sorts.
      */
     getRelatedWallets(address: string): WalletGraphEdge[];
     /**

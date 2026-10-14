@@ -16,6 +16,7 @@ import { TransactionHistoryService } from "../services/transactionHistory.js";
 import { SiblingDiscoveryService } from "../services/siblingDiscovery.js";
 import { WalletGraph } from "../graph/walletGraph.js";
 import { InMemoryCache } from "../cache/inMemoryCache.js";
+const MAX_STRING_LENGTH = 255;
 const app = new Hono();
 // Shared instances (initialized lazily)
 let _client = null;
@@ -98,7 +99,10 @@ app.get("/api/v1/wallet/graph", handleFullGraph);
 // ─── Wallet info (basic profile) ───────────────────────────────────
 const handleWalletInfo = async (c) => {
     const address = c.req.param("address");
-    if (!address || !isValidAddress(address)) {
+    if (!address ||
+        typeof address !== "string" ||
+        address.length > MAX_STRING_LENGTH ||
+        !isValidAddress(address)) {
         return c.json({ error: "Invalid Algorand address format" }, 400);
     }
     try {
@@ -130,7 +134,10 @@ app.get("/api/v1/wallet/:address", handleWalletInfo);
 // ─── Transaction history ───────────────────────────────────────────
 const handleWalletTxs = async (c) => {
     const address = c.req.param("address");
-    if (!address || !isValidAddress(address)) {
+    if (!address ||
+        typeof address !== "string" ||
+        address.length > MAX_STRING_LENGTH ||
+        !isValidAddress(address)) {
         return c.json({ error: "Invalid Algorand address format" }, 400);
     }
     const limitParam = c.req.query("limit");
@@ -180,7 +187,10 @@ app.get("/api/v1/wallet/:address/txs", handleWalletTxs);
 // ─── Sibling discovery ─────────────────────────────────────────────
 const handleWalletSiblings = async (c) => {
     const address = c.req.param("address");
-    if (!address || !isValidAddress(address)) {
+    if (!address ||
+        typeof address !== "string" ||
+        address.length > MAX_STRING_LENGTH ||
+        !isValidAddress(address)) {
         return c.json({ error: "Invalid Algorand address format" }, 400);
     }
     try {
@@ -214,7 +224,10 @@ app.get("/api/v1/wallet/:address/siblings", handleWalletSiblings);
 // ─── Wallet graph query ────────────────────────────────────────────
 const handleWalletGraph = async (c) => {
     const address = c.req.param("address");
-    if (!address || !isValidAddress(address)) {
+    if (!address ||
+        typeof address !== "string" ||
+        address.length > MAX_STRING_LENGTH ||
+        !isValidAddress(address)) {
         return c.json({ error: "Invalid Algorand address format" }, 400);
     }
     try {

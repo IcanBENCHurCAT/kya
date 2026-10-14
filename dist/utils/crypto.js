@@ -21,6 +21,32 @@ export async function generateSigningKey() {
         publicKey: spki,
     };
 }
+// Optimization: Key promises cache for importPKCS8 and importSPKI to avoid repeated PEM parsing
+// and Web Crypto key generation on every signature and verification operation.
+const pkcs8KeyCache = new Map();
+const spkiKeyCache = new Map();
+async function getPrivateKey(pem) {
+    let cached = pkcs8KeyCache.get(pem);
+    if (!cached) {
+        cached = importPKCS8(pem, "EdDSA").catch((err) => {
+            pkcs8KeyCache.delete(pem);
+            throw err;
+        });
+        pkcs8KeyCache.set(pem, cached);
+    }
+    return cached;
+}
+async function getPublicKey(pem) {
+    let cached = spkiKeyCache.get(pem);
+    if (!cached) {
+        cached = importSPKI(pem, "EdDSA").catch((err) => {
+            spkiKeyCache.delete(pem);
+            throw err;
+        });
+        spkiKeyCache.set(pem, cached);
+    }
+    return cached;
+}
 /**
  * Sign a verification claim.
  *
@@ -30,10 +56,9 @@ export async function generateSigningKey() {
  * This is signed with the service private key using Ed25519.
  */
 export async function signClaim(params) {
-    // jose v5 importPKCS8 takes a PEM string directly (not decoded bytes)
-    const privateKey = await importPKCS8(params.privateKey, "EdDSA");
+    // Performance optimization: Cached importPKCS8 key lookup avoids re-parsing PKCS8 PEM on every sign operation.
+    const privateKey = await getPrivateKey(params.privateKey);
     const message = `${params.walletAddress}|${params.identityHash}|${params.verifiedAt}`;
-    const encoder = new TextEncoder();
     // Use jose v5 CompactSign API for EdDSA signing
     const signer = new CompactSign(new TextEncoder().encode(message));
     signer.setProtectedHeader({ alg: "EdDSA" });
@@ -51,19 +76,30 @@ export async function signClaim(params) {
 const EDDSA_HEADER_BASE64URL = "eyJhbGciOiJFZERTQSJ9";
 /**
  * Verify a verification claim signature.
+ * Security: Performs type, length, and format validation on parameters and wraps
+ * key loading and signature reconstruction in try...catch to fail securely without unhandled exceptions.
  */
 export async function verifyClaimSignature(params) {
-    // jose v5 importSPKI takes a PEM string directly (not decoded bytes)
-    const publicKey = await importSPKI(params.publicKey, "EdDSA");
-    const message = `${params.walletAddress}|${params.identityHash}|${params.verifiedAt}`;
-    // Reconstruct the compact JWS: base64url(header).base64url(payload).base64url(signature)
-    // Optimization: Direct hex-to-base64url encoding via Buffer.from(signature, 'hex').toString('base64url')
-    // replaces regex match(/.{1,2}/g), array map/parseInt, and Uint8Array construction.
-    // Reduces reconstruction runtime by ~88% (~9x faster) and avoids GC array allocations.
-    const base64urlSignature = Buffer.from(params.signature, "hex").toString("base64url");
-    const base64urlMessage = Buffer.from(message).toString("base64url");
-    const jws = `${EDDSA_HEADER_BASE64URL}.${base64urlMessage}.${base64urlSignature}`;
+    if (!params ||
+        typeof params.walletAddress !== "string" ||
+        typeof params.identityHash !== "string" ||
+        typeof params.verifiedAt !== "number" ||
+        !Number.isFinite(params.verifiedAt) ||
+        typeof params.signature !== "string" ||
+        params.signature.length === 0 ||
+        typeof params.publicKey !== "string" ||
+        params.publicKey.trim().length === 0) {
+        return false;
+    }
     try {
+        // Performance optimization: Cached importSPKI key lookup avoids re-parsing SPKI PEM on every verification operation.
+        const publicKey = await getPublicKey(params.publicKey);
+        const message = `${params.walletAddress}|${params.identityHash}|${params.verifiedAt}`;
+        // Reconstruct the compact JWS: base64url(header).base64url(payload).base64url(signature)
+        // Optimization: Direct hex-to-base64url encoding via Buffer.from(signature, 'hex').toString('base64url')
+        const base64urlSignature = Buffer.from(params.signature, "hex").toString("base64url");
+        const base64urlMessage = Buffer.from(message).toString("base64url");
+        const jws = `${EDDSA_HEADER_BASE64URL}.${base64urlMessage}.${base64urlSignature}`;
         const result = await compactVerify(jws, publicKey);
         // Verify the payload matches the expected message
         const decoded = new TextDecoder().decode(result.payload);

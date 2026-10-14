@@ -14,7 +14,7 @@ KYA ("Know Your Agent") is a standalone, mainnet-native trust-data microservice 
 1. **HTTP 402 (x402) Micro-Payment Gate**: Dynamic payment-gating for all non-health API endpoints in microALGO or ASA tokens.
 2. **Algorand Box Storage Karma Ledger**: Static 77-byte packed binary box storage profiles (`k_{agent_address}`) with ARC-28 event emitters and 0.0469 ALGO MBR refundability.
 3. **Multi-Source Sanctions Screening**: OFAC SDN list matching using Jaro-Winkler ($\ge 0.88$) and Levenshtein algorithms with cryptographic audit proofs.
-4. **Privacy-Preserving Verification**: Ephemeral human OTP verification (email) and Groth16 Zero-Knowledge (ZK) SNARK identity proof verification (GDPR Art. 17 compliant).
+4. **Privacy-Preserving Verification**: Off-chain human OTP verification (email) and Groth16 Zero-Knowledge (ZK) SNARK identity proof verification (GDPR Art. 17 compliant).
 5. **A2A Pre-Flight Handshake**: Machine-to-machine risk handshakes issuing Ed25519-signed W3C Verifiable Credentials.
 6. **Dual SDKs**: Native TypeScript client (`sdk/`) and Python client (`python-sdk/`).
 

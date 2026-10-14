@@ -6,7 +6,7 @@ export function createKarmaRoutes(karmaService = defaultKarmaService) {
     const karmaApp = new Hono();
     const handleGetKarma = async (c) => {
         const address = c.req.param('address');
-        if (!address) {
+        if (!address || typeof address !== 'string' || address.length > MAX_STRING_LENGTH) {
             return c.json({ error: 'Address parameter is required' }, 400);
         }
         if (!isValidAddress(address)) {

@@ -40,6 +40,15 @@ export interface ResolutionResult {
     timestamp: string;
 }
 /**
+ * In-memory wallet identity store (dev/testing only).
+ * Maximum capacity bounded to prevent memory exhaustion and DoS from unauthenticated registration requests.
+ */
+export declare const MAX_WALLET_IDENTITIES_CAP = 10000;
+/**
+ * Clear wallet identities (for testing).
+ */
+export declare function clearWalletIdentities(): void;
+/**
  * Register a wallet-to-owner mapping.
  * Used for seeding test data and simulating identity registration.
  */

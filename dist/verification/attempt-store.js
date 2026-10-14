@@ -27,6 +27,7 @@ export class AttemptStore {
             attempt_count: attempt.attemptCount,
             max_attempts: attempt.maxAttempts,
             created_at: attempt.createdAt,
+            callback_url: attempt.callbackUrl,
         })
             .select()
             .single();
@@ -43,6 +44,7 @@ export class AttemptStore {
             attemptCount: data.attempt_count,
             maxAttempts: data.max_attempts,
             createdAt: data.created_at,
+            callbackUrl: data.callback_url,
         };
     }
     /**
@@ -69,6 +71,7 @@ export class AttemptStore {
             attemptCount: data.attempt_count,
             maxAttempts: data.max_attempts,
             createdAt: data.created_at,
+            callbackUrl: data.callback_url,
         };
     }
     /**
@@ -76,9 +79,15 @@ export class AttemptStore {
      * Returns the updated attempt or null if not found.
      */
     async incrementAttempt(id) {
+        // Security: Fetch current attempt to calculate explicit numeric increment.
+        // PostgREST/Supabase JS client does not support object expressions like { increment: 1 }
+        // for integer columns, which previously caused SQL type errors and allowed OTP brute force bypass.
+        const current = await this.getAttempt(id);
+        if (!current)
+            return null;
         const { data, error } = await this.supabase
             .from("verification_attempts")
-            .update({ attempt_count: { increment: 1 } })
+            .update({ attempt_count: current.attemptCount + 1 })
             .eq("id", id)
             .select()
             .single();
@@ -94,6 +103,7 @@ export class AttemptStore {
             attemptCount: data.attempt_count,
             maxAttempts: data.max_attempts,
             createdAt: data.created_at,
+            callbackUrl: data.callback_url,
         };
     }
     /**
