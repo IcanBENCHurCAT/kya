@@ -67,3 +67,8 @@
 **Vulnerability:** `verifyProof` in `src/services/zkp.ts` checked array types for `publicSignals` and proof point arrays (`pi_a`, `pi_b`, `pi_c`) without enforcing maximum array length or element string length bounds, enabling Denial of Service (DoS) attacks via memory exhaustion and CPU starvation during array iteration.
 **Learning:** Array type checking (`Array.isArray()`) without strict length caps allows malicious payloads with oversized nested arrays to consume excessive CPU cycles and memory during processing loops.
 **Prevention:** Always bound array lengths (e.g. `publicSignals.length <= 100`, `proof.pi_a.length <= 10`) and individual string element lengths (`<= 255`) before iterating over payload arrays.
+
+## 2025-05-18 - SSRF Bypass via IPv6-Mapped IPv4 and IPv6 Loopback Addresses in Webhooks
+**Vulnerability:** `isValidCallbackUrl` in `src/verification/webhook.ts` checked exact string matches for `127.0.0.1` and `/^169\.254\./` without unwrapping IPv6-mapped IPv4 representations (e.g. `[::ffff:127.0.0.1]`, `[::ffff:169.254.169.254]`) or checking extended IPv4 loopback ranges (`127.0.0.0/8`) and IPv6 unspecified/loopback (`[::]`), allowing SSRF bypasses to cloud metadata and internal services.
+**Learning:** URL parsers represent IPv6-mapped IPv4 addresses in hex notation (`[::ffff:7f00:1]`), which bypass naive regex and literal hostname filters while resolving to internal IPv4 network addresses during HTTP requests.
+**Prevention:** Extract embedded IPv4 addresses from IPv6-mapped IPv4 representations (`::ffff:`) before checking against forbidden private, loopback (`127.0.0.0/8`), link-local (`169.254.0.0/16`), and metadata IP ranges.
