@@ -29,8 +29,18 @@ export interface AuditEntry {
 
 /**
  * In-memory audit log store.
+ * Bounded by MAX_AUDIT_LOG_CAP to prevent unbounded memory growth and DoS attacks.
  */
+export const MAX_AUDIT_LOG_CAP = 100000;
 const auditLog: AuditEntry[] = [];
+
+function pushAuditEntry(entry: AuditEntry): void {
+  if (auditLog.length >= MAX_AUDIT_LOG_CAP) {
+    auditLog.splice(0, auditLog.length - MAX_AUDIT_LOG_CAP + 1);
+  }
+  auditLog.push(entry);
+  persistAuditLog();
+}
 
 const AUDIT_LOG_PATH = path.join(
   process.env.KYA_DATA_DIR || process.cwd(),
@@ -62,8 +72,7 @@ export function logScreening(result: {
     details: result.details,
   };
 
-  auditLog.push(entry);
-  persistAuditLog();
+  pushAuditEntry(entry);
   return entry;
 }
 
@@ -89,8 +98,7 @@ export function logUpdate(details: {
     details: `${details.entriesAdded} added, ${details.entriesRemoved} removed${details.error ? ` | Error: ${details.error}` : ''}`,
   };
 
-  auditLog.push(entry);
-  persistAuditLog();
+  pushAuditEntry(entry);
   return entry;
 }
 
@@ -111,8 +119,7 @@ export function logError(message: string, metadata?: Record<string, unknown>): A
     metadata,
   };
 
-  auditLog.push(entry);
-  persistAuditLog();
+  pushAuditEntry(entry);
   return entry;
 }
 
@@ -264,6 +271,9 @@ export function loadAuditLog(): void {
     if (Array.isArray(data)) {
       for (let i = 0; i < data.length; i++) {
         auditLog.push(data[i]);
+      }
+      if (auditLog.length > MAX_AUDIT_LOG_CAP) {
+        auditLog.splice(0, auditLog.length - MAX_AUDIT_LOG_CAP);
       }
       console.log(`[Audit] Loaded ${data.length} audit entries from disk.`);
     }
