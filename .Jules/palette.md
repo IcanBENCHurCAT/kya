@@ -112,3 +112,8 @@
 
 **Learning:** When users encounter a custom 404 error page, the standard keyboard mental model for modal dismissal (`Escape` key) should naturally return them to safety (the root landing page). Pairing `Escape` key handling with `aria-keyshortcuts="h Escape"`, explicit focus synchronization (`element.focus()`) on numeric shortcut activation (`1`, `2`, `3`), and visual legend updates provides a predictable, highly accessible recovery experience for keyboard and screen reader users.
 **Action:** Include `Escape` key listeners alongside standard CTA key bindings on error pages, update `aria-keyshortcuts` attributes, and synchronize programmatic focus when triggering keyboard shortcuts.
+
+## 2026-10-14 - Keyboard Shortcut Focus Synchronization & Live Region Announcements for External Tab Links
+
+**Learning:** Triggering external link shortcuts via single-key bindings (such as `[O]`) can leave keyboard and screen reader users disoriented if focus remains on an unrelated control or if no confirmation is announced. Synchronizing element focus (`element.focus()`) alongside an asynchronous `aria-live` polite status update (e.g. `Opening GET /health in new tab`) ensures both visual focus indicators and screen reader announcements confirm the action clearly.
+**Action:** Always invoke `element.focus()` and update an `aria-live` status region when executing keyboard shortcut handlers for external navigation links.
