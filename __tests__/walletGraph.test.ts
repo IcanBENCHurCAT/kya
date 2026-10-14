@@ -166,13 +166,19 @@ describe('WalletGraph', () => {
     });
 
     it('should serve related wallets from cache on subsequent calls if cached', () => {
-      // Access cache internal property to populate cache manually to test branch
-      const cache = (graph as any).cache;
-      cache.set('ADDR_1', ['ADDR_3', 'ADDR_2']);
+      // First call computes and populates relatedEdgesCache
+      const initial = graph.getRelatedWallets('ADDR_1');
+      expect(initial.length).toBe(3);
 
-      const related = graph.getRelatedWallets('ADDR_1');
-      expect(related.length).toBe(2);
-      expect(related.map((e) => e.target)).toEqual(['ADDR_3', 'ADDR_2']);
+      // Verify cached reference is returned on subsequent calls
+      const cached = graph.getRelatedWallets('ADDR_1');
+      expect(cached).toBe(initial);
+
+      // Verify invalidation when a new edge is added
+      graph.addEdge('ADDR_1', 'ADDR_5', 20, 'associated', 500, 1, 10);
+      const updated = graph.getRelatedWallets('ADDR_1');
+      expect(updated.length).toBe(4);
+      expect(updated).not.toBe(initial);
     });
 
     it('should cache outgoing edges and invalidate cache when new edge is added', () => {
