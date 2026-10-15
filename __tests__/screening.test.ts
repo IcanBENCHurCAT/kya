@@ -42,6 +42,7 @@ import {
   clearAuditLog,
   loadAuditLog,
   flushAuditLog,
+  MAX_AUDIT_LOG_CAP,
 } from "../src/services/audit.js";
 import {
   refreshWatchlists,
@@ -902,7 +903,7 @@ describe("Audit Logging", () => {
     assert(entry.result === "ERROR");
   });
 
-  it("should safely load large audit logs from disk without throwing stack overflow RangeError", () => {
+  it("should safely load large audit logs from disk without throwing stack overflow RangeError and bound to MAX_AUDIT_LOG_CAP", () => {
     const largeDataset = new Array(150000).fill(null).map((_, i) => ({
       id: `id-${i}`,
       timestamp: "2025-01-01T00:00:00.000Z",
@@ -918,8 +919,32 @@ describe("Audit Logging", () => {
     vi.spyOn(fs, "readFileSync").mockReturnValue(JSON.stringify(largeDataset));
 
     expect(() => loadAuditLog()).not.toThrow();
-    const loaded = getAuditLog({ limit: 10 });
-    expect(loaded.length).toBe(10);
+    const loaded = getAuditLog({ limit: MAX_AUDIT_LOG_CAP + 10 });
+    expect(loaded.length).toBe(MAX_AUDIT_LOG_CAP);
+  });
+
+  it("should enforce MAX_AUDIT_LOG_CAP and evict oldest audit log entry when capacity is reached", () => {
+    clearAuditLog();
+    for (let i = 0; i < MAX_AUDIT_LOG_CAP; i++) {
+      logScreening({
+        screened: `WALLET_${i}`,
+        status: "NO_MATCH_FOUND",
+        confidence: 0,
+        matchedEntries: [],
+        matchedListNames: [],
+        details: "",
+        timestamp: "2025-01-01T00:00:00.000Z",
+      });
+    }
+
+    expect(getAuditLog({ limit: MAX_AUDIT_LOG_CAP + 10 }).length).toBe(MAX_AUDIT_LOG_CAP);
+
+    // Log MAX_AUDIT_LOG_CAP + 1 entry
+    logError("Exceeding capacity test error");
+
+    const logs = getAuditLog({ limit: MAX_AUDIT_LOG_CAP + 10 });
+    expect(logs.length).toBe(MAX_AUDIT_LOG_CAP);
+    expect(logs[0].details).toBe("Exceeding capacity test error");
   });
 
   it("should filter audit log", () => {
