@@ -688,8 +688,14 @@ describe("Bulk Screening", () => {
     const res3 = await app.request("/api/v1/audit?limit=2000");
     expect(res3.status).toBe(200);
 
-    // Test oversized after query parameter
+    // Test oversized limit query parameter
     const longParam = "2".repeat(300);
+    const res3b = await app.request(`/api/v1/audit?limit=${longParam}`);
+    expect(res3b.status).toBe(400);
+    const body3b = await res3b.json();
+    expect(body3b.error).toContain("Invalid limit parameter");
+
+    // Test oversized after query parameter
     const res4 = await app.request(`/api/v1/audit?after=${longParam}`);
     expect(res4.status).toBe(400);
     const body4 = await res4.json();
