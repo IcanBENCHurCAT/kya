@@ -111,6 +111,8 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       expect(html).toContain("code.failed");
       expect(html).toContain('aria-label="Available keyboard shortcuts"');
       expect(html).toContain("tabs[num].focus()");
+      expect(html).toContain("openLink.focus()");
+      expect(html).toContain("Opening GET '+currentPath+' in new tab");
       expect(html).toContain('href="/health" target="_blank" rel="noopener noreferrer"');
       expect(html).toContain('title="View health check status (opens in new tab)"');
       expect(html).toContain('aria-label="View health check status (opens in new tab)"');
