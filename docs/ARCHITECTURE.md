@@ -161,7 +161,7 @@ SDK interceptor modules auto-sign x402 payments and enforce Karma thresholds acr
 ## ⚖️ 5. Privacy Architecture & Data Minimization (Principle VI & VII)
 
 1. **Zero On-Chain PII (GDPR Art. 17)**:
-   Storing raw PII or un-salted hashes on an immutable ledger violates GDPR. KYA uses **off-chain identity storage** (with zero on-chain PII and deletion on request) and on-chain **Groth16 zk-SNARK proof verification**.
+   Storing raw PII or un-salted hashes on an immutable ledger violates GDPR. KYA uses **off-chain identity storage** (with zero on-chain PII) and on-chain **Groth16 zk-SNARK proof verification**.
 2. **Multi-List Fuzzy Screening Engine**:
    OFAC SDN, EU CFSP, UN Security Council, and UK HMT. Combines **Jaro-Winkler ($\ge 0.88$)**, Levenshtein distance, and Double Metaphone phonetic matching.
 3. **Cryptographic Audit Logging**:
