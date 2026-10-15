@@ -105,16 +105,19 @@ app.get("/api/v1/watchlist", (c) => {
   const watchlist = WATCHLIST || {};
   const summary = getWatchlistSummary();
 
-  // Count entries per list
+  // Performance optimization: Single pass over list keys avoids allocating intermediate [key, value]
+  // tuple arrays via Object.entries and eliminates redundant Object.keys array allocations for total count.
+  const listNames = Object.keys(watchlist);
   const listBreakdown: Record<string, number> = {};
-  for (const [name, entries] of Object.entries(watchlist)) {
-    listBreakdown[name] = entries.length;
+  for (let i = 0; i < listNames.length; i++) {
+    const name = listNames[i];
+    listBreakdown[name] = watchlist[name].length;
   }
 
   return c.json({
     ...summary,
     listBreakdown,
-    totalLists: Object.keys(watchlist).length,
+    totalLists: listNames.length,
   });
 });
 
@@ -137,12 +140,17 @@ app.post("/api/v1/watchlist/refresh", async (c) => {
     c.env.WATCHLIST = updated;
   }
 
+  // Performance optimization: Direct loop over list keys avoids allocating an intermediate array of all values
+  // via Object.values and eliminates Array.prototype.reduce function call overhead.
+  let totalEntries = 0;
+  const updatedKeys = Object.keys(updated);
+  for (let i = 0; i < updatedKeys.length; i++) {
+    totalEntries += updated[updatedKeys[i]].length;
+  }
+
   return c.json({
     status: "success",
-    totalEntries: Object.values(updated).reduce(
-      (sum, entries) => sum + entries.length,
-      0,
-    ),
+    totalEntries,
     timestamp: new Date().toISOString(),
   });
 });

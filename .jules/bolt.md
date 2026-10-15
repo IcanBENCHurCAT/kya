@@ -137,3 +137,7 @@
 ## 2025-04-05 - Connected Components Caching in WalletGraph
 **Learning:** In `WalletGraph`, `getStats()` and `getConnectedComponents()` re-execute a full $O(V + E)$ BFS traversal across all nodes and edges on every call, allocating new visited Sets and component arrays even when graph topology has not changed.
 **Action:** Cache calculated connected components in `connectedComponentsCache` within `WalletGraph` and invalidate on topology mutations (`addNode` for new nodes, `addEdge`, `clear`), reducing repeated `getStats()` and component query time from ~$0.98s to ~$0.1ms per 1,000 requests (~1,000x speedup).
+
+## 2025-04-06 - Single-Pass Object Key Lookups vs Object.entries/Object.values in Route Handlers
+**Learning:** In HTTP route handlers querying multi-list watchlist state (`/api/v1/watchlist` and `/api/v1/watchlist/refresh`), using `Object.entries(watchlist)` or `Object.values(updated).reduce(...)` creates intermediate `[key, value]` tuple arrays for every entry and redundant `Object.keys()` calls.
+**Action:** Iterate directly over `Object.keys()` in a single indexed `for` loop to build breakdown maps, total entry counts, and list totals without tuple allocations or function closure overhead.
