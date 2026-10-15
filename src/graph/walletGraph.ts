@@ -21,6 +21,7 @@ export class WalletGraph {
   private relatedEdgesCache: Map<string, WalletGraphEdge[]>;
   private outgoingEdgesCache: Map<string, WalletGraphEdge[]>;
   private incomingEdgesCache: Map<string, WalletGraphEdge[]>;
+  private connectedComponentsCache: string[][] | null;
 
   constructor() {
     this.nodes = new Map();
@@ -30,6 +31,7 @@ export class WalletGraph {
     this.relatedEdgesCache = new Map();
     this.outgoingEdgesCache = new Map();
     this.incomingEdgesCache = new Map();
+    this.connectedComponentsCache = null;
   }
 
   /**
@@ -73,6 +75,7 @@ export class WalletGraph {
         firstSeenRound,
         lastSeenRound,
       });
+      this.connectedComponentsCache = null;
     }
 
     // Ensure adjacency list entry exists
@@ -169,6 +172,7 @@ export class WalletGraph {
     this.incomingEdgesCache.delete(target);
     this.relatedEdgesCache.delete(source);
     this.relatedEdgesCache.delete(target);
+    this.connectedComponentsCache = null;
     this.updateSiblingCount(source);
     this.updateSiblingCount(target);
   }
@@ -408,11 +412,17 @@ export class WalletGraph {
    * Get connected components (unconnected groups of wallets)
    *
    * Performance optimization:
-   * Uses an index pointer (`head`) instead of `queue.shift()` to eliminate $O(K)$ array re-indexing per pop,
-   * and marks nodes visited immediately upon enqueueing to prevent duplicate node insertions into the BFS queue.
+   * 1. Caches calculated connected components in `connectedComponentsCache`, invalidating on graph mutation
+   *    (`addNode` for new nodes, `addEdge`, `clear`). Subsequent `getConnectedComponents()` and `getStats()` queries run in O(1) time.
+   * 2. Uses an index pointer (`head`) instead of `queue.shift()` to eliminate $O(K)$ array re-indexing per pop,
+   *    and marks nodes visited immediately upon enqueueing to prevent duplicate node insertions into the BFS queue.
    * Reduces BFS time complexity from $O(V^2 + E \cdot V)$ down to $O(V + E)$ with zero duplicate allocations.
    */
   getConnectedComponents(): string[][] {
+    if (this.connectedComponentsCache) {
+      return this.connectedComponentsCache;
+    }
+
     const visited = new Set<string>();
     const components: string[][] = [];
 
@@ -455,6 +465,7 @@ export class WalletGraph {
       components.push(component);
     }
 
+    this.connectedComponentsCache = components;
     return components;
   }
 
@@ -557,6 +568,7 @@ export class WalletGraph {
     this.relatedEdgesCache.clear();
     this.outgoingEdgesCache.clear();
     this.incomingEdgesCache.clear();
+    this.connectedComponentsCache = null;
   }
 
   private updateSiblingCount(address: string): void {
