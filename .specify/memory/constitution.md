@@ -28,7 +28,7 @@ Domain modules (`screening`, `verification`, `karma`, `wallet-analysis`, `a2a`) 
 Quality assurance relies on a single unified Vitest test suite (`npm test`). Every production code path, middleware, and service method maintains complete test coverage. Application startup paths evaluate runtime configurations without reliance on synthetic test data seeds.
 
 ### VI. Zero-Knowledge Privacy & Production Readiness
-User and agent privacy is preserved by design. Identity assertions are stored off-chain with zero PII on-chain, OTP attempts expire after ~1 hour, and claims are deleted on user request. The use of Groth16 ZK-SNARK zero-knowledge proofs achieves full GDPR Art. 17 compliance with zero on-chain PII exposure. Production entry points enforce strict configuration validation.
+User and agent privacy is preserved by design. Identity assertions are stored off-chain with zero PII on-chain, OTP codes expire after ~10 minutes; verification attempts are deleted on verification. The use of Groth16 ZK-SNARK zero-knowledge proofs achieves full GDPR Art. 17 compliance with zero on-chain PII exposure. Production entry points enforce strict configuration validation.
 
 ### VII. Architectural Transparency & Documentation Integrity
 Project documentation (`README.md`, `HANDOFF.md`, `docs/ARCHITECTURE.md`) reflects active, verified source code. System capabilities, visual diagrams, and API contracts remain synchronized with production builds.
