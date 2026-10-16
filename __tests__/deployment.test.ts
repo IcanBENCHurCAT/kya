@@ -161,6 +161,10 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       expect(html).toContain('href="/health"');
       expect(html).toContain('href="/.well-known/x402.json"');
       expect(html).toContain('href="/.well-known/agent-card.json"');
+      expect(html).toContain('id="status-announcer"');
+      expect(html).toContain('aria-live="polite"');
+      expect(html).toContain('announce(');
+      expect(html).toContain("announce('Opening GET '+discLink.getAttribute('href')+' in new tab')");
     });
 
     it("should return JSON error response for unknown routes when Accept: application/json", async () => {
