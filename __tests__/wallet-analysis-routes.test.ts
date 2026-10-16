@@ -116,6 +116,22 @@ describe("Algorand Wallet Analysis REST API Security Tests", () => {
         "Invalid limit parameter: must be a positive integer",
       );
     });
+
+    it("should return HTTP 400 when limit parameter exceeds max length", async () => {
+      const longLimit = "9".repeat(300);
+      const res = await app.request(
+        `/api/v1/wallet/${validAddress}/txs?limit=${longLimit}`,
+        {
+          method: "GET",
+          headers: { "X-Payment": "tx_wallet_test_limit_long" },
+        },
+      );
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json.error).toBe(
+        "Invalid limit parameter: string exceeds maximum length",
+      );
+    });
   });
 
   describe("Error Response Sanitization", () => {

@@ -389,6 +389,12 @@ app.get("/api/v1/audit", (c) => {
   const limitParam = c.req.query("limit");
   let limit = 100;
   if (limitParam !== undefined) {
+    if (
+      typeof limitParam !== "string" ||
+      limitParam.length > MAX_STRING_LENGTH
+    ) {
+      return c.json({ error: "Invalid limit parameter: string exceeds maximum length" }, 400);
+    }
     const parsed = parseInt(limitParam, 10);
     if (isNaN(parsed) || parsed <= 0) {
       return c.json(
