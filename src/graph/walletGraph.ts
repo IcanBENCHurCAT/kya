@@ -500,10 +500,19 @@ export class WalletGraph {
     siblings: SiblingWallet[],
     counterpartyStats?: CounterpartyStats[]
   ): void {
+    // Performance optimization: Calculate total interaction count via direct scalar iteration
+    // instead of allocating closure functions via counterpartyStats?.reduce(...).
+    let totalInteractions = 0;
+    if (counterpartyStats) {
+      for (let i = 0; i < counterpartyStats.length; i++) {
+        totalInteractions += counterpartyStats[i].interactionCount;
+      }
+    }
+
     // Add the main node
     this.addNode(
       address,
-      counterpartyStats?.reduce((sum, cs) => sum + cs.interactionCount, 0) ?? 0,
+      totalInteractions,
       0,
       0,
       0,

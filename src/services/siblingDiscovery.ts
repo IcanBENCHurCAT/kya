@@ -145,7 +145,9 @@ export class SiblingDiscoveryService {
         }
       }
     } else if (counterpartyMap) {
-      for (const [addr, stats] of counterpartyMap) {
+      // Performance optimization: Use Map.prototype.forEach instead of `for (const [addr, stats] of counterpartyMap)`
+      // to avoid allocating temporary 2-element entry tuple arrays `[addr, stats]` per counterparty entry in V8.
+      counterpartyMap.forEach((stats, addr) => {
         if (stats.count >= threshold && !seenAddresses.has(addr)) {
           seenAddresses.add(addr);
           uniqueSiblings.push({
@@ -164,7 +166,7 @@ export class SiblingDiscoveryService {
             totalValueTransferred: stats.value,
           });
         }
-      }
+      });
     }
 
     // Sort by confidence (descending)
