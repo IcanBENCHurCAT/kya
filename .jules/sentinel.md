@@ -72,3 +72,8 @@
 **Vulnerability:** `isValidCallbackUrl` in `src/verification/webhook.ts` checked exact string matches for `127.0.0.1` and `/^169\.254\./` without unwrapping IPv6-mapped IPv4 representations (e.g. `[::ffff:127.0.0.1]`, `[::ffff:169.254.169.254]`) or checking extended IPv4 loopback ranges (`127.0.0.0/8`) and IPv6 unspecified/loopback (`[::]`), allowing SSRF bypasses to cloud metadata and internal services.
 **Learning:** URL parsers represent IPv6-mapped IPv4 addresses in hex notation (`[::ffff:7f00:1]`), which bypass naive regex and literal hostname filters while resolving to internal IPv4 network addresses during HTTP requests.
 **Prevention:** Extract embedded IPv4 addresses from IPv6-mapped IPv4 representations (`::ffff:`) before checking against forbidden private, loopback (`127.0.0.0/8`), link-local (`169.254.0.0/16`), and metadata IP ranges.
+
+## 2025-05-18 - Unbounded In-Memory Karma Ledger Store Memory Exhaustion
+**Vulnerability:** `InMemoryKarmaStore` in `src/services/karma.ts` stored agent profiles and event arrays in un-bounded `Map` instances, allowing unauthenticated Denial of Service (DoS) attacks via memory exhaustion when receiving high-volume karma queries or event POST requests.
+**Learning:** In-memory fallback stores populated by public API endpoints will grow indefinitely unless explicit capacity caps and FIFO/LRU eviction mechanisms are enforced at the data store level.
+**Prevention:** Always bound in-memory profile maps (`MAX_PROFILES_CAP = 10000`) and per-agent event history arrays (`MAX_EVENTS_PER_AGENT_CAP = 1000`) with FIFO eviction across all stateful service stores.

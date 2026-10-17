@@ -22,6 +22,11 @@ export interface AuditEntry {
     metadata?: Record<string, unknown>;
 }
 /**
+ * In-memory audit log store.
+ * Bounded by MAX_AUDIT_LOG_CAP to prevent unbounded memory growth and DoS attacks.
+ */
+export declare const MAX_AUDIT_LOG_CAP = 100000;
+/**
  * Log a screening operation.
  */
 export declare function logScreening(result: {

@@ -28,6 +28,11 @@ export interface KarmaRecord {
     riskFlags?: string[];
     registeredAt?: string;
 }
+/**
+ * Security: Bound maximum size of in-memory karma store to prevent memory exhaustion (DoS).
+ */
+export declare const MAX_PROFILES_CAP = 10000;
+export declare const MAX_EVENTS_PER_AGENT_CAP = 1000;
 export declare class InMemoryKarmaStore {
     private profiles;
     private events;

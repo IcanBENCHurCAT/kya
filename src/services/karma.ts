@@ -34,6 +34,12 @@ export interface KarmaRecord {
   registeredAt?: string;
 }
 
+/**
+ * Security: Bound maximum size of in-memory karma store to prevent memory exhaustion (DoS).
+ */
+export const MAX_PROFILES_CAP = 10000;
+export const MAX_EVENTS_PER_AGENT_CAP = 1000;
+
 export class InMemoryKarmaStore {
   private profiles: Map<string, AgentProfile> = new Map();
   private events: Map<string, KarmaEvent[]> = new Map();
@@ -43,6 +49,17 @@ export class InMemoryKarmaStore {
   }
 
   public saveProfile(profile: AgentProfile): void {
+    // Security: FIFO eviction on profiles Map when capacity is reached
+    if (
+      this.profiles.size >= MAX_PROFILES_CAP &&
+      !this.profiles.has(profile.agentAddress)
+    ) {
+      const oldestKey = this.profiles.keys().next().value;
+      if (oldestKey !== undefined) {
+        this.profiles.delete(oldestKey);
+        this.events.delete(oldestKey);
+      }
+    }
     this.profiles.set(profile.agentAddress, profile);
   }
 
@@ -55,6 +72,10 @@ export class InMemoryKarmaStore {
     if (!list) {
       list = [];
       this.events.set(event.agentAddress, list);
+    }
+    // Security: Cap per-agent event history to prevent unbounded array growth
+    if (list.length >= MAX_EVENTS_PER_AGENT_CAP) {
+      list.shift();
     }
     list.push(event);
   }
