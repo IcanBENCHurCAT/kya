@@ -53,10 +53,19 @@ export interface A2AHandshakeResponse {
   };
 }
 
+// Optimization: Static regex and hoisted helper for parsing agent tier levels without closure allocations
+const TIER_REGEX = /Tier\s*(\d+)/i;
+
+function getTierLevel(t: string): number {
+  const m = t.match(TIER_REGEX);
+  return m ? parseInt(m[1], 10) : -1;
+}
+
 export class A2AService {
   private karmaService: KarmaService;
   private servicePrivateKey: string | null = null;
   private servicePublicKey: string | null = null;
+  private initKeysPromise: Promise<void> | null = null;
   private keyId: string = 'key-a2a-1';
 
   constructor(karmaService: KarmaService = defaultKarmaService) {
@@ -65,13 +74,28 @@ export class A2AService {
 
   /**
    * Ensure service Ed25519 signing keys are initialized.
+   *
+   * Performance optimization:
+   * Memoizes key initialization promise (`initKeysPromise`) to prevent redundant concurrent
+   * Ed25519 WebCrypto key generation calls (`generateSigningKey()`) on parallel handshake requests.
    */
   public async initKeys(): Promise<void> {
-    if (!this.servicePrivateKey || !this.servicePublicKey) {
-      const keys = await generateSigningKey();
-      this.servicePrivateKey = keys.privateKey;
-      this.servicePublicKey = keys.publicKey;
+    if (this.servicePrivateKey && this.servicePublicKey) {
+      return;
     }
+
+    if (!this.initKeysPromise) {
+      this.initKeysPromise = (async () => {
+        const keys = await generateSigningKey();
+        this.servicePrivateKey = keys.privateKey;
+        this.servicePublicKey = keys.publicKey;
+      })().catch((err) => {
+        this.initKeysPromise = null;
+        throw err;
+      });
+    }
+
+    await this.initKeysPromise;
   }
 
   public getPublicKey(): string | null {
@@ -98,10 +122,6 @@ export class A2AService {
     const sanctionsStatus = screeningResult.status;
 
     // 3. Risk signal evaluation
-    const getTierLevel = (t: string): number => {
-      const m = t.match(/Tier\s*(\d+)/i);
-      return m ? parseInt(m[1], 10) : -1;
-    };
     const reqLevel = request.requiredVerificationLevel ? getTierLevel(request.requiredVerificationLevel) : -1;
     const targetLevel = getTierLevel(targetProfile.tier);
     const verificationLevelPass =
