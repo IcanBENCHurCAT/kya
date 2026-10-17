@@ -9,6 +9,20 @@ import * as algosdk from 'algosdk';
 import type { AlgorandConfig, AlgorandTransaction } from '../types/index.js';
 import { DEFAULT_CONFIG } from '../types/index.js';
 
+// Optimization: Hoisted static map object to avoid allocating a new Record object instance
+// every time mapOnCompletion is called during transaction parsing.
+const ON_COMPLETION_MAP: Record<
+  string,
+  'NoOp' | 'OptIn' | 'CloseOut' | 'ClearState' | 'UpdateApplication' | 'DeleteApplication'
+> = {
+  noop: 'NoOp',
+  optin: 'OptIn',
+  closeout: 'CloseOut',
+  clearstate: 'ClearState',
+  updateapplication: 'UpdateApplication',
+  deleteapplication: 'DeleteApplication',
+};
+
 export class AlgorandClient {
   private algod: algosdk.Algodv2;
   private indexer: algosdk.Indexer;
@@ -339,19 +353,8 @@ export class AlgorandClient {
   private mapOnCompletion(
     value: string
   ): 'NoOp' | 'OptIn' | 'CloseOut' | 'ClearState' | 'UpdateApplication' | 'DeleteApplication' {
-    const map: Record<
-      string,
-      'NoOp' | 'OptIn' | 'CloseOut' | 'ClearState' | 'UpdateApplication' | 'DeleteApplication'
-    > = {
-      noop: 'NoOp',
-      optin: 'OptIn',
-      closeout: 'CloseOut',
-      clearstate: 'ClearState',
-      updateapplication: 'UpdateApplication',
-      deleteapplication: 'DeleteApplication',
-    };
     return (
-      map[value.toLowerCase()] ||
+      ON_COMPLETION_MAP[value.toLowerCase()] ||
       ('NoOp' as 'NoOp' | 'OptIn' | 'CloseOut' | 'ClearState' | 'UpdateApplication' | 'DeleteApplication')
     );
   }
