@@ -165,6 +165,9 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       expect(html).toContain('aria-live="polite"');
       expect(html).toContain('announce(');
       expect(html).toContain("announce('Opening GET '+discLink.getAttribute('href')+' in new tab')");
+      expect(html).toContain("announce('Navigating to KYA Service landing page')");
+      expect(html).toContain("link.focus()");
+      expect(html).toContain('Press 2 to open x402 metadata in new tab" aria-label="Keyboard shortcut: press 2"');
     });
 
     it("should return JSON error response for unknown routes when Accept: application/json", async () => {
