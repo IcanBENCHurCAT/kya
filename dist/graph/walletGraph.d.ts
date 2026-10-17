@@ -12,6 +12,7 @@ export declare class WalletGraph {
     private relatedEdgesCache;
     private outgoingEdgesCache;
     private incomingEdgesCache;
+    private connectedComponentsCache;
     constructor();
     /**
      * Add or update a node in the graph
@@ -78,8 +79,10 @@ export declare class WalletGraph {
      * Get connected components (unconnected groups of wallets)
      *
      * Performance optimization:
-     * Uses an index pointer (`head`) instead of `queue.shift()` to eliminate $O(K)$ array re-indexing per pop,
-     * and marks nodes visited immediately upon enqueueing to prevent duplicate node insertions into the BFS queue.
+     * 1. Caches calculated connected components in `connectedComponentsCache`, invalidating on graph mutation
+     *    (`addNode` for new nodes, `addEdge`, `clear`). Subsequent `getConnectedComponents()` and `getStats()` queries run in O(1) time.
+     * 2. Uses an index pointer (`head`) instead of `queue.shift()` to eliminate $O(K)$ array re-indexing per pop,
+     *    and marks nodes visited immediately upon enqueueing to prevent duplicate node insertions into the BFS queue.
      * Reduces BFS time complexity from $O(V^2 + E \cdot V)$ down to $O(V + E)$ with zero duplicate allocations.
      */
     getConnectedComponents(): string[][];

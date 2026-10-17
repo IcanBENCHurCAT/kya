@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { KarmaService } from '../src/services/karma.js';
+import { KarmaService, InMemoryKarmaStore, MAX_PROFILES_CAP, MAX_EVENTS_PER_AGENT_CAP } from '../src/services/karma.js';
 import { app } from '../src/app.js';
 import { resetX402Receipts } from '../src/middleware/x402.js';
 
@@ -277,6 +277,53 @@ describe('Karma Ledger & KarmaService', () => {
       expect(resNullBody.status).toBe(400);
       const json = await resNullBody.json();
       expect(json.error).toBe('Invalid parameters');
+    });
+  });
+
+  describe('InMemoryKarmaStore Bounding & FIFO Eviction', () => {
+    it('should evict oldest profile when exceeding MAX_PROFILES_CAP', () => {
+      const store = new InMemoryKarmaStore();
+      for (let i = 0; i < MAX_PROFILES_CAP + 10; i++) {
+        store.saveProfile({
+          agentAddress: `AGENT_${i}`,
+          karmaScore: 100,
+          tier: 'Tier 0 (Unscored)',
+          registeredAt: new Date().toISOString(),
+          lastUpdated: new Date().toISOString(),
+        });
+      }
+
+      // Oldest 10 profiles should be evicted
+      for (let i = 0; i < 10; i++) {
+        expect(store.getProfile(`AGENT_${i}`)).toBeNull();
+      }
+
+      // Remaining profiles should still exist
+      for (let i = 10; i < MAX_PROFILES_CAP + 10; i++) {
+        expect(store.getProfile(`AGENT_${i}`)).not.toBeNull();
+      }
+    });
+
+    it('should cap per-agent event history to MAX_EVENTS_PER_AGENT_CAP', () => {
+      const store = new InMemoryKarmaStore();
+      const agentAddress = 'BOUNDED_EVENT_AGENT';
+
+      for (let i = 0; i < MAX_EVENTS_PER_AGENT_CAP + 50; i++) {
+        store.addEvent({
+          id: `evt_${i}`,
+          agentAddress,
+          eventType: 'credit',
+          amount: 1,
+          reason: `Event ${i}`,
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      const events = store.getEvents(agentAddress);
+      expect(events.length).toBe(MAX_EVENTS_PER_AGENT_CAP);
+      // Oldest 50 events should have been shifted out
+      expect(events[0].reason).toBe('Event 50');
+      expect(events[events.length - 1].reason).toBe(`Event ${MAX_EVENTS_PER_AGENT_CAP + 49}`);
     });
   });
 });

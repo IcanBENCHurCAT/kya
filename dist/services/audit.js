@@ -12,8 +12,17 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 /**
  * In-memory audit log store.
+ * Bounded by MAX_AUDIT_LOG_CAP to prevent unbounded memory growth and DoS attacks.
  */
+export const MAX_AUDIT_LOG_CAP = 100000;
 const auditLog = [];
+function pushAuditEntry(entry) {
+    if (auditLog.length >= MAX_AUDIT_LOG_CAP) {
+        auditLog.splice(0, auditLog.length - MAX_AUDIT_LOG_CAP + 1);
+    }
+    auditLog.push(entry);
+    persistAuditLog();
+}
 const AUDIT_LOG_PATH = path.join(process.env.KYA_DATA_DIR || process.cwd(), 'data', 'audit-log.json');
 /**
  * Log a screening operation.
@@ -30,8 +39,7 @@ export function logScreening(result) {
         matchedListNames: result.matchedListNames,
         details: result.details,
     };
-    auditLog.push(entry);
-    persistAuditLog();
+    pushAuditEntry(entry);
     return entry;
 }
 /**
@@ -49,8 +57,7 @@ export function logUpdate(details) {
         screenableTarget: details.source,
         details: `${details.entriesAdded} added, ${details.entriesRemoved} removed${details.error ? ` | Error: ${details.error}` : ''}`,
     };
-    auditLog.push(entry);
-    persistAuditLog();
+    pushAuditEntry(entry);
     return entry;
 }
 /**
@@ -69,8 +76,7 @@ export function logError(message, metadata) {
         details: message,
         metadata,
     };
-    auditLog.push(entry);
-    persistAuditLog();
+    pushAuditEntry(entry);
     return entry;
 }
 /**
@@ -199,6 +205,9 @@ export function loadAuditLog() {
         if (Array.isArray(data)) {
             for (let i = 0; i < data.length; i++) {
                 auditLog.push(data[i]);
+            }
+            if (auditLog.length > MAX_AUDIT_LOG_CAP) {
+                auditLog.splice(0, auditLog.length - MAX_AUDIT_LOG_CAP);
             }
             console.log(`[Audit] Loaded ${data.length} audit entries from disk.`);
         }
