@@ -141,3 +141,7 @@
 ## 2025-04-06 - Single-Pass Object Key Lookups vs Object.entries/Object.values in Route Handlers
 **Learning:** In HTTP route handlers querying multi-list watchlist state (`/api/v1/watchlist` and `/api/v1/watchlist/refresh`), using `Object.entries(watchlist)` or `Object.values(updated).reduce(...)` creates intermediate `[key, value]` tuple arrays for every entry and redundant `Object.keys()` calls.
 **Action:** Iterate directly over `Object.keys()` in a single indexed `for` loop to build breakdown maps, total entry counts, and list totals without tuple allocations or function closure overhead.
+
+## 2025-04-07 - Key Initialization Promise Memoization & Tier Regex Hoisting in A2A Handshake
+**Learning:** In agent-to-agent (A2A) handshake workflows (`A2AService`), invoking key initialization without promise memoization triggers redundant, parallel Ed25519 WebCrypto key generation calls (`generateSigningKey()`) under concurrent request spikes. Furthermore, defining tier parsing functions and RegExp matchers inside request handlers creates function closure and regex allocation overhead per handshake call.
+**Action:** Memoize key generation promise (`initKeysPromise`) in `A2AService.prototype.initKeys` to deduplicate WebCrypto operations across concurrent requests, and hoist `TIER_REGEX` and `getTierLevel` helper to module scope.
