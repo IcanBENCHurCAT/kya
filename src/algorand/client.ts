@@ -350,12 +350,19 @@ export class AlgorandClient {
     return result;
   }
 
+  /**
+   * Security: Validate that `value` is a string before converting to lowercase.
+   * Prevents unhandled TypeError exceptions and service crashes when parsing application call
+   * transactions with missing, null, or numeric `onCompletion` fields from node/indexer payloads.
+   */
   private mapOnCompletion(
-    value: string
+    value: unknown
   ): 'NoOp' | 'OptIn' | 'CloseOut' | 'ClearState' | 'UpdateApplication' | 'DeleteApplication' {
+    if (typeof value !== 'string') {
+      return 'NoOp';
+    }
     return (
-      ON_COMPLETION_MAP[value.toLowerCase()] ||
-      ('NoOp' as 'NoOp' | 'OptIn' | 'CloseOut' | 'ClearState' | 'UpdateApplication' | 'DeleteApplication')
+      ON_COMPLETION_MAP[value.toLowerCase()] || 'NoOp'
     );
   }
 }

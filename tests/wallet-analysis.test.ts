@@ -125,6 +125,41 @@ async function testAlgorandClient() {
   });
   assert.ok(customClient);
 
+  // Test mapOnCompletion with invalid / non-string onCompletion values
+  const mapOnCompletion = (client as any).mapOnCompletion.bind(client);
+  assert.strictEqual(mapOnCompletion('noop'), 'NoOp');
+  assert.strictEqual(mapOnCompletion('OPTIN'), 'OptIn');
+  assert.strictEqual(mapOnCompletion(undefined), 'NoOp');
+  assert.strictEqual(mapOnCompletion(null), 'NoOp');
+  assert.strictEqual(mapOnCompletion(0), 'NoOp');
+  assert.strictEqual(mapOnCompletion({}), 'NoOp');
+
+  // Test parseTransactions with app call having missing or numeric onCompletion
+  const parseTransactions = (client as any).parseTransactions.bind(client);
+  const parsed = parseTransactions([
+    {
+      tx: {
+        snd: 'ADDR_SENDER',
+        appCallTxnFields: {
+          applicationID: 12345,
+          onCompletion: undefined,
+        },
+      },
+    },
+    {
+      tx: {
+        snd: 'ADDR_SENDER',
+        appCallTxnFields: {
+          applicationID: 67890,
+          onCompletion: 0,
+        },
+      },
+    },
+  ]);
+  assert.strictEqual(parsed.length, 2);
+  assert.strictEqual(parsed[0].applicationCall?.type, 'NoOp');
+  assert.strictEqual(parsed[1].applicationCall?.type, 'NoOp');
+
   console.log('  ✅ AlgorandClient tests passed');
 }
 
