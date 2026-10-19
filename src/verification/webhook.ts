@@ -1,6 +1,47 @@
 import { CompactSign, importPKCS8 } from "jose";
 
 /**
+ * Security: Normalizes non-canonical IPv4 representations (octal, hex, integer, 1/2/3-part formats)
+ * into standard 4-octet dotted-decimal notation (`A.B.C.D`) to prevent SSRF bypasses.
+ */
+function normalizeIPv4Host(host: string): string | null {
+  const parts = host.split(".");
+  if (parts.length < 1 || parts.length > 4) return null;
+  const numbers: number[] = [];
+  for (const p of parts) {
+    if (!p) return null;
+    let num: number;
+    if (/^0x[0-9a-f]+$/i.test(p)) {
+      num = parseInt(p, 16);
+    } else if (/^0[0-7]+$/.test(p)) {
+      num = parseInt(p, 8);
+    } else if (/^\d+$/.test(p)) {
+      num = parseInt(p, 10);
+    } else {
+      return null;
+    }
+    if (isNaN(num) || num < 0 || num > 0xffffffff) return null;
+    numbers.push(num);
+  }
+
+  let ipNum: number;
+  if (numbers.length === 1) {
+    ipNum = numbers[0];
+  } else if (numbers.length === 2) {
+    if (numbers[0] > 0xff || numbers[1] > 0xffffff) return null;
+    ipNum = (numbers[0] << 24) + numbers[1];
+  } else if (numbers.length === 3) {
+    if (numbers[0] > 0xff || numbers[1] > 0xff || numbers[2] > 0xffff) return null;
+    ipNum = (numbers[0] << 24) + (numbers[1] << 16) + numbers[2];
+  } else {
+    if (numbers[0] > 0xff || numbers[1] > 0xff || numbers[2] > 0xff || numbers[3] > 0xff) return null;
+    ipNum = (numbers[0] << 24) + (numbers[1] << 16) + (numbers[2] << 8) + numbers[3];
+  }
+  ipNum = ipNum >>> 0;
+  return `${(ipNum >>> 24) & 0xff}.${(ipNum >>> 16) & 0xff}.${(ipNum >>> 8) & 0xff}.${ipNum & 0xff}`;
+}
+
+/**
  * Security: Validates callback URLs to prevent Server-Side Request Forgery (SSRF)
  * and unhandled URL parsing exceptions. Blocks loopback, private IP ranges,
  * cloud metadata endpoints, and internal domain suffixes.
@@ -23,7 +64,10 @@ export function isValidCallbackUrl(urlStr: unknown): boolean {
     }
 
     let target = clean;
-    if (!/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(clean)) {
+    const normalizedIPv4 = normalizeIPv4Host(clean);
+    if (normalizedIPv4) {
+      target = normalizedIPv4;
+    } else if (!/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(clean)) {
       const parts = clean.split(":");
       if (parts.length === 2) {
         const high = parseInt(parts[0], 16);

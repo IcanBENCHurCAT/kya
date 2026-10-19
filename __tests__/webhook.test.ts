@@ -116,6 +116,14 @@ describe("WebhookService", () => {
     expect(isValidCallbackUrl("http://[::ffff:169.254.169.254]/status")).toBe(false);
     expect(isValidCallbackUrl("http://[::ffff:10.0.0.1]/status")).toBe(false);
     expect(isValidCallbackUrl("http://internal-service.local")).toBe(false);
+
+    // Non-canonical IPv4 SSRF bypass targets (octal, hex, DWORD integer)
+    expect(isValidCallbackUrl("http://0177.0.0.1/status")).toBe(false);
+    expect(isValidCallbackUrl("http://0x7f.0.0.1/status")).toBe(false);
+    expect(isValidCallbackUrl("http://2130706433/status")).toBe(false);
+    expect(isValidCallbackUrl("http://0x7f000001/status")).toBe(false);
+    expect(isValidCallbackUrl("http://012.0.0.1/status")).toBe(false);
+    expect(isValidCallbackUrl("http://0251.0372.0169.0254/status")).toBe(false);
     expect(isValidCallbackUrl("ftp://example.com/upload")).toBe(false);
     expect(isValidCallbackUrl("not-a-url")).toBe(false);
     expect(isValidCallbackUrl("")).toBe(false);

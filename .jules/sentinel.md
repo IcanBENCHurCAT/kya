@@ -77,3 +77,8 @@
 **Vulnerability:** `InMemoryKarmaStore` in `src/services/karma.ts` stored agent profiles and event arrays in un-bounded `Map` instances, allowing unauthenticated Denial of Service (DoS) attacks via memory exhaustion when receiving high-volume karma queries or event POST requests.
 **Learning:** In-memory fallback stores populated by public API endpoints will grow indefinitely unless explicit capacity caps and FIFO/LRU eviction mechanisms are enforced at the data store level.
 **Prevention:** Always bound in-memory profile maps (`MAX_PROFILES_CAP = 10000`) and per-agent event history arrays (`MAX_EVENTS_PER_AGENT_CAP = 1000`) with FIFO eviction across all stateful service stores.
+
+## 2025-05-18 - SSRF Bypass via Non-Canonical IPv4 Representations in Webhooks
+**Vulnerability:** `isValidCallbackUrl` in `src/verification/webhook.ts` evaluated hostname strings against regex prefix patterns (e.g. `/^127\./`, `/^10\./`) without normalizing non-canonical IPv4 representations (octal `0177.0.0.1`, hex `0x7f.0.0.1`, DWORD integer `2130706433`, or truncated 1/2/3-part formats).
+**Learning:** URL parsers pass hostname strings through to HTTP client libraries without normalizing octal/hex/integer formats, allowing attackers to bypass prefix regex filters while `fetch` resolves the host to loopback (`127.0.0.1`) or private network addresses.
+**Prevention:** Normalize all IPv4 hostname representations into standard 4-octet dotted-decimal notation (`A.B.C.D`) before checking against forbidden private, loopback, link-local, and metadata IP ranges.
