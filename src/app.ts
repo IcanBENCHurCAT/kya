@@ -28,7 +28,7 @@ import a2aApp from "./routes/a2a.js";
 import { x402PaymentGate } from "./middleware/x402.js";
 import { createVerificationRoutes } from "./routes/verification-routes.js";
 import { initializeWatchlist } from "./services/watchlist-updater.js";
-import { loadAuditLog } from "./services/audit.js";
+import { loadAuditLog, flushAuditLog } from "./services/audit.js";
 import { generateSigningKey } from "./utils/crypto.js";
 import { ClaimStore } from "./verification/claim-store.js";
 import { AttemptStore } from "./verification/attempt-store.js";
@@ -500,6 +500,36 @@ async function main() {
   server.on("error", (err) => {
     console.error("Server error:", err);
   });
+
+  let isShuttingDown = false;
+
+  const shutdown = async (signal: string) => {
+    if (isShuttingDown) return;
+    isShuttingDown = true;
+    console.log(`\n🛑 Received ${signal}. Starting graceful shutdown...`);
+
+    // Force exit after 10 seconds if connections are stuck
+    const forceExitTimer = setTimeout(() => {
+      console.error("⚠️ Force exit timeout exceeded. Exiting forcefully.");
+      process.exit(1);
+    }, 10000);
+
+    // Stop accepting new connections and finish in-flight requests
+    server.close(() => {
+      console.log("✅ HTTP server closed.");
+      clearTimeout(forceExitTimer);
+
+      // Flush audit log synchronously
+      console.log("💾 Flushing audit log to disk...");
+      flushAuditLog();
+
+      console.log("👋 Graceful shutdown complete.");
+      process.exit(0);
+    });
+  };
+
+  process.on("SIGINT", () => shutdown("SIGINT"));
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
 }
 
 if (process.env.NODE_ENV !== "test" && !process.env.VITEST) {
