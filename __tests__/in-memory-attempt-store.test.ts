@@ -166,4 +166,34 @@ describe('InMemoryAttemptStore', () => {
     expect(await store.getRecentAttemptCount(otherId)).toBe(1);
     expect(await store.getRecentAttemptCount('nonexistent@example.com')).toBe(0);
   });
+
+  it('should evict oldest attempt and update index when exceeding MAX_ATTEMPTS_CAP', async () => {
+    const firstAttempt = await store.createAttempt({
+      identifier: 'oldest@example.com',
+      method: 'email',
+      codeHash: 'h0',
+      codeSalt: 's0',
+      expiresAt: Date.now() + 60000,
+      attemptCount: 0,
+      maxAttempts: 3,
+      createdAt: Date.now(),
+    });
+
+    for (let i = 1; i <= 10000; i++) {
+      await store.createAttempt({
+        identifier: `user_${i}@example.com`,
+        method: 'email',
+        codeHash: `h${i}`,
+        codeSalt: `s${i}`,
+        expiresAt: Date.now() + 60000,
+        attemptCount: 0,
+        maxAttempts: 3,
+        createdAt: Date.now(),
+      });
+    }
+
+    expect(store.size()).toBe(10000);
+    expect(await store.getAttempt(firstAttempt.id)).toBeNull();
+    expect(await store.getRecentAttemptCount('oldest@example.com')).toBe(0);
+  });
 });

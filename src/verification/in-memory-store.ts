@@ -5,6 +5,11 @@
 
 import { VerificationAttempt } from "./types.js";
 
+/**
+ * Security: Bound maximum size of in-memory attempt store to prevent memory exhaustion (DoS).
+ */
+export const MAX_ATTEMPTS_CAP = 10000;
+
 export class InMemoryAttemptStore {
   private attempts = new Map<string, VerificationAttempt>();
   // Secondary index map for O(1) identifier lookups and zero-allocation rate limit queries
@@ -16,6 +21,19 @@ export class InMemoryAttemptStore {
   ): Promise<VerificationAttempt> {
     const id = crypto.randomUUID();
     const fullAttempt = { id, ...attempt };
+
+    // Security: FIFO eviction on attempts Map when capacity is reached to prevent memory exhaustion
+    if (this.attempts.size >= MAX_ATTEMPTS_CAP) {
+      const oldestKey = this.attempts.keys().next().value;
+      if (oldestKey !== undefined) {
+        const oldest = this.attempts.get(oldestKey);
+        if (oldest) {
+          this.removeFromIndex(oldest);
+        }
+        this.attempts.delete(oldestKey);
+      }
+    }
+
     this.attempts.set(id, fullAttempt);
 
     // Maintain secondary index by identifier
