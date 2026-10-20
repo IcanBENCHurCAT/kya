@@ -22,6 +22,7 @@ export class WalletGraph {
   private outgoingEdgesCache: Map<string, WalletGraphEdge[]>;
   private incomingEdgesCache: Map<string, WalletGraphEdge[]>;
   private connectedComponentsCache: string[][] | null;
+  private degreeCentralityCache: Map<string, number> | null;
 
   constructor() {
     this.nodes = new Map();
@@ -32,6 +33,7 @@ export class WalletGraph {
     this.outgoingEdgesCache = new Map();
     this.incomingEdgesCache = new Map();
     this.connectedComponentsCache = null;
+    this.degreeCentralityCache = null;
   }
 
   /**
@@ -76,6 +78,7 @@ export class WalletGraph {
         lastSeenRound,
       });
       this.connectedComponentsCache = null;
+      this.degreeCentralityCache = null;
     }
 
     // Ensure adjacency list entry exists
@@ -173,6 +176,7 @@ export class WalletGraph {
     this.relatedEdgesCache.delete(source);
     this.relatedEdgesCache.delete(target);
     this.connectedComponentsCache = null;
+    this.degreeCentralityCache = null;
     this.updateSiblingCount(source);
     this.updateSiblingCount(target);
   }
@@ -471,14 +475,26 @@ export class WalletGraph {
 
   /**
    * Calculate degree centrality for all nodes
-   * Performance: O(1) lookup per node using adjacency and incoming edge maps, avoiding full graph traversal.
+   *
+   * Performance optimization:
+   * Caches calculated degree centrality in `degreeCentralityCache` and invalidates on graph mutations
+   * (`addNode` when adding a new node, `addEdge`, `clear`). Subsequent `getDegreeCentrality()` calls run in O(1) time
+   * without re-iterating all graph nodes or recalculating Map size properties.
    */
   getDegreeCentrality(): Map<string, number> {
+    if (this.degreeCentralityCache) {
+      return this.degreeCentralityCache;
+    }
+
     const centrality = new Map<string, number>();
     const n = this.nodes.size;
 
-    if (n <= 1) return centrality;
+    if (n <= 1) {
+      this.degreeCentralityCache = centrality;
+      return centrality;
+    }
 
+    const factor = 1 / (n - 1);
     for (const address of this.nodes.keys()) {
       const outgoing = this.adjacencyList.get(address);
       const outgoingCount = outgoing ? outgoing.size : 0;
@@ -486,9 +502,10 @@ export class WalletGraph {
       const incoming = this.incomingEdges.get(address);
       const incomingCount = incoming ? incoming.size : 0;
 
-      centrality.set(address, (outgoingCount + incomingCount) / (n - 1));
+      centrality.set(address, (outgoingCount + incomingCount) * factor);
     }
 
+    this.degreeCentralityCache = centrality;
     return centrality;
   }
 
@@ -578,6 +595,7 @@ export class WalletGraph {
     this.outgoingEdgesCache.clear();
     this.incomingEdgesCache.clear();
     this.connectedComponentsCache = null;
+    this.degreeCentralityCache = null;
   }
 
   private updateSiblingCount(address: string): void {
