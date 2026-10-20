@@ -82,3 +82,8 @@
 **Vulnerability:** `isValidCallbackUrl` in `src/verification/webhook.ts` evaluated hostname strings against regex prefix patterns (e.g. `/^127\./`, `/^10\./`) without normalizing non-canonical IPv4 representations (octal `0177.0.0.1`, hex `0x7f.0.0.1`, DWORD integer `2130706433`, or truncated 1/2/3-part formats).
 **Learning:** URL parsers pass hostname strings through to HTTP client libraries without normalizing octal/hex/integer formats, allowing attackers to bypass prefix regex filters while `fetch` resolves the host to loopback (`127.0.0.1`) or private network addresses.
 **Prevention:** Normalize all IPv4 hostname representations into standard 4-octet dotted-decimal notation (`A.B.C.D`) before checking against forbidden private, loopback, link-local, and metadata IP ranges.
+
+## 2025-05-18 - Unbounded In-Memory OTP Attempt and Claim Stores Memory Exhaustion
+**Vulnerability:** `InMemoryAttemptStore` and `InMemoryClaimStore` in `src/verification/` stored OTP verification attempts and claims in unbounded `Map` and secondary index `Set` structures without capacity caps, enabling unauthenticated Denial of Service (DoS) attacks via memory exhaustion when running without database credentials.
+**Learning:** In-memory fallback stores that maintain secondary index maps (e.g. `byIdentifier`, `byWallet`, `byIdentityHash`) must evict entries from both primary storage and secondary indexes when capacity caps are reached to prevent memory leaks and inconsistent index state.
+**Prevention:** Always bound in-memory attempt and claim stores with capacity caps (`MAX_CAP = 10000`), perform FIFO eviction on primary maps, and clean up corresponding entries from secondary index sets.

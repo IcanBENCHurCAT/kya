@@ -162,4 +162,36 @@ describe("InMemoryClaimStore", () => {
       expect(store.getAll()).toEqual([]);
     });
   });
+
+  describe("MAX_CLAIMS_CAP eviction", () => {
+    it("should evict oldest claim and update secondary indexes when exceeding MAX_CLAIMS_CAP", async () => {
+      const oldestClaim = await store.createClaim({
+        walletAddress: "OLDEST_WALLET",
+        identityHash: "OLDEST_HASH",
+        method: "email",
+        verifiedAt: 100,
+        signature: "sig_old",
+        keyId: "key1",
+        attemptId: "att_old",
+      });
+
+      for (let i = 1; i <= 10000; i++) {
+        await store.createClaim({
+          walletAddress: `WALLET_${i}`,
+          identityHash: `HASH_${i}`,
+          method: "email",
+          verifiedAt: 100 + i,
+          signature: `sig_${i}`,
+          keyId: "key1",
+          attemptId: `att_${i}`,
+        });
+      }
+
+      expect(store.size()).toBe(10000);
+      expect(await store.findByWallet(oldestClaim.walletAddress)).toBeNull();
+      expect(await store.findByIdentityHash(oldestClaim.identityHash)).toEqual([]);
+      expect(await store.hasClaim(oldestClaim.walletAddress)).toBe(false);
+      expect(await store.hasIdentityHash(oldestClaim.identityHash)).toBe(false);
+    });
+  });
 });
