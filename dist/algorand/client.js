@@ -6,6 +6,16 @@
  */
 import * as algosdk from 'algosdk';
 import { DEFAULT_CONFIG } from '../types/index.js';
+// Optimization: Hoisted static map object to avoid allocating a new Record object instance
+// every time mapOnCompletion is called during transaction parsing.
+const ON_COMPLETION_MAP = {
+    noop: 'NoOp',
+    optin: 'OptIn',
+    closeout: 'CloseOut',
+    clearstate: 'ClearState',
+    updateapplication: 'UpdateApplication',
+    deleteapplication: 'DeleteApplication',
+};
 export class AlgorandClient {
     algod;
     indexer;
@@ -261,16 +271,15 @@ export class AlgorandClient {
         }
         return result;
     }
+    /**
+     * Security: Validate that `value` is a string before converting to lowercase.
+     * Prevents unhandled TypeError exceptions and service crashes when parsing application call
+     * transactions with missing, null, or numeric `onCompletion` fields from node/indexer payloads.
+     */
     mapOnCompletion(value) {
-        const map = {
-            noop: 'NoOp',
-            optin: 'OptIn',
-            closeout: 'CloseOut',
-            clearstate: 'ClearState',
-            updateapplication: 'UpdateApplication',
-            deleteapplication: 'DeleteApplication',
-        };
-        return (map[value.toLowerCase()] ||
-            'NoOp');
+        if (typeof value !== 'string') {
+            return 'NoOp';
+        }
+        return (ON_COMPLETION_MAP[value.toLowerCase()] || 'NoOp');
     }
 }

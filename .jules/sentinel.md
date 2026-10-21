@@ -87,3 +87,8 @@
 **Vulnerability:** `InMemoryAttemptStore` and `InMemoryClaimStore` in `src/verification/` stored OTP verification attempts and claims in unbounded `Map` and secondary index `Set` structures without capacity caps, enabling unauthenticated Denial of Service (DoS) attacks via memory exhaustion when running without database credentials.
 **Learning:** In-memory fallback stores that maintain secondary index maps (e.g. `byIdentifier`, `byWallet`, `byIdentityHash`) must evict entries from both primary storage and secondary indexes when capacity caps are reached to prevent memory leaks and inconsistent index state.
 **Prevention:** Always bound in-memory attempt and claim stores with capacity caps (`MAX_CAP = 10000`), perform FIFO eviction on primary maps, and clean up corresponding entries from secondary index sets.
+
+## 2025-05-18 - SSRF Bypass via Wildcard DNS Services and Embedded IP Subdomains
+**Vulnerability:** `isValidCallbackUrl` in `src/verification/webhook.ts` evaluated hostname prefixes and direct IP matches but permitted wildcard DNS resolution domains (e.g., `.nip.io`, `.sslip.io`, `.localtest.me`) and subdomains with embedded private/loopback IPv4 addresses (e.g., `sub.127.0.0.1.domain.com`), allowing SSRF bypasses to local and internal network endpoints.
+**Learning:** Checking hostname prefixes or exact string matches is insufficient for callback URL validation when public wildcard DNS services resolve arbitrary subdomain IP representations to internal loopback or private addresses.
+**Prevention:** Always check for wildcard DNS domains and extract embedded IPv4 sequences from hostname labels to validate against forbidden private, loopback, link-local, and cloud metadata IP ranges.

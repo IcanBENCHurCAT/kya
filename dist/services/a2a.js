@@ -2,23 +2,43 @@ import { randomUUID } from 'node:crypto';
 import { defaultKarmaService } from './karma.js';
 import { screenSanctions } from './screening.js';
 import { generateSigningKey, signClaim, verifyClaimSignature } from '../utils/crypto.js';
+// Optimization: Static regex and hoisted helper for parsing agent tier levels without closure allocations
+const TIER_REGEX = /Tier\s*(\d+)/i;
+function getTierLevel(t) {
+    const m = t.match(TIER_REGEX);
+    return m ? parseInt(m[1], 10) : -1;
+}
 export class A2AService {
     karmaService;
     servicePrivateKey = null;
     servicePublicKey = null;
+    initKeysPromise = null;
     keyId = 'key-a2a-1';
     constructor(karmaService = defaultKarmaService) {
         this.karmaService = karmaService;
     }
     /**
      * Ensure service Ed25519 signing keys are initialized.
+     *
+     * Performance optimization:
+     * Memoizes key initialization promise (`initKeysPromise`) to prevent redundant concurrent
+     * Ed25519 WebCrypto key generation calls (`generateSigningKey()`) on parallel handshake requests.
      */
     async initKeys() {
-        if (!this.servicePrivateKey || !this.servicePublicKey) {
-            const keys = await generateSigningKey();
-            this.servicePrivateKey = keys.privateKey;
-            this.servicePublicKey = keys.publicKey;
+        if (this.servicePrivateKey && this.servicePublicKey) {
+            return;
         }
+        if (!this.initKeysPromise) {
+            this.initKeysPromise = (async () => {
+                const keys = await generateSigningKey();
+                this.servicePrivateKey = keys.privateKey;
+                this.servicePublicKey = keys.publicKey;
+            })().catch((err) => {
+                this.initKeysPromise = null;
+                throw err;
+            });
+        }
+        await this.initKeysPromise;
     }
     getPublicKey() {
         return this.servicePublicKey;
@@ -36,10 +56,6 @@ export class A2AService {
         const screeningResult = screenSanctions(request.targetAddress, undefined, watchlist || {});
         const sanctionsStatus = screeningResult.status;
         // 3. Risk signal evaluation
-        const getTierLevel = (t) => {
-            const m = t.match(/Tier\s*(\d+)/i);
-            return m ? parseInt(m[1], 10) : -1;
-        };
         const reqLevel = request.requiredVerificationLevel ? getTierLevel(request.requiredVerificationLevel) : -1;
         const targetLevel = getTierLevel(targetProfile.tier);
         const verificationLevelPass = !request.requiredVerificationLevel ||

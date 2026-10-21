@@ -13,6 +13,7 @@ export declare class WalletGraph {
     private outgoingEdgesCache;
     private incomingEdgesCache;
     private connectedComponentsCache;
+    private degreeCentralityCache;
     constructor();
     /**
      * Add or update a node in the graph
@@ -88,7 +89,11 @@ export declare class WalletGraph {
     getConnectedComponents(): string[][];
     /**
      * Calculate degree centrality for all nodes
-     * Performance: O(1) lookup per node using adjacency and incoming edge maps, avoiding full graph traversal.
+     *
+     * Performance optimization:
+     * Caches calculated degree centrality in `degreeCentralityCache` and invalidates on graph mutations
+     * (`addNode` when adding a new node, `addEdge`, `clear`). Subsequent `getDegreeCentrality()` calls run in O(1) time
+     * without re-iterating all graph nodes or recalculating Map size properties.
      */
     getDegreeCentrality(): Map<string, number>;
     /**
