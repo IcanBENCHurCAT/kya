@@ -124,7 +124,8 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       expect(html).toContain('href="/.well-known/agent-card.json" target="_blank" rel="noopener noreferrer" onclick="announceOpen(\'/.well-known/agent-card.json\')"');
       expect(html).toContain('title="View A2A Agent Card manifest (opens in new tab)"');
       expect(html).toContain('aria-label="View A2A Agent Card manifest (opens in new tab)"');
-      expect(html).toContain('function announceOpen(path){var targetPath=path||currentPath;');
+      expect(html).toContain('function announceOpen(path){var targetPath=path||currentPath;var openLink=document.getElementById(\'endpoint-link\');');
+      expect(html).toContain('kbd.classList.add(\'active\')');
       expect(html).toContain('viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-left:.25rem;vertical-align:middle"');
     });
 
@@ -171,6 +172,8 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       expect(html).toContain("announce('Opening GET '+discLink.getAttribute('href')+' in new tab')");
       expect(html).toContain("announce('Opening GET /health in new tab')");
       expect(html).toContain("announce('Navigating to KYA Service landing page')");
+      expect(html).toContain('id="home-link"');
+      expect(html).toContain('onclick="announce(\'Navigating to KYA Service landing page\')"');
       expect(html).toContain("link.focus()");
       expect(html).toContain('Press 2 to open x402 metadata in new tab" aria-label="Keyboard shortcut: press 2"');
       expect(html).toContain('viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-left:.25rem;vertical-align:middle"');
