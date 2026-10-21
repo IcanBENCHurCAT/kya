@@ -117,3 +117,8 @@
 
 **Learning:** Triggering external link shortcuts via single-key bindings (such as `[O]`) can leave keyboard and screen reader users disoriented if focus remains on an unrelated control or if no confirmation is announced. Synchronizing element focus (`element.focus()`) alongside an asynchronous `aria-live` polite status update (e.g. `Opening GET /health in new tab`) ensures both visual focus indicators and screen reader announcements confirm the action clearly.
 **Action:** Always invoke `element.focus()` and update an `aria-live` status region when executing keyboard shortcut handlers for external navigation links.
+
+## 2026-10-20 - Explicit Path Parameters for Multi-Link Live Region Announcements
+
+**Learning:** When developer landing pages present multiple discovery links alongside interactive code snippet panels, `aria-live` announcement functions that rely on an implicit global path variable (`currentPath`) announce inaccurate URLs when secondary links are clicked. Passing explicit target path parameters to `announceOpen(path)` ensures screen reader polite announcements accurately describe whichever link was activated.
+**Action:** Parameterize `aria-live` announcement handlers to accept explicit target paths rather than depending on global active tab state.

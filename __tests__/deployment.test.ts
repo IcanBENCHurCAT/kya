@@ -114,16 +114,17 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       expect(html).toContain("openLink.focus()");
       expect(html).toContain("copyBtn.focus()");
       expect(html).toContain("announceOpen()");
-      expect(html).toContain("Opening GET '+currentPath+' in new tab");
-      expect(html).toContain('href="/health" target="_blank" rel="noopener noreferrer"');
+      expect(html).toContain("Opening GET '+targetPath+' in new tab");
+      expect(html).toContain('href="/health" target="_blank" rel="noopener noreferrer" onclick="announceOpen(\'/health\')"');
       expect(html).toContain('title="View health check status (opens in new tab)"');
       expect(html).toContain('aria-label="View health check status (opens in new tab)"');
-      expect(html).toContain('href="/.well-known/x402.json" target="_blank" rel="noopener noreferrer"');
+      expect(html).toContain('href="/.well-known/x402.json" target="_blank" rel="noopener noreferrer" onclick="announceOpen(\'/.well-known/x402.json\')"');
       expect(html).toContain('title="View x402 merchant discovery metadata (opens in new tab)"');
       expect(html).toContain('aria-label="View x402 merchant discovery metadata (opens in new tab)"');
-      expect(html).toContain('href="/.well-known/agent-card.json" target="_blank" rel="noopener noreferrer"');
+      expect(html).toContain('href="/.well-known/agent-card.json" target="_blank" rel="noopener noreferrer" onclick="announceOpen(\'/.well-known/agent-card.json\')"');
       expect(html).toContain('title="View A2A Agent Card manifest (opens in new tab)"');
       expect(html).toContain('aria-label="View A2A Agent Card manifest (opens in new tab)"');
+      expect(html).toContain('function announceOpen(path){var targetPath=path||currentPath;');
       expect(html).toContain('viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-left:.25rem;vertical-align:middle"');
     });
 
