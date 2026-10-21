@@ -3,6 +3,10 @@
  * Production uses Supabase; this stores claims locally.
  */
 import { VerificationClaim } from "./types.js";
+/**
+ * Security: Bound maximum size of in-memory claim store to prevent memory exhaustion (DoS).
+ */
+export declare const MAX_CLAIMS_CAP = 10000;
 export declare class InMemoryClaimStore {
     private claims;
     private byWallet;

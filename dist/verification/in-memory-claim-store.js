@@ -2,6 +2,10 @@
  * In-memory claim store for testing.
  * Production uses Supabase; this stores claims locally.
  */
+/**
+ * Security: Bound maximum size of in-memory claim store to prevent memory exhaustion (DoS).
+ */
+export const MAX_CLAIMS_CAP = 10000;
 export class InMemoryClaimStore {
     claims = new Map();
     // Secondary index maps for O(1) lookup speed and zero-allocation queries
@@ -16,6 +20,28 @@ export class InMemoryClaimStore {
             createdAt: now,
             updatedAt: now,
         };
+        // Security: FIFO eviction on claims Map when capacity is reached to prevent memory exhaustion
+        if (this.claims.size >= MAX_CLAIMS_CAP) {
+            const oldestKey = this.claims.keys().next().value;
+            if (oldestKey !== undefined) {
+                const oldest = this.claims.get(oldestKey);
+                if (oldest) {
+                    const walletSet = this.byWallet.get(oldest.walletAddress);
+                    if (walletSet) {
+                        walletSet.delete(oldest);
+                        if (walletSet.size === 0)
+                            this.byWallet.delete(oldest.walletAddress);
+                    }
+                    const hashSet = this.byIdentityHash.get(oldest.identityHash);
+                    if (hashSet) {
+                        hashSet.delete(oldest);
+                        if (hashSet.size === 0)
+                            this.byIdentityHash.delete(oldest.identityHash);
+                    }
+                }
+                this.claims.delete(oldestKey);
+            }
+        }
         this.claims.set(fullClaim.id, fullClaim);
         // Maintain secondary index by wallet address
         let walletSet = this.byWallet.get(fullClaim.walletAddress);

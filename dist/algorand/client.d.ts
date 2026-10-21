@@ -93,5 +93,10 @@ export declare class AlgorandClient {
      * achieving ~60% faster parsing on large transaction sets (~5,000 txs).
      */
     private parseTransactions;
+    /**
+     * Security: Validate that `value` is a string before converting to lowercase.
+     * Prevents unhandled TypeError exceptions and service crashes when parsing application call
+     * transactions with missing, null, or numeric `onCompletion` fields from node/indexer payloads.
+     */
     private mapOnCompletion;
 }

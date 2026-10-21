@@ -124,6 +124,15 @@ describe("WebhookService", () => {
     expect(isValidCallbackUrl("http://0x7f000001/status")).toBe(false);
     expect(isValidCallbackUrl("http://012.0.0.1/status")).toBe(false);
     expect(isValidCallbackUrl("http://0251.0372.0169.0254/status")).toBe(false);
+
+    // Wildcard DNS resolution services and embedded private/loopback IP subdomains
+    expect(isValidCallbackUrl("http://test.127.0.0.1.nip.io/webhook")).toBe(false);
+    expect(isValidCallbackUrl("http://app.169.254.169.254.nip.io/metadata")).toBe(false);
+    expect(isValidCallbackUrl("http://foo.10.0.0.1.sslip.io/callback")).toBe(false);
+    expect(isValidCallbackUrl("http://app.localtest.me/status")).toBe(false);
+    expect(isValidCallbackUrl("http://sub.127.0.0.1.customdomain.com/webhook")).toBe(false);
+    expect(isValidCallbackUrl("http://api.192.168.1.1.internal.org/webhook")).toBe(false);
+
     expect(isValidCallbackUrl("ftp://example.com/upload")).toBe(false);
     expect(isValidCallbackUrl("not-a-url")).toBe(false);
     expect(isValidCallbackUrl("")).toBe(false);

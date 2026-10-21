@@ -82,6 +82,12 @@ export function isValidCallbackUrl(urlStr: unknown): boolean {
       target === "localhost" ||
       target.endsWith(".local") ||
       target.endsWith(".internal") ||
+      target.endsWith(".nip.io") ||
+      target.endsWith(".sslip.io") ||
+      target.endsWith(".xip.io") ||
+      target.endsWith(".lvh.me") ||
+      target.endsWith(".localtest.me") ||
+      target.endsWith(".traefik.me") ||
       /^0\.|^127\.|^10\.|^172\.(1[6-9]|2[0-9]|3[01])\.|^192\.168\.|^169\.254\./.test(target) ||
       target === "::" ||
       target === "::1" ||
@@ -91,6 +97,21 @@ export function isValidCallbackUrl(urlStr: unknown): boolean {
       /^f[cd]/i.test(target)
     ) {
       return false;
+    }
+
+    // Security: Extract and validate embedded IPv4 sequences anywhere in domain labels
+    // to block wildcard DNS or custom subdomains targeting private/loopback IP ranges
+    const ipMatches = target.match(/\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/g);
+    if (ipMatches) {
+      for (const candidate of ipMatches) {
+        const norm = normalizeIPv4Host(candidate);
+        if (
+          norm &&
+          /^0\.|^127\.|^10\.|^172\.(1[6-9]|2[0-9]|3[01])\.|^192\.168\.|^169\.254\./.test(norm)
+        ) {
+          return false;
+        }
+      }
     }
     return true;
   } catch {

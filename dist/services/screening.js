@@ -180,11 +180,32 @@ function buildCharFreq(sLower) {
  * distance >= max(lenA-H, lenB-H) (unmatched code units must be edited), so
  * lv <= 1 - max(lenA-H, lenB-H)/max(lenA,lenB). Hence
  * combined = 0.7*jw + 0.3*lv <= 0.7*maxJW + 0.3*maxLV.
+ *
+ * Performance optimization:
+ * Pre-computes exact Winkler prefix `p` and solves linear slope-intercept math
+ * for required `hMin`. Prunes candidates immediately if `hMin > minLen` prior to
+ * `histBuf` typed array buffer copying, and early-exits during the character loop as soon
+ * as remaining characters cannot satisfy `hMin`.
  */
 function histogramBoundAllows(aLower, aFreq, bLower, lenA, threshold) {
+    const lenB = bLower.length;
+    const minLen = lenA < lenB ? lenA : lenB;
+    const maxLen = lenA > lenB ? lenA : lenB;
+    // Actual Winkler common prefix, capped at 4 (matches jaroWinklerSimilarity)
+    let p = 0;
+    const pLim = minLen < 4 ? minLen : 4;
+    while (p < pLim && aLower.charCodeAt(p) === bLower.charCodeAt(p))
+        p++;
+    // Solve exact minimum character intersection h required to reach threshold.
+    // Subtract epsilon (1e-9) to prevent IEEE-754 floating-point rounding errors (e.g. 3.0000000000000004)
+    // from incorrectly rounding up to 4 via Math.ceil.
+    const kSlope = 0.7 * ((lenA + lenB) / (3 * lenA * lenB)) * (1 - 0.1 * p) + 0.3 / maxLen;
+    const kBase = (0.7 + 0.14 * p) / 3;
+    const hMin = Math.ceil((threshold - kBase) / kSlope - 1e-9);
+    if (hMin > minLen)
+        return false;
     histBuf.set(aFreq);
     let h = 0;
-    const lenB = bLower.length;
     for (let i = 0; i < lenB; i++) {
         const code = bLower.charCodeAt(i);
         const idx = code < 128 ? code : 128;
@@ -192,17 +213,11 @@ function histogramBoundAllows(aLower, aFreq, bLower, lenA, threshold) {
             histBuf[idx]--;
             h++;
         }
+        else if (h + (lenB - 1 - i) < hMin) {
+            return false;
+        }
     }
-    // Actual Winkler common prefix, capped at 4 (matches jaroWinklerSimilarity).
-    let p = 0;
-    const pLim = lenA < lenB ? (lenA < 4 ? lenA : 4) : (lenB < 4 ? lenB : 4);
-    while (p < pLim && aLower.charCodeAt(p) === bLower.charCodeAt(p))
-        p++;
-    const maxJaro = (h / lenA + h / lenB + 1) / 3;
-    const maxJW = maxJaro + p * 0.1 * (1 - maxJaro);
-    const maxLen = lenA > lenB ? lenA : lenB;
-    const maxLV = 1 - Math.max(lenA - h, lenB - h) / maxLen;
-    return 0.7 * maxJW + 0.3 * maxLV >= threshold;
+    return h >= hMin;
 }
 /**
  * Optimized combined similarity score for pre-lowercased inputs.

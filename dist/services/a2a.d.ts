@@ -50,10 +50,15 @@ export declare class A2AService {
     private karmaService;
     private servicePrivateKey;
     private servicePublicKey;
+    private initKeysPromise;
     private keyId;
     constructor(karmaService?: KarmaService);
     /**
      * Ensure service Ed25519 signing keys are initialized.
+     *
+     * Performance optimization:
+     * Memoizes key initialization promise (`initKeysPromise`) to prevent redundant concurrent
+     * Ed25519 WebCrypto key generation calls (`generateSigningKey()`) on parallel handshake requests.
      */
     initKeys(): Promise<void>;
     getPublicKey(): string | null;

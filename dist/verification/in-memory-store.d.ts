@@ -3,6 +3,10 @@
  * Production uses Supabase; this stores OTP hashes locally.
  */
 import { VerificationAttempt } from "./types.js";
+/**
+ * Security: Bound maximum size of in-memory attempt store to prevent memory exhaustion (DoS).
+ */
+export declare const MAX_ATTEMPTS_CAP = 10000;
 export declare class InMemoryAttemptStore {
     private attempts;
     private byIdentifier;

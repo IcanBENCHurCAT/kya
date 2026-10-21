@@ -2,6 +2,10 @@
  * In-memory OTP store for testing.
  * Production uses Supabase; this stores OTP hashes locally.
  */
+/**
+ * Security: Bound maximum size of in-memory attempt store to prevent memory exhaustion (DoS).
+ */
+export const MAX_ATTEMPTS_CAP = 10000;
 export class InMemoryAttemptStore {
     attempts = new Map();
     // Secondary index map for O(1) identifier lookups and zero-allocation rate limit queries
@@ -10,6 +14,17 @@ export class InMemoryAttemptStore {
     async createAttempt(attempt) {
         const id = crypto.randomUUID();
         const fullAttempt = { id, ...attempt };
+        // Security: FIFO eviction on attempts Map when capacity is reached to prevent memory exhaustion
+        if (this.attempts.size >= MAX_ATTEMPTS_CAP) {
+            const oldestKey = this.attempts.keys().next().value;
+            if (oldestKey !== undefined) {
+                const oldest = this.attempts.get(oldestKey);
+                if (oldest) {
+                    this.removeFromIndex(oldest);
+                }
+                this.attempts.delete(oldestKey);
+            }
+        }
         this.attempts.set(id, fullAttempt);
         // Maintain secondary index by identifier
         let idSet = this.byIdentifier.get(fullAttempt.identifier);
