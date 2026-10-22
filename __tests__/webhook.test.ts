@@ -2,6 +2,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { WebhookService, isValidCallbackUrl } from "../src/verification/webhook.js";
 import { generateSigningKey } from "../src/utils/crypto.js";
 import { compactVerify, importSPKI } from "jose";
+import { EmailVerificationProvider } from "../src/verification/providers/email-provider.js";
+import { InMemoryAttemptStore } from "../src/verification/in-memory-store.js";
+import { InMemoryClaimStore } from "../src/verification/in-memory-claim-store.js";
 
 describe("WebhookService", () => {
   let webhookService: WebhookService;
@@ -150,5 +153,38 @@ describe("WebhookService", () => {
       expect.stringContaining("Final webhook delivery failure"),
       expect.any(Error)
     );
+  });
+
+  it("should reject invalid or forbidden SSRF callbackUrl during EmailVerificationProvider.initiateVerification", async () => {
+    const emailProvider = new EmailVerificationProvider({
+      attemptStore: new InMemoryAttemptStore(),
+      claimStore: new InMemoryClaimStore() as any,
+      privateKey,
+      keyId,
+    });
+
+    const validWallet = "W5IRXJWPSXNUJVSN2MOEJGTDGKUGFKUDVPTR5ZQVMDG5O4KYD5M3QPG3TE";
+
+    await expect(
+      emailProvider.initiateVerification({
+        identifier: "user@example.com",
+        walletAddress: validWallet,
+        callbackUrl: "http://127.0.0.1:3000/internal",
+      })
+    ).rejects.toMatchObject({
+      code: "INVALID_CALLBACK_URL",
+      status: 400,
+    });
+
+    await expect(
+      emailProvider.initiateVerification({
+        identifier: "user@example.com",
+        walletAddress: validWallet,
+        callbackUrl: "http://169.254.169.254/latest/meta-data/",
+      })
+    ).rejects.toMatchObject({
+      code: "INVALID_CALLBACK_URL",
+      status: 400,
+    });
   });
 });
