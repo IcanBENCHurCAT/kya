@@ -92,3 +92,8 @@
 **Vulnerability:** `isValidCallbackUrl` in `src/verification/webhook.ts` evaluated hostname prefixes and direct IP matches but permitted wildcard DNS resolution domains (e.g., `.nip.io`, `.sslip.io`, `.localtest.me`) and subdomains with embedded private/loopback IPv4 addresses (e.g., `sub.127.0.0.1.domain.com`), allowing SSRF bypasses to local and internal network endpoints.
 **Learning:** Checking hostname prefixes or exact string matches is insufficient for callback URL validation when public wildcard DNS services resolve arbitrary subdomain IP representations to internal loopback or private addresses.
 **Prevention:** Always check for wildcard DNS domains and extract embedded IPv4 sequences from hostname labels to validate against forbidden private, loopback, link-local, and cloud metadata IP ranges.
+
+## 2025-05-18 - Unvalidated Callback URL in Verification Provider
+**Vulnerability:** `initiateVerification` in `src/verification/providers/email-provider.ts` accepted and persisted `callbackUrl` parameters without validating them via `isValidCallbackUrl`, allowing invalid, private, or loopback URLs to be stored as verification attempts.
+**Learning:** Validating input parameters exclusively in HTTP route handlers leaves direct service calls and internal provider layer methods exposed to invalid or SSRF callback URLs.
+**Prevention:** Always perform strict callback URL validation using `isValidCallbackUrl` directly at the provider / service layer boundary.

@@ -20,7 +20,7 @@ import { ClaimStore } from "../claim-store.js";
 import { InMemoryAttemptStore } from "../in-memory-store.js";
 import { verifyAndSignClaim } from "../../utils/crypto.js";
 import { VerificationSuccess } from "../types.js";
-import { WebhookService } from "../webhook.js";
+import { WebhookService, isValidCallbackUrl } from "../webhook.js";
 
 export interface EmailProviderOptions {
   /** Attempt store for OTP persistence */
@@ -119,6 +119,16 @@ export class EmailVerificationProvider implements VerificationProvider {
         code: "INVALID_ADDRESS" as const,
         status: 400,
       });
+    }
+
+    // Security: Validate callbackUrl format to prevent SSRF and unhandled URL parsing exceptions
+    if (callbackUrl !== undefined && callbackUrl !== null) {
+      if (!isValidCallbackUrl(callbackUrl)) {
+        throw Object.assign(new Error("Invalid callbackUrl format"), {
+          code: "INVALID_CALLBACK_URL" as const,
+          status: 400,
+        });
+      }
     }
 
     // 3. Generate OTP
