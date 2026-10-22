@@ -53,13 +53,28 @@ const defaultAllowedOrigins = [
   "https://kya-service.duckdns.org",
 ];
 
+let cachedEnvOrigins: string | undefined = undefined;
+let cachedAllowedOrigins: string[] = defaultAllowedOrigins;
+
+/**
+ * Performance optimization:
+ * Memoize the parsed allowed origins array keyed by `process.env.ALLOWED_ORIGINS` string value.
+ * Avoids executing string splitting, array mapping, and array filtering on every incoming CORS HTTP request across all endpoints.
+ */
 const getAllowedOrigins = (): string[] => {
-  if (process.env.ALLOWED_ORIGINS) {
-    return process.env.ALLOWED_ORIGINS.split(",")
-      .map((origin) => origin.trim())
-      .filter((origin) => origin.length > 0);
+  const envOrigins = process.env.ALLOWED_ORIGINS;
+  if (envOrigins !== cachedEnvOrigins) {
+    cachedEnvOrigins = envOrigins;
+    if (envOrigins) {
+      cachedAllowedOrigins = envOrigins
+        .split(",")
+        .map((origin) => origin.trim())
+        .filter((origin) => origin.length > 0);
+    } else {
+      cachedAllowedOrigins = defaultAllowedOrigins;
+    }
   }
-  return defaultAllowedOrigins;
+  return cachedAllowedOrigins;
 };
 
 app.use(
