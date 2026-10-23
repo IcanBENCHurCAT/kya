@@ -160,6 +160,8 @@ export class WebhookService {
       // Extract signature (third part of JWS) as hex
       const signatureHex = Buffer.from(jws.split(".")[2], "base64url").toString("hex");
 
+      // Security: Disable automatic HTTP redirect following (`redirect: "error"`)
+      // to prevent SSRF bypasses via external endpoints redirecting (301/302) to internal/loopback targets.
       const res = await fetch(url, {
         method: "POST",
         headers: {
@@ -168,6 +170,7 @@ export class WebhookService {
           "X-Key-Id": this.keyId,
         },
         body: payloadString,
+        redirect: "error",
       });
 
       if (!res.ok) {

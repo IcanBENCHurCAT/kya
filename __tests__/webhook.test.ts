@@ -50,7 +50,8 @@ describe("WebhookService", () => {
     expect(init.method).toBe("POST");
     expect(init.headers["Content-Type"]).toBe("application/json");
     expect(init.headers["X-Key-Id"]).toBe(keyId);
-    
+    expect(init.redirect).toBe("error");
+
     // Verify the payload
     expect(JSON.parse(init.body)).toEqual(payload);
 
@@ -60,11 +61,25 @@ describe("WebhookService", () => {
     const base64urlMessage = Buffer.from(init.body).toString("base64url");
     const header = Buffer.from(JSON.stringify({ alg: "EdDSA", kid: keyId })).toString("base64url");
     const jws = `${header}.${base64urlMessage}.${base64urlSignature}`;
-    
+
     const spkiKey = await importSPKI(publicKey, "EdDSA");
     const result = await compactVerify(jws, spkiKey);
     const decoded = new TextDecoder().decode(result.payload);
     expect(JSON.parse(decoded)).toEqual(payload);
+  });
+
+  it("should enforce redirect: 'error' on fetch to block HTTP 301/302 SSRF redirect attempts", async () => {
+    (global.fetch as any).mockResolvedValue({ ok: true, status: 200 });
+
+    webhookService.dispatch("https://example.com/webhook-redirect-test", { redirectTest: true }, 0);
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    const [url, init] = (global.fetch as any).mock.calls[0];
+    expect(url).toBe("https://example.com/webhook-redirect-test");
+    expect(init.redirect).toBe("error");
+    expect(JSON.parse(init.body)).toEqual({ redirectTest: true });
   });
 
   it("should retry on failure up to maxRetries", async () => {
