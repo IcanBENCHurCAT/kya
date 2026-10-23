@@ -153,3 +153,7 @@
 ## 2025-04-09 - Memoized CORS Allowed Origins Parsing
 **Learning:** Evaluating environment variables like `process.env.ALLOWED_ORIGINS` inside global middleware callbacks on every HTTP request forces repeated string splitting (`.split(",")`), trimming (`.map()`), and array filtering (`.filter()`), generating multiple short-lived heap allocations and GC pressure on every request.
 **Action:** Memoize parsed environment configuration arrays keyed by their raw environment variable string value (`envOrigins !== cachedEnvOrigins`), eliminating string parsing allocations and reducing origin lookup overhead to $O(1)$ reference comparisons across all endpoints.
+
+## 2025-04-10 - Scalar Counter Variables & Pre-Allocated Map Conversion Arrays in Transaction History Aggregation
+**Learning:** In transaction history aggregation (`TransactionHistoryService.aggregateTransactions`), creating temporary `incoming` and `outgoing` arrays to push thousands of transactions solely to access `.length` created short-lived array allocations and GC pressure. Furthermore, converting `counterpartyMap.values()` and `assetMap.values()` to arrays via `Array.from()` triggered dynamic array growth and iterator allocation overhead.
+**Action:** Replace `incoming` and `outgoing` arrays with scalar integer counters (`incomingTransactions`, `outgoingTransactions`), and pre-allocate fixed-size arrays (`new Array(map.size)`) populated via `map.forEach` for counterparties and assets to eliminate dynamic array growth and temporary GC allocations during wallet transaction profiling.

@@ -154,8 +154,10 @@ export class TransactionHistoryService {
     address: string,
     transactions: AlgorandTransaction[]
   ): WalletTransactionHistory {
-    const incoming: AlgorandTransaction[] = [];
-    const outgoing: AlgorandTransaction[] = [];
+    // Optimization: Use scalar integer counters instead of temporary incoming/outgoing arrays
+    // to eliminate allocating short-lived AlgorandTransaction[] arrays and pushing thousands of items per request.
+    let incomingTransactions = 0;
+    let outgoingTransactions = 0;
     let totalReceived = 0;
     let totalSent = 0;
     let firstSeenRound = Infinity;
@@ -173,7 +175,7 @@ export class TransactionHistoryService {
       if (tx.round > lastSeenRound) lastSeenRound = tx.round;
 
       if (tx.type === 'received') {
-        incoming.push(tx);
+        incomingTransactions++;
         totalReceived += tx.amount;
 
         const sender = tx.sender;
@@ -203,7 +205,7 @@ export class TransactionHistoryService {
           }
         }
       } else {
-        outgoing.push(tx);
+        outgoingTransactions++;
         totalSent += tx.amount;
 
         const receiver = tx.receiver || tx.assetTransfer?.receiver;
@@ -253,19 +255,27 @@ export class TransactionHistoryService {
     if (firstSeenRound === Infinity) firstSeenRound = 0;
     if (lastSeenRound === -Infinity) lastSeenRound = 0;
 
-    // Sort by interaction count (descending)
-    const topCounterparties = Array.from(counterpartyMap.values())
-      .sort((a, b) => b.interactionCount - a.interactionCount);
+    // Performance optimization: Pre-allocate fixed-size arrays matching Map sizes and populate via forEach
+    // to eliminate dynamic array growth and Array.from iterator allocations.
+    const topCounterparties = new Array<CounterpartyStats>(counterpartyMap.size);
+    let cpIdx = 0;
+    counterpartyMap.forEach((stats) => {
+      topCounterparties[cpIdx++] = stats;
+    });
+    topCounterparties.sort((a, b) => b.interactionCount - a.interactionCount);
 
-    const topAssets = Array.from(assetMap.values()).sort(
-      (a, b) => b.totalTransfers - a.totalTransfers
-    );
+    const topAssets = new Array<AssetStats>(assetMap.size);
+    let assetIdx = 0;
+    assetMap.forEach((stats) => {
+      topAssets[assetIdx++] = stats;
+    });
+    topAssets.sort((a, b) => b.totalTransfers - a.totalTransfers);
 
     return {
       address,
       totalTransactions: transactions.length,
-      incomingTransactions: incoming.length,
-      outgoingTransactions: outgoing.length,
+      incomingTransactions,
+      outgoingTransactions,
       totalReceived,
       totalSent,
       netBalance: totalReceived - totalSent,
