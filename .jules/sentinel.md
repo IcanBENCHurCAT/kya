@@ -97,3 +97,8 @@
 **Vulnerability:** `initiateVerification` in `src/verification/providers/email-provider.ts` accepted and persisted `callbackUrl` parameters without validating them via `isValidCallbackUrl`, allowing invalid, private, or loopback URLs to be stored as verification attempts.
 **Learning:** Validating input parameters exclusively in HTTP route handlers leaves direct service calls and internal provider layer methods exposed to invalid or SSRF callback URLs.
 **Prevention:** Always perform strict callback URL validation using `isValidCallbackUrl` directly at the provider / service layer boundary.
+
+## 2025-05-18 - Unbounded Non-Integer Event Amounts in Karma Ledger Route
+**Vulnerability:** `POST /api/v1/karma/event` checked `typeof amount === 'number'` and `amount > 0` without validating integer type or upper bound caps, allowing float precision loss and score corruption DoS attacks via massive numeric inputs (e.g. `1e20`).
+**Learning:** In JavaScript, `typeof number` and `Number.isFinite()` allow floating-point and oversized numbers that exceed `Number.MAX_SAFE_INTEGER`, causing loss of precision in arithmetic calculations.
+**Prevention:** Always validate numeric transaction/ledger amounts with `Number.isInteger(amount)` and bound them with an explicit maximum upper cap (`amount <= MAX_AMOUNT`).

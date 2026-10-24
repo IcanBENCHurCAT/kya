@@ -5,6 +5,7 @@ import { defaultKarmaService, KarmaService } from '../services/karma.js';
 export type { KarmaRecord, KarmaEvent, AgentProfile } from '../services/karma.js';
 
 const MAX_STRING_LENGTH = 255;
+const MAX_KARMA_EVENT_AMOUNT = 1_000_000;
 
 export function createKarmaRoutes(karmaService: KarmaService = defaultKarmaService) {
   const karmaApp = new Hono();
@@ -33,8 +34,8 @@ export function createKarmaRoutes(karmaService: KarmaService = defaultKarmaServi
     const body = (await c.req.json().catch(() => ({}))) || {};
     const { agentAddress, eventType, amount, reason, txid } = body;
 
-    // Security: Validate required parameters and strictly enforce finite, positive amount
-    // and string type bounds to prevent NaN score corruption, type confusion, and unhandled exceptions.
+    // Security: Validate required parameters and strictly enforce finite, positive integer amount
+    // bounded by MAX_KARMA_EVENT_AMOUNT to prevent float precision loss, score corruption, and DoS.
     if (
       !agentAddress ||
       typeof agentAddress !== 'string' ||
@@ -43,7 +44,9 @@ export function createKarmaRoutes(karmaService: KarmaService = defaultKarmaServi
       !eventType ||
       typeof amount !== 'number' ||
       !Number.isFinite(amount) ||
+      !Number.isInteger(amount) ||
       amount <= 0 ||
+      amount > MAX_KARMA_EVENT_AMOUNT ||
       !['credit', 'debit', 'emit', 'CREDIT', 'DEBIT', 'EMIT'].includes(eventType)
     ) {
       return c.json({ error: 'Invalid parameters' }, 400);
