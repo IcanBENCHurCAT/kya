@@ -591,6 +591,21 @@ export function screenSanctions(
     }
   }
 
+  // Performance optimization: Fast early exit for the zero-match path (the vast majority of screening calls).
+  // Bypasses Set instantiations, array deduplication/sorting/slicing, and string formatting operations.
+  if (results.length === 0) {
+    return {
+      screened: target,
+      match: false,
+      status: 'NO_MATCH_FOUND',
+      confidence: 0,
+      matchedEntries: [],
+      matchedListNames: [],
+      details: 'No sanctions matches found',
+      timestamp: new Date().toISOString(),
+    };
+  }
+
   // Deduplicate and sort by score
   const seen = new Set<string>();
   const uniqueResults: MatchedEntry[] = [];
