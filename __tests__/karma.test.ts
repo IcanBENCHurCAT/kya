@@ -187,16 +187,17 @@ describe('Karma Ledger & KarmaService', () => {
       expect(json.error).toBe('Invalid parameters');
     });
 
-    it('should reject non-positive or non-finite amount on POST /api/v1/karma/event', async () => {
+    it('should reject non-positive, non-finite, non-integer, or oversized amount on POST /api/v1/karma/event', async () => {
       const validAddress = 'KBWP7FHVYOKPNQOH7X3MLL6BHRK33WUNPHP3ZLY4JWPEGNXLNB3SNPBY6E';
 
-      const invalidAmounts = [-100, 0, NaN, Infinity];
-      for (const amount of invalidAmounts) {
+      const invalidAmounts = [-100, 0, 1.5, 1_000_001, 1e20, NaN, Infinity];
+      for (let i = 0; i < invalidAmounts.length; i++) {
+        const amount = invalidAmounts[i];
         const res = await app.request('/api/v1/karma/event', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'X-Payment': `tx_karma_invalid_amount_${amount}`,
+            'X-Payment': `tx_karma_invalid_amount_${i}`,
           },
           body: JSON.stringify({
             agentAddress: validAddress,
