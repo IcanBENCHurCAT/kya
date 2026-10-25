@@ -5,6 +5,7 @@ import { createVerificationRoutes } from '../src/routes/verification-routes.js';
 import { VerificationService } from '../src/verification/service.js';
 import { EmailVerificationProvider } from '../src/verification/providers/email-provider.js';
 import { generateSigningKey } from '../src/utils/crypto.js';
+import bcrypt from 'bcryptjs';
 
 vi.mock('@supabase/supabase-js', () => ({
   createClient: vi.fn(),
@@ -660,6 +661,55 @@ describe('ClaimStore', () => {
       });
 
       expect(mockAttemptStore.incrementAttempt).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('EmailVerificationProvider State Preservation', () => {
+    it('should not delete OTP attempt when wallet is already verified', async () => {
+      const keys = await generateSigningKey();
+      const mockAttemptStore = {
+        getAttempt: vi.fn().mockResolvedValue({
+          id: 'att-123',
+          identifier: 'user@example.com',
+          method: 'email',
+          codeHash: bcrypt.hashSync('123456', 10),
+          codeSalt: '$2a$10$EixZaYVK1fsbw1ZfbX3OXe',
+          expiresAt: Date.now() + 600000,
+          attemptCount: 0,
+          maxAttempts: 5,
+          createdAt: Date.now(),
+        }),
+        incrementAttempt: vi.fn().mockResolvedValue({}),
+        deleteAttempt: vi.fn(),
+      };
+
+      const mockClaimStore = {
+        hasClaim: vi.fn().mockResolvedValue(true),
+        findByIdentityHash: vi.fn().mockResolvedValue([]),
+        createClaim: vi.fn(),
+      };
+
+      const provider = new EmailVerificationProvider({
+        attemptStore: mockAttemptStore as any,
+        claimStore: mockClaimStore as any,
+        privateKey: keys.privateKey,
+        keyId: 'test-key-id',
+      });
+
+      await expect(
+        provider.completeVerification({
+          attemptId: 'att-123',
+          code: '123456',
+          walletAddress: 'W5IRXJWPSXNUJVSN2MOEJGTDGKUGFKUDVPTR5ZQVMDG5O4KYD5M3QPG3TE',
+        })
+      ).rejects.toMatchObject({
+        message: 'This wallet is already verified',
+        code: 'WALLET_ALREADY_VERIFIED',
+        status: 409,
+      });
+
+      // Verify that deleteAttempt was NOT called because hasClaim returned true first
+      expect(mockAttemptStore.deleteAttempt).not.toHaveBeenCalled();
     });
   });
 
