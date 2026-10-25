@@ -248,10 +248,8 @@ export class EmailVerificationProvider implements VerificationProvider {
     // 5. Hash email (SHA-256) for identity
     const identityHash = await hashEmail(attempt.identifier);
 
-    // 6. Delete raw attempt (privacy: no sensitive data stored)
-    await this.attemptStore.deleteAttempt(attemptId);
-
-    // 7. Check if wallet already verified
+    // 6. Security: Check if wallet is already verified before deleting the OTP attempt
+    // to prevent attempt invalidation attacks / state destruction on 409 conflicts.
     if (await this.claimStore.hasClaim(walletAddress)) {
       throw Object.assign(
         new Error("This wallet is already verified"),
@@ -261,6 +259,9 @@ export class EmailVerificationProvider implements VerificationProvider {
         }
       );
     }
+
+    // 7. Delete raw attempt (privacy: no sensitive data stored)
+    await this.attemptStore.deleteAttempt(attemptId);
 
     // 8. Check if this identity was already verified (same person, different wallet?)
     const existingClaims = await this.claimStore.findByIdentityHash(identityHash);

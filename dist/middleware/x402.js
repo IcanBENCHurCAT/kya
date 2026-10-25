@@ -55,6 +55,15 @@ export function resetX402Receipts() {
 export function getX402Receipts() {
     return Array.from(usedTxIds.values());
 }
+// Optimization: Hoist exempt request paths Set to avoid evaluating chained string equality comparisons on every request.
+const EXEMPT_PATHS = new Set([
+    "/",
+    "/health",
+    "/api/v1/health",
+    "/.well-known/x402.json",
+    "/.well-known/x402",
+    "/.well-known/agent-card.json",
+]);
 export function x402PaymentGate(options = {}) {
     const price = options.priceMicroAlgo || 1000;
     const defaultEscrow = "W5IRXJWPSXNUJVSN2MOEJGTDGKUGFKUDVPTR5ZQVMDG5O4KYD5M3QPG3TE";
@@ -66,15 +75,10 @@ export function x402PaymentGate(options = {}) {
     const ttl = options.ttlSeconds || 300;
     const tag = options.tag || "x402-global-challenge";
     return async (c, next) => {
-        const path = c.req.path;
-        if (path === "/" ||
-            path === "/health" ||
-            path === "/api/v1/health" ||
-            path === "/.well-known/x402.json" ||
-            path === "/.well-known/x402" ||
-            path === "/.well-known/agent-card.json") {
+        if (EXEMPT_PATHS.has(c.req.path)) {
             return await next();
         }
+        const path = c.req.path;
         const paymentTxId = c.req.header("X-Payment") || c.req.header("x-payment");
         if (!paymentTxId) {
             return c.json({

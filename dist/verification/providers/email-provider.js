@@ -14,6 +14,7 @@ import { randomInt, createHash } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { isValidAddress } from "algosdk";
 import { verifyAndSignClaim } from "../../utils/crypto.js";
+import { isValidCallbackUrl } from "../webhook.js";
 export class EmailVerificationProvider {
     method = "email";
     attemptStore;
@@ -70,6 +71,15 @@ export class EmailVerificationProvider {
                 code: "INVALID_ADDRESS",
                 status: 400,
             });
+        }
+        // Security: Validate callbackUrl format to prevent SSRF and unhandled URL parsing exceptions
+        if (callbackUrl !== undefined && callbackUrl !== null) {
+            if (!isValidCallbackUrl(callbackUrl)) {
+                throw Object.assign(new Error("Invalid callbackUrl format"), {
+                    code: "INVALID_CALLBACK_URL",
+                    status: 400,
+                });
+            }
         }
         // 3. Generate OTP
         const otp = randomInt(100_000, 999_999).toString();
@@ -160,15 +170,16 @@ export class EmailVerificationProvider {
         }
         // 5. Hash email (SHA-256) for identity
         const identityHash = await hashEmail(attempt.identifier);
-        // 6. Delete raw attempt (privacy: no sensitive data stored)
-        await this.attemptStore.deleteAttempt(attemptId);
-        // 7. Check if wallet already verified
+        // 6. Security: Check if wallet is already verified before deleting the OTP attempt
+        // to prevent attempt invalidation attacks / state destruction on 409 conflicts.
         if (await this.claimStore.hasClaim(walletAddress)) {
             throw Object.assign(new Error("This wallet is already verified"), {
                 code: "WALLET_ALREADY_VERIFIED",
                 status: 409,
             });
         }
+        // 7. Delete raw attempt (privacy: no sensitive data stored)
+        await this.attemptStore.deleteAttempt(attemptId);
         // 8. Check if this identity was already verified (same person, different wallet?)
         const existingClaims = await this.claimStore.findByIdentityHash(identityHash);
         if (existingClaims.length > 0) {

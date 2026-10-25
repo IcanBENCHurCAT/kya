@@ -8,6 +8,7 @@ export interface A2ABindings {
 }
 
 const MAX_STRING_LENGTH = 255;
+const MAX_KARMA_SCORE = 1_000_000;
 
 export function createA2ARoutes(a2aService: A2AService = defaultA2AService) {
   const a2aApp = new Hono<{ Bindings: A2ABindings }>();
@@ -63,9 +64,14 @@ export function createA2ARoutes(a2aService: A2AService = defaultA2AService) {
       );
     }
 
+    // Security: Enforce integer type and MAX_KARMA_SCORE upper bound to prevent float precision loss and score manipulation
     if (
       minKarmaScore !== undefined &&
-      (typeof minKarmaScore !== 'number' || !Number.isFinite(minKarmaScore) || minKarmaScore < 0)
+      (typeof minKarmaScore !== 'number' ||
+        !Number.isFinite(minKarmaScore) ||
+        !Number.isInteger(minKarmaScore) ||
+        minKarmaScore < 0 ||
+        minKarmaScore > MAX_KARMA_SCORE)
     ) {
       return c.json(
         {

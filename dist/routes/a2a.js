@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { isValidAddress } from 'algosdk';
 import { defaultA2AService } from '../services/a2a.js';
 const MAX_STRING_LENGTH = 255;
+const MAX_KARMA_SCORE = 1_000_000;
 export function createA2ARoutes(a2aService = defaultA2AService) {
     const a2aApp = new Hono();
     const handleHandshake = async (c) => {
@@ -37,8 +38,13 @@ export function createA2ARoutes(a2aService = defaultA2AService) {
                 error: 'requiredVerificationLevel must be a non-empty string if provided',
             }, 400);
         }
+        // Security: Enforce integer type and MAX_KARMA_SCORE upper bound to prevent float precision loss and score manipulation
         if (minKarmaScore !== undefined &&
-            (typeof minKarmaScore !== 'number' || !Number.isFinite(minKarmaScore) || minKarmaScore < 0)) {
+            (typeof minKarmaScore !== 'number' ||
+                !Number.isFinite(minKarmaScore) ||
+                !Number.isInteger(minKarmaScore) ||
+                minKarmaScore < 0 ||
+                minKarmaScore > MAX_KARMA_SCORE)) {
             return c.json({
                 success: false,
                 error: 'minKarmaScore must be a valid non-negative finite number if provided',

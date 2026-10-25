@@ -252,8 +252,8 @@ describe('A2A Pre-Flight Handshake & W3C VC Engine', () => {
       expect(json.error).toBe('Invalid Algorand address format for initiatorAddress or targetAddress');
     });
 
-    it('should return HTTP 400 if minKarmaScore is invalid, negative, non-finite, or not a number', async () => {
-      const invalidScores = ['not_a_number', -50, NaN, Infinity, -Infinity];
+    it('should return HTTP 400 if minKarmaScore is invalid, negative, non-finite, non-integer, or exceeds MAX_KARMA_SCORE', async () => {
+      const invalidScores = ['not_a_number', -50, NaN, Infinity, -Infinity, 10.5, 2_000_000];
 
       for (const [idx, score] of invalidScores.entries()) {
         const res = await app.request('/api/v1/a2a/handshake', {
