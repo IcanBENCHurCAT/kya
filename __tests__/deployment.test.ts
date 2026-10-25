@@ -172,6 +172,8 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       expect(html).toContain("announce('Opening GET '+discLink.getAttribute('href')+' in new tab')");
       expect(html).toContain("announce('Opening GET /health in new tab')");
       expect(html).toContain("announce('Navigating to KYA Service landing page')");
+      expect(html).toContain("setTimeout(function(){window.location.href='/';},50)");
+      expect(html).toContain(".btn-primary,.kbd-hint.active");
       expect(html).toContain('id="home-link"');
       expect(html).toContain('onclick="announce(\'Navigating to KYA Service landing page\')"');
       expect(html).toContain("link.focus()");

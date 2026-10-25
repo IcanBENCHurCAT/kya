@@ -122,3 +122,8 @@
 
 **Learning:** When developer landing pages present multiple discovery links alongside interactive code snippet panels, `aria-live` announcement functions that rely on an implicit global path variable (`currentPath`) announce inaccurate URLs when secondary links are clicked. Passing explicit target path parameters to `announceOpen(path)` ensures screen reader polite announcements accurately describe whichever link was activated.
 **Action:** Parameterize `aria-live` announcement handlers to accept explicit target paths rather than depending on global active tab state.
+
+## 2026-10-24 - Deferred Document Navigation for Screen Reader Live-Region Announcements & Forced-Colors Shortcut Badges
+
+**Learning:** Triggering immediate document navigation (`window.location.href = '/'`) synchronously inside keyboard shortcut handlers cancels pending `aria-live` polite status announcements queued via microtasks/timeouts before the DOM update is rendered and announced to screen readers. Deferring navigation by 50ms (`setTimeout(..., 50)`) gives the browser event loop and screen reader accessibility tree enough time to process and speak the status announcement prior to document teardown. Additionally, extending `@media (forced-colors: active)` CSS selectors to include active shortcut badge classes (`.kbd-hint.active`) preserves high-contrast visual feedback during keyboard interactions on error recovery pages.
+**Action:** Defer synchronous location changes by 50ms when coupled with `aria-live` screen reader announcements, and include `.kbd-hint.active` in forced-colors media queries for high-contrast visibility.
