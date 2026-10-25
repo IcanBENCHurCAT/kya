@@ -156,6 +156,10 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       expect(html).toContain('id="home-link"');
       expect(html).toContain('aria-keyshortcuts="h Escape"');
       expect(html).toContain('title="Return to KYA Service landing page (Press H or Esc)"');
+      expect(html).toContain('aria-label="Return to KYA Service landing page (Press H or Esc)"');
+      expect(html).toContain('aria-label="View health check status (Press 1, opens in new tab)"');
+      expect(html).toContain('aria-label="View x402 merchant discovery metadata (Press 2, opens in new tab)"');
+      expect(html).toContain('aria-label="View A2A Agent Card manifest (Press 3, opens in new tab)"');
       expect(html).toContain('kbd class="kbd-hint"');
       expect(html).toContain('Press H or Esc to return to landing page');
       expect(html).toContain('discLink.focus()');
