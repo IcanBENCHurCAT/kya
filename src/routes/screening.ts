@@ -22,7 +22,6 @@ import {
 import {
   resolveWalletIdentity,
   registerWalletIdentity,
-  hasVerifiedOwner,
 } from "../services/resolution.js";
 import {
   logScreening,
@@ -208,8 +207,9 @@ app.post("/api/v1/screen", async (c) => {
   const config = { ...SCREENING_CONFIG, ...body.config };
 
   // Check if wallet has a verified owner
+  // Performance optimization: Call resolveWalletIdentity directly to avoid redundant hasVerifiedOwner Map lookups.
   let resolvedOwner = beneficialOwner;
-  if (!resolvedOwner && hasVerifiedOwner(address)) {
+  if (!resolvedOwner) {
     const identity = resolveWalletIdentity(address);
     if (identity?.verifiedOwner) {
       resolvedOwner = identity.verifiedOwner.name;
@@ -330,7 +330,7 @@ app.post("/api/v1/screen/bulk", async (c) => {
   for (let i = 0; i < targetCount; i++) {
     const t = targets[i];
     let owner = t.beneficialOwner;
-    if (!owner && hasVerifiedOwner(t.address)) {
+    if (!owner) {
       const identity = resolveWalletIdentity(t.address);
       if (identity?.verifiedOwner) {
         owner = identity.verifiedOwner.name;
