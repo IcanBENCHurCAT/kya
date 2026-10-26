@@ -149,5 +149,12 @@ describe("Crypto utilities - verifyExistingClaim", () => {
         publicKey: keys.publicKey,
       })
     ).toBe(false);
+
+    // verifyExistingClaim defensive edge cases
+    expect(await verifyExistingClaim(null as any, keys.publicKey)).toBe(false);
+    expect(await verifyExistingClaim(undefined as any, keys.publicKey)).toBe(false);
+    expect(await verifyExistingClaim({} as any, keys.publicKey)).toBe(false);
+    expect(await verifyExistingClaim("not-an-object" as any, keys.publicKey)).toBe(false);
+    expect(await verifyExistingClaim({ signature: "abcd" } as any, 123 as any)).toBe(false);
   });
 });
