@@ -1,8 +1,8 @@
 # Multi-stage Dockerfile for KYA Service (Know Your Agent)
-# Base image: node:20-alpine
+# Base image: node:22-alpine
 
 # ─── Stage 1: Build ─────────────────────────────────────────────────────────
-FROM node:20-alpine AS build
+FROM node:22-alpine AS build
 
 WORKDIR /app
 
@@ -15,7 +15,7 @@ COPY src/ ./src/
 RUN npm run build
 
 # ─── Stage 2: Production ────────────────────────────────────────────────────
-FROM node:20-alpine AS production
+FROM node:22-alpine AS production
 
 # Create non-root system group and user
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
