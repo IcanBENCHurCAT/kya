@@ -7,6 +7,10 @@ export type { KarmaRecord, KarmaEvent, AgentProfile } from '../services/karma.js
 const MAX_STRING_LENGTH = 255;
 const MAX_KARMA_EVENT_AMOUNT = 1_000_000;
 
+// Performance optimization: Hoist static event types Set to avoid allocating a temporary array literal
+// `['credit', 'debit', 'emit', 'CREDIT', 'DEBIT', 'EMIT']` on every POST /api/v1/karma/event request.
+const VALID_EVENT_TYPES = new Set(['credit', 'debit', 'emit', 'CREDIT', 'DEBIT', 'EMIT']);
+
 export function createKarmaRoutes(karmaService: KarmaService = defaultKarmaService) {
   const karmaApp = new Hono();
 
@@ -47,7 +51,7 @@ export function createKarmaRoutes(karmaService: KarmaService = defaultKarmaServi
       !Number.isInteger(amount) ||
       amount <= 0 ||
       amount > MAX_KARMA_EVENT_AMOUNT ||
-      !['credit', 'debit', 'emit', 'CREDIT', 'DEBIT', 'EMIT'].includes(eventType)
+      !VALID_EVENT_TYPES.has(eventType)
     ) {
       return c.json({ error: 'Invalid parameters' }, 400);
     }
