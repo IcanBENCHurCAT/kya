@@ -96,7 +96,7 @@
 ## 2026-10-08 - 404 Error Page Discovery Shortcuts & Visual Legend Consistency
 
 **Learning:** When custom 404 pages provide quick discovery links to core service endpoints, keyboard users benefit from single-key direct navigation shortcuts (`1`, `2`, `3`) matching the primary landing page navigation patterns. Decorating 404 endpoint discovery links with `aria-keyshortcuts` attributes, visible `<kbd>` badges, transient visual active key states, and a visual keyboard shortcut legend ensures seamless keyboard navigation across error boundaries.
-**Action:** Add `aria-keyshortcuts`, `<kbd>` badges, guarded keydown navigation listeners, and a visible shortcut legend to 404 error page discovery links.
+**Action:** Add `aria-keyshortcuts`, `<kbd>` badges, guarded keydown navigation listeners, and a visual shortcut legend to 404 error page discovery links.
 
 ## 2026-10-09 - Landing Page Discovery Links External Tab Affordance & Tooltips
 
@@ -127,3 +127,8 @@
 
 **Learning:** Triggering immediate document navigation (`window.location.href = '/'`) synchronously inside keyboard shortcut handlers cancels pending `aria-live` polite status announcements queued via microtasks/timeouts before the DOM update is rendered and announced to screen readers. Deferring navigation by 50ms (`setTimeout(..., 50)`) gives the browser event loop and screen reader accessibility tree enough time to process and speak the status announcement prior to document teardown. Additionally, extending `@media (forced-colors: active)` CSS selectors to include active shortcut badge classes (`.kbd-hint.active`) preserves high-contrast visual feedback during keyboard interactions on error recovery pages.
 **Action:** Defer synchronous location changes by 50ms when coupled with `aria-live` screen reader announcements, and include `.kbd-hint.active` in forced-colors media queries for high-contrast visibility.
+
+## 2026-10-27 - Default State Audio Parity for Keyboard Shortcut Dismissals
+
+**Learning:** When users trigger global reset keyboard shortcuts (`Escape` key) while the UI is already in its default state, visual shortcut hints (`<kbd>`) may flash active without screen reader announcements if `aria-live` logic is guarded solely by active state flags. Providing explicit default state announcements (e.g. `'Interface in default state'`) ensures complete audio-visual parity for screen reader users.
+**Action:** Always announce default state status in `aria-live` regions when reset shortcuts (`Escape`) are pressed in non-transient UI states.
