@@ -107,10 +107,10 @@ describe("Email Delivery via Resend", () => {
     fetchMock.mockResolvedValue({
       ok: false,
       status: 400,
-      text: async () => "Bad Request",
+      text: async () => "Sensitive internal detail leak",
     });
 
     await expect(sendEmail("test@example.com", "Test Subject", "Test Body"))
-      .rejects.toThrow("Failed to send email via Resend: 400 Bad Request");
+      .rejects.toThrow("Failed to send email via Resend: 400");
   });
 });

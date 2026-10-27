@@ -23,8 +23,8 @@ export async function sendEmail(to: string, subject: string, body: string): Prom
     });
 
     if (!response.ok) {
-      const errorData = await response.text();
-      throw new Error(`Failed to send email via Resend: ${response.status} ${errorData}`);
+      // Security: Sanitize error message to avoid leaking raw external provider response details or stack traces
+      throw new Error(`Failed to send email via Resend: ${response.status}`);
     }
   } else {
     console.log(`📧 Email to ${to}: ${subject} — ${body}`);
