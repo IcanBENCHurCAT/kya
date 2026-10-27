@@ -109,6 +109,7 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       expect(html).toContain('code[role="button"]:active,.cmd-tab:active');
       expect(html).toContain("code.copied");
       expect(html).toContain("code.failed");
+      expect(html).toContain("code.copied,code.failed{outline:2px solid Highlight}");
       expect(html).toContain('aria-label="Available keyboard shortcuts"');
       expect(html).toContain("tabs[num].focus()");
       expect(html).toContain("openLink.focus()");
