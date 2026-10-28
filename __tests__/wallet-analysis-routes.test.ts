@@ -134,7 +134,7 @@ describe("Algorand Wallet Analysis REST API Security Tests", () => {
     });
   });
 
-  describe("Error Response Sanitization", () => {
+  describe("Error Response Sanitization & Unhandled Exception Handling", () => {
     it("should return sanitized generic error message when graph statistics query fails", async () => {
       const { WalletGraph } = await import("../src/graph/walletGraph.js");
       const spy = vi
@@ -157,6 +157,33 @@ describe("Algorand Wallet Analysis REST API Security Tests", () => {
       expect(json.error).not.toContain("DB connection failed");
 
       spy.mockRestore();
+    });
+
+    it("should sanitize uncaught route exceptions using global app.onError without leaking sensitive info", async () => {
+      const auditModule = await import("../src/services/audit.js");
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const spy = vi
+        .spyOn(auditModule, "getAuditSummary")
+        .mockImplementationOnce(() => {
+          throw new Error("FATAL_SECRET_LEAK_IN_DB: password=supersecret");
+        });
+
+      const res = await app.request("/api/v1/api/v1/audit/summary", {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          "X-Payment": "tx_wallet_test_uncaught_err",
+        },
+      });
+
+      expect(res.status).toBe(500);
+      const json = await res.json();
+      expect(json.error).toBe("Internal Server Error");
+      expect(json.message).toBe("An unexpected error occurred while processing your request.");
+      expect(JSON.stringify(json)).not.toContain("supersecret");
+
+      spy.mockRestore();
+      consoleSpy.mockRestore();
     });
   });
 });

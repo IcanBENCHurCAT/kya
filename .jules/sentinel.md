@@ -112,3 +112,8 @@
 **Vulnerability:** `EmailVerificationProvider.validateIdentifier` in `src/verification/providers/email-provider.ts` concatenated raw untrusted input strings directly into thrown `Error` objects (`throw new Error(`Invalid email address: ${identifier}`)`), reflecting un-sanitized user input into application error logs and causing `VerificationService` endpoints to fail with HTTP 500 Internal Server Errors instead of structured 400 Bad Request responses.
 **Learning:** Interpolating unvalidated client input into error messages creates log reflection/injection risks and bypasses structured error code routing in HTTP handlers when errors lack `.code` and `.status` properties.
 **Prevention:** Throw structured error objects with generic error messages and explicit error codes (`code: "INVALID_IDENTIFIER"`, `status: 400`) instead of interpolating untrusted input into generic Error message strings.
+
+## 2025-05-18 - Missing Global Exception Handler Exposes Internal Error Details
+**Vulnerability:** Uncaught exceptions in mounted Hono sub-app endpoints (such as database query errors or unexpected runtime exceptions) defaulted to Hono's fallback error handler, which could leak internal error details, system file paths, or database URLs to clients.
+**Learning:** In modular Hono applications with sub-apps mounted under `/api/v1`, uncaught exceptions without local `try...catch` handlers propagate up to the root app instance and require an explicit `app.onError` middleware to sanitize responses.
+**Prevention:** Always register a global `app.onError` exception handler on the root Hono application instance to intercept uncaught route errors and return generic HTTP 500 JSON error responses without disclosing internal error details.
