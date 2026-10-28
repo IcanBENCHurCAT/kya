@@ -132,3 +132,8 @@
 
 **Learning:** When users trigger global reset keyboard shortcuts (`Escape` key) while the UI is already in its default state, visual shortcut hints (`<kbd>`) may flash active without screen reader announcements if `aria-live` logic is guarded solely by active state flags. Providing explicit default state announcements (e.g. `'Interface in default state'`) ensures complete audio-visual parity for screen reader users.
 **Action:** Always announce default state status in `aria-live` regions when reset shortcuts (`Escape`) are pressed in non-transient UI states.
+
+## 2026-10-30 - Direct Tab Click Visual Shortcut Badge Feedback
+
+**Learning:** When interactive tab controls contain visual shortcut badges (`<kbd>`), activating tabs via mouse clicks or arrow key navigation without flashing the embedded shortcut badge creates a visual disparity compared to triggering via direct keyboard shortcuts. Triggering the transient `.kbd-hint.active` highlight inside tab selection handlers (`setCmd`) guarantees consistent visual feedback across mouse, keyboard, and touch interactions.
+**Action:** Include transient visual shortcut badge highlights (`.kbd-hint.active`) directly within element selection state handlers to cover all interaction modes.
