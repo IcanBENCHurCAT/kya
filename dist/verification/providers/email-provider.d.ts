@@ -50,6 +50,8 @@ export declare class EmailVerificationProvider implements VerificationProvider {
     constructor(options: EmailProviderOptions);
     /**
      * Validate that the identifier looks like an email address.
+     * Security: Throws structured VerificationError with INVALID_IDENTIFIER code and status 400
+     * using generic error message to avoid reflecting raw input into error logs.
      */
     validateIdentifier(identifier: string): void;
     /**

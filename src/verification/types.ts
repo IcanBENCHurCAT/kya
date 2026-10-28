@@ -146,6 +146,9 @@ export interface VerificationError {
     | "RATE_LIMITED"
     | "WALLET_ALREADY_VERIFIED"
     | "DUPLICATE_IDENTITY"
+    | "INVALID_IDENTIFIER"
+    | "INVALID_ADDRESS"
+    | "INVALID_CALLBACK_URL"
     | "SERVICE_ERROR";
   /** HTTP status code */
   status: number;

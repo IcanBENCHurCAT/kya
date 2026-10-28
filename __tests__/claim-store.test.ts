@@ -577,7 +577,11 @@ describe('ClaimStore', () => {
           identifier: 12345 as any,
           walletAddress: 'W5IRXJWPSXNUJVSN2MOEJGTDGKUGFKUDVPTR5ZQVMDG5O4KYD5M3QPG3TE',
         })
-      ).rejects.toThrow('Invalid email address');
+      ).rejects.toMatchObject({
+        message: 'Invalid email address format',
+        code: 'INVALID_IDENTIFIER',
+        status: 400,
+      });
 
       // 2. Invalid wallet address in initiateVerification
       await expect(

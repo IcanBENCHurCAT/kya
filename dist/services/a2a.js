@@ -104,7 +104,7 @@ export class A2AService {
         // 4. Construct W3C Verifiable Credential JSON-LD Passport
         // Use cryptographically secure randomUUID for verifiable credential identifiers
         const vcId = `urn:uuid:${randomUUID()}`;
-        const verifiedAtUnix = Math.floor(Date.now() / 1000);
+        const verifiedAtUnix = Math.floor(new Date(timestamp).getTime() / 1000);
         const credentialSubject = {
             id: `did:algorand:${request.targetAddress}`,
             agentAddress: request.targetAddress,
