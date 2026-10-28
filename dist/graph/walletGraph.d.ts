@@ -105,7 +105,8 @@ export declare class WalletGraph {
      *
      * Performance optimization:
      * Direct O(V_sources) Map size summation for edge counting avoids constructing a flat array of all
-     * edges and performing an O(E log E) sort in getAllEdges(). Also uses Map.values() for total degree calculation.
+     * edges and performing an O(E log E) sort in getAllEdges(). Eliminates redundant second iteration
+     * over adjacencyList by reusing edgeCount for average degree calculation.
      */
     getStats(): {
         nodeCount: number;

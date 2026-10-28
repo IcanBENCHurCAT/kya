@@ -45,6 +45,8 @@ export class EmailVerificationProvider {
     }
     /**
      * Validate that the identifier looks like an email address.
+     * Security: Throws structured VerificationError with INVALID_IDENTIFIER code and status 400
+     * using generic error message to avoid reflecting raw input into error logs.
      */
     validateIdentifier(identifier) {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -52,7 +54,10 @@ export class EmailVerificationProvider {
             typeof identifier !== "string" ||
             identifier.length > 255 ||
             !emailRegex.test(identifier)) {
-            throw new Error(`Invalid email address: ${identifier}`);
+            throw Object.assign(new Error("Invalid email address format"), {
+                code: "INVALID_IDENTIFIER",
+                status: 400,
+            });
         }
     }
     /**

@@ -134,9 +134,15 @@ export async function verifyAndSignClaim(params) {
 }
 /**
  * Verify that an existing claim's signature is valid.
+ * Security: Validates that claim is a non-null object and publicKey is a valid string
+ * to prevent unhandled TypeError exceptions and fail securely on malformed inputs.
  */
 export async function verifyExistingClaim(claim, publicKey) {
-    if (!publicKey || !claim.signature) {
+    if (!claim ||
+        typeof claim !== "object" ||
+        !publicKey ||
+        typeof publicKey !== "string" ||
+        typeof claim.signature !== "string") {
         return false;
     }
     return verifyClaimSignature({

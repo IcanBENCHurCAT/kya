@@ -15,7 +15,7 @@
 import { Hono } from "hono";
 import { isValidAddress } from "algosdk";
 import { screenSanctions, } from "../services/screening.js";
-import { resolveWalletIdentity, registerWalletIdentity, hasVerifiedOwner, } from "../services/resolution.js";
+import { resolveWalletIdentity, registerWalletIdentity, } from "../services/resolution.js";
 import { logScreening, getAuditLog, getAuditSummary, } from "../services/audit.js";
 import { refreshWatchlists, getSummary as getWatchlistSummary, } from "../services/watchlist-updater.js";
 const MAX_STRING_LENGTH = 255;
@@ -156,8 +156,9 @@ app.post("/api/v1/screen", async (c) => {
     }
     const config = { ...SCREENING_CONFIG, ...body.config };
     // Check if wallet has a verified owner
+    // Performance optimization: Call resolveWalletIdentity directly to avoid redundant hasVerifiedOwner Map lookups.
     let resolvedOwner = beneficialOwner;
-    if (!resolvedOwner && hasVerifiedOwner(address)) {
+    if (!resolvedOwner) {
         const identity = resolveWalletIdentity(address);
         if (identity?.verifiedOwner) {
             resolvedOwner = identity.verifiedOwner.name;
@@ -245,7 +246,7 @@ app.post("/api/v1/screen/bulk", async (c) => {
     for (let i = 0; i < targetCount; i++) {
         const t = targets[i];
         let owner = t.beneficialOwner;
-        if (!owner && hasVerifiedOwner(t.address)) {
+        if (!owner) {
             const identity = resolveWalletIdentity(t.address);
             if (identity?.verifiedOwner) {
                 owner = identity.verifiedOwner.name;

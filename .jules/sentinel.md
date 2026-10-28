@@ -107,3 +107,8 @@
 **Vulnerability:** `completeVerification` in `src/verification/providers/email-provider.ts` deleted active OTP attempt records (`deleteAttempt`) BEFORE validating whether the target wallet address was already verified (`hasClaim`). This allowed attackers or user errors to invalidate active OTP attempts upon 409 Conflict errors.
 **Learning:** Destroying temporary authentication or verification attempt state before completing all business logic validation checks causes state loss and enables attempt invalidation DoS attacks.
 **Prevention:** Always complete all state validation checks (e.g. checking existing claim records) BEFORE destroying temporary attempt or session records.
+
+## 2025-05-18 - Reflection of Untrusted Input in Identifier Validation Error
+**Vulnerability:** `EmailVerificationProvider.validateIdentifier` in `src/verification/providers/email-provider.ts` concatenated raw untrusted input strings directly into thrown `Error` objects (`throw new Error(`Invalid email address: ${identifier}`)`), reflecting un-sanitized user input into application error logs and causing `VerificationService` endpoints to fail with HTTP 500 Internal Server Errors instead of structured 400 Bad Request responses.
+**Learning:** Interpolating unvalidated client input into error messages creates log reflection/injection risks and bypasses structured error code routing in HTTP handlers when errors lack `.code` and `.status` properties.
+**Prevention:** Throw structured error objects with generic error messages and explicit error codes (`code: "INVALID_IDENTIFIER"`, `status: 400`) instead of interpolating untrusted input into generic Error message strings.
