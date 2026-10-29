@@ -34,11 +34,36 @@ export interface AuditEntry {
 export const MAX_AUDIT_LOG_CAP = 100000;
 const auditLog: AuditEntry[] = [];
 
+// Performance optimization: Incremental scalar counters for O(1) status breakdown lookups.
+let summaryNoMatchFound = 0;
+let summaryPotentialMatch = 0;
+let summaryRequiresReview = 0;
+let summaryErrors = 0;
+
+function incrementSummaryCounters(entry: AuditEntry): void {
+  if (entry.result === 'NO_MATCH_FOUND') summaryNoMatchFound++;
+  else if (entry.result === 'POTENTIAL_MATCH') summaryPotentialMatch++;
+  else if (entry.result === 'MATCH_REQUIRES_REVIEW') summaryRequiresReview++;
+  else if (entry.result === 'ERROR') summaryErrors++;
+}
+
+function decrementSummaryCounters(entry: AuditEntry): void {
+  if (entry.result === 'NO_MATCH_FOUND') summaryNoMatchFound--;
+  else if (entry.result === 'POTENTIAL_MATCH') summaryPotentialMatch--;
+  else if (entry.result === 'MATCH_REQUIRES_REVIEW') summaryRequiresReview--;
+  else if (entry.result === 'ERROR') summaryErrors--;
+}
+
 function pushAuditEntry(entry: AuditEntry): void {
   if (auditLog.length >= MAX_AUDIT_LOG_CAP) {
-    auditLog.splice(0, auditLog.length - MAX_AUDIT_LOG_CAP + 1);
+    const evictedCount = auditLog.length - MAX_AUDIT_LOG_CAP + 1;
+    for (let i = 0; i < evictedCount; i++) {
+      decrementSummaryCounters(auditLog[i]);
+    }
+    auditLog.splice(0, evictedCount);
   }
   auditLog.push(entry);
+  incrementSummaryCounters(entry);
   persistAuditLog();
 }
 
@@ -170,9 +195,8 @@ export function getAuditLog(
  * Get audit summary stats.
  *
  * Performance optimization:
- * Single $O(N)$ pass directly over auditLog using ISO string comparison for the 24h cutoff.
- * Eliminates $O(N \log N)$ localeCompare sorting, repeated .filter() array allocations,
- * and Date object instantiations per log entry.
+ * Uses scalar counters for overall status counts ($O(1)$) and a single linear pass over auditLog
+ * to count recent 24h screenings without intermediate array allocations or string sorting.
  */
 export function getAuditSummary(): {
   total: number;
@@ -183,38 +207,21 @@ export function getAuditSummary(): {
   recentScreenings: number;
 } {
   const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  let total = 0;
-  let noMatchFound = 0;
-  let potentialMatch = 0;
-  let requiresReview = 0;
-  let errors = 0;
   let recentScreenings = 0;
 
   for (let i = 0; i < auditLog.length; i++) {
     const entry = auditLog[i];
-    total++;
-
-    if (entry.result === 'NO_MATCH_FOUND') {
-      noMatchFound++;
-    } else if (entry.result === 'POTENTIAL_MATCH') {
-      potentialMatch++;
-    } else if (entry.result === 'MATCH_REQUIRES_REVIEW') {
-      requiresReview++;
-    } else if (entry.result === 'ERROR') {
-      errors++;
-    }
-
     if (entry.timestamp >= cutoff && entry.eventType === 'screening') {
       recentScreenings++;
     }
   }
 
   return {
-    total,
-    noMatchFound,
-    potentialMatch,
-    requiresReview,
-    errors,
+    total: auditLog.length,
+    noMatchFound: summaryNoMatchFound,
+    potentialMatch: summaryPotentialMatch,
+    requiresReview: summaryRequiresReview,
+    errors: summaryErrors,
     recentScreenings,
   };
 }
@@ -269,13 +276,14 @@ export function loadAuditLog(): void {
   try {
     const data = JSON.parse(fs.readFileSync(AUDIT_LOG_PATH, 'utf-8'));
     if (Array.isArray(data)) {
-      for (let i = 0; i < data.length; i++) {
-        auditLog.push(data[i]);
+      clearAuditLog();
+      const startIdx = Math.max(0, data.length - MAX_AUDIT_LOG_CAP);
+      for (let i = startIdx; i < data.length; i++) {
+        const entry = data[i];
+        auditLog.push(entry);
+        incrementSummaryCounters(entry);
       }
-      if (auditLog.length > MAX_AUDIT_LOG_CAP) {
-        auditLog.splice(0, auditLog.length - MAX_AUDIT_LOG_CAP);
-      }
-      console.log(`[Audit] Loaded ${data.length} audit entries from disk.`);
+      console.log(`[Audit] Loaded ${auditLog.length} audit entries from disk.`);
     }
   } catch (err) {
     console.error('[Audit] Failed to load audit log:', err);
@@ -291,6 +299,10 @@ export function clearAuditLog(): void {
     persistTimer = null;
   }
   auditLog.length = 0;
+  summaryNoMatchFound = 0;
+  summaryPotentialMatch = 0;
+  summaryRequiresReview = 0;
+  summaryErrors = 0;
   try {
     fs.unlinkSync(AUDIT_LOG_PATH);
   } catch {
