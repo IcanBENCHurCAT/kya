@@ -43,6 +43,21 @@ import { checkHealth } from "./services/health.js";
 // Mount all apps into a single router
 const app = new Hono();
 
+// Global error handling middleware to sanitize uncaught exceptions and prevent sensitive information disclosure
+app.onError((err, c) => {
+  console.error(`Unhandled exception in ${c.req.method} ${c.req.path}:`, err);
+  if (c.req.header("accept")?.includes("application/json") || c.req.path.startsWith("/api/")) {
+    return c.json(
+      {
+        error: "Internal Server Error",
+        message: "An unexpected error occurred while processing your request.",
+      },
+      500
+    );
+  }
+  return c.text("Internal Server Error", 500);
+});
+
 // Apply secure headers middleware globally
 app.use("*", secureHeaders());
 

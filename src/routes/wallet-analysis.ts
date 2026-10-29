@@ -129,16 +129,17 @@ const handleWalletInfo = async (c: any) => {
   try {
     const client = getClient();
     const info = await client.getAccountInfo(address);
+    const accountData = ((info as any)?.account || info || {}) as Record<string, unknown>;
     return c.json({
       address,
-      balance: info.amount,
-      minBalance: info.minBalance,
-      totalApps: info.totalAppsCreated,
-      totalAssets: info.totalAssetsCreated,
-      totalTxn: info.totalTxn,
-      assets: ((info as any).assets || []).map(
+      balance: (accountData.amount ?? accountData["amount"] ?? 0) as number,
+      minBalance: (accountData.minBalance ?? accountData["min-balance"] ?? accountData["minBalance"] ?? 0) as number,
+      totalApps: (accountData.totalAppsCreated ?? accountData["total-apps-created"] ?? accountData["totalApps"] ?? 0) as number,
+      totalAssets: (accountData.totalAssetsCreated ?? accountData["total-assets-created"] ?? accountData["totalAssets"] ?? 0) as number,
+      totalTxn: (accountData.totalTxn ?? accountData["total-txn"] ?? 0) as number,
+      assets: (((accountData.assets || accountData["assets"]) as Record<string, unknown>[]) || []).map(
         (a: Record<string, unknown>) => ({
-          assetId: (a.assetIndex ?? 0) as number,
+          assetId: (a.assetIndex ?? a["asset-id"] ?? a["assetIndex"] ?? 0) as number,
           amount: (a.amount ?? 0) as number,
         }),
       ),
