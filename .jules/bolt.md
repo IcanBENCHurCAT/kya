@@ -169,3 +169,7 @@
 ## 2025-04-13 - Static Immutable Empty Array Sharing in Sanctions List Parsers
 **Learning:** In OFAC SDN JSON and CSV sanctions list parsing (`parseOFACJSON` & `parseOFACCSV`), assigning empty array literals (`[]`) to optional entry properties (`addresses`, `aliases`, `nationalities`, `nationalIds`, `birthdates`) across 20,000+ records allocates ~100,000 short-lived array objects per parse operation. Furthermore, evaluating `(typeof item.entityType === 'string' ? item.entityType : 'Individual').toLowerCase()` multiple times per entry in `parseOFACJSON` creates duplicate string lowercasing overhead.
 **Action:** Re-use a static frozen empty array constant (`EMPTY_ARRAY = Object.freeze([])`) when array properties are empty/absent and hoist `entityType` lowercasing outside property assignments. Yields ~2.8x faster JSON parsing (~86.3ms down to ~30.9ms) and ~1.36x faster CSV parsing while eliminating 100,000+ GC object allocations per parse call.
+
+## 2025-04-14 - Incremental Scalar Counters for In-Memory Audit Summary
+**Learning:** In `getAuditSummary`, computing status totals by iterating over all stored entries (`auditLog`) executes up to 100,000 loop iterations and multiple string comparison branches per call.
+**Action:** Maintain scalar status breakdown counters (`summaryNoMatchFound`, `summaryPotentialMatch`, `summaryRequiresReview`, `summaryErrors`) updated incrementally during log entry insertion, eviction, loading, and clearing. Provides $O(1)$ status summary lookups without scanning the audit store.
