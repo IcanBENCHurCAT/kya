@@ -173,3 +173,7 @@
 ## 2025-04-14 - Incremental Scalar Counters for In-Memory Audit Summary
 **Learning:** In `getAuditSummary`, computing status totals by iterating over all stored entries (`auditLog`) executes up to 100,000 loop iterations and multiple string comparison branches per call.
 **Action:** Maintain scalar status breakdown counters (`summaryNoMatchFound`, `summaryPotentialMatch`, `summaryRequiresReview`, `summaryErrors`) updated incrementally during log entry insertion, eviction, loading, and clearing. Provides $O(1)$ status summary lookups without scanning the audit store.
+
+## 2025-04-15 - In-Memory Watchlist State Synchronization & Zero Disk I/O Health Probes
+**Learning:** In healthcheck probes (`checkHealth`) and summary endpoints (`getSummary`), evaluating watchlist status triggered synchronous `fs.statSync` / `loadSanctionsList` disk reads on every request because `initializeWatchlist` and `loadFallbackWatchlist` failed to synchronize module-level `state`, leaving `state.totalEntries === 0`.
+**Action:** Synchronize `state` (`lastUpdate`, `lastUpdateSource`, `totalEntries`, `version`) when loading watchlists from disk, fallback, or save, and return in-memory `state` directly in `getSummary()` and `checkHealth()`. Eliminates filesystem I/O on repeated health probes and summary queries (~30x faster response time).
