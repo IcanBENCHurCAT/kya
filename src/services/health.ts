@@ -92,17 +92,26 @@ export async function checkHealth(): Promise<HealthCheckResult> {
     })(),
 
     // 2. Probe Watchlist state
+    // Performance optimization: Read in-memory watchlist state directly from getState() / getSummary(),
+    // eliminating redundant filesystem stat calls during healthcheck probes.
     (async () => {
       try {
         const state = getState();
-        const summary = getSummary();
-        const entries = state.totalEntries || summary.totalEntries || 0;
+        let entries = state.totalEntries;
+        let lastUpdate = state.lastUpdate;
+
+        if (entries === 0) {
+          const summary = getSummary();
+          entries = summary.totalEntries;
+          lastUpdate = summary.lastUpdated;
+        }
+
         const isLoaded = entries > 0;
 
         return {
           ok: isLoaded,
           loaded: isLoaded,
-          lastUpdate: state.lastUpdate || summary.lastUpdated,
+          lastUpdate: lastUpdate || undefined,
           totalEntries: entries,
         };
       } catch (err: any) {
