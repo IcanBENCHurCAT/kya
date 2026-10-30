@@ -137,3 +137,8 @@
 
 **Learning:** When interactive tab controls contain visual shortcut badges (`<kbd>`), activating tabs via mouse clicks or arrow key navigation without flashing the embedded shortcut badge creates a visual disparity compared to triggering via direct keyboard shortcuts. Triggering the transient `.kbd-hint.active` highlight inside tab selection handlers (`setCmd`) guarantees consistent visual feedback across mouse, keyboard, and touch interactions.
 **Action:** Include transient visual shortcut badge highlights (`.kbd-hint.active`) directly within element selection state handlers to cover all interaction modes.
+
+## 2026-11-01 - 404 Page Recovery Link Direct Click Visual Shortcut Badge Parity
+
+**Learning:** When 404 error page recovery links display visual shortcut hints (`<kbd>`), clicking the link directly via mouse or touch without flashing the embedded shortcut badge creates visual feedback disparity compared to keyboard shortcut activation. Parameterizing announcement functions to query and temporarily highlight child `.kbd-hint` elements ensures consistent visual affordances regardless of input device.
+**Action:** Pass element references (`this`) to announcement handlers on error recovery links to trigger transient visual shortcut badge highlights (`.kbd-hint.active`) on direct mouse and touch clicks.
