@@ -117,3 +117,8 @@
 **Vulnerability:** Uncaught exceptions in mounted Hono sub-app endpoints (such as database query errors or unexpected runtime exceptions) defaulted to Hono's fallback error handler, which could leak internal error details, system file paths, or database URLs to clients.
 **Learning:** In modular Hono applications with sub-apps mounted under `/api/v1`, uncaught exceptions without local `try...catch` handlers propagate up to the root app instance and require an explicit `app.onError` middleware to sanitize responses.
 **Prevention:** Always register a global `app.onError` exception handler on the root Hono application instance to intercept uncaught route errors and return generic HTTP 500 JSON error responses without disclosing internal error details.
+
+## 2025-05-18 - Unhandled Null or Non-Array Watchlist Inputs in Screening Engine
+**Vulnerability:** `screenSanctions` and `screenBulk` in `src/services/screening.ts` processed `lists` registries, `entries` lists, and `entry` items without verifying object and array types, causing unhandled `TypeError` exceptions and service crashes (DoS) when encountering malformed or null watchlist data structures.
+**Learning:** Assuming sanctions watchlist registry objects, entry arrays, or individual entry properties (`nationalIds`, `aliases`, `addresses`) are always non-null arrays leads to uncaught `TypeError: Cannot read properties of null` or `Cannot read properties of undefined` exceptions during screening loops.
+**Prevention:** Perform explicit `typeof` and `Array.isArray()` checks on watchlist registry entries and nested array properties before iterating or reading properties in matching engines.
