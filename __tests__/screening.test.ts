@@ -186,6 +186,40 @@ describe("Screening Engine", () => {
     assert(result.match === false, "No match expected");
   });
 
+  it("should safely handle malformed or null watchlists and entries without throwing unhandled exceptions", () => {
+    // Test null/undefined/primitive lists parameter
+    const res1 = screenSanctions("anyaddress", undefined, null as any);
+    expect(res1.status).toBe("NO_MATCH_FOUND");
+
+    const res2 = screenSanctions("anyaddress", undefined, "invalid-lists" as any);
+    expect(res2.status).toBe("NO_MATCH_FOUND");
+
+    // Test list entry that is not an array (e.g. null, object, boolean)
+    const malformedLists: any = {
+      "BAD-LIST-1": null,
+      "BAD-LIST-2": { notAnArray: true },
+      "BAD-LIST-3": "invalid",
+      "MIXED-LIST": [
+        null,
+        "primitive string entry",
+        12345,
+        {},
+        { name: null },
+        { name: "VALID ENTRY", nationalIds: null, aliases: undefined, addresses: "not-an-array" },
+      ],
+    };
+
+    const res3 = screenSanctions("anyaddress", "Clean Owner", malformedLists);
+    expect(res3.status).toBe("NO_MATCH_FOUND");
+
+    // Test screenBulk with null or non-array targets or malformed target objects
+    const bulkRes1 = screenBulk(null as any, testList);
+    expect(bulkRes1).toEqual([]);
+
+    const bulkRes2 = screenBulk([null, 123, "string", { address: null }] as any, testList);
+    expect(bulkRes2).toEqual([]);
+  });
+
   it("should handle multiple lists", () => {
     const multiList = {
       "OFAC-SDN": buildDefaultData(),
