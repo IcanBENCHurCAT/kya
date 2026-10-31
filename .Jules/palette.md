@@ -142,3 +142,8 @@
 
 **Learning:** When 404 error page recovery links display visual shortcut hints (`<kbd>`), clicking the link directly via mouse or touch without flashing the embedded shortcut badge creates visual feedback disparity compared to keyboard shortcut activation. Parameterizing announcement functions to query and temporarily highlight child `.kbd-hint` elements ensures consistent visual affordances regardless of input device.
 **Action:** Pass element references (`this`) to announcement handlers on error recovery links to trigger transient visual shortcut badge highlights (`.kbd-hint.active`) on direct mouse and touch clicks.
+
+## 2026-11-04 - Vestibular Accessibility & Prefers-Reduced-Motion Transitions
+
+**Learning:** Interactive button click compressions (`transform: scale(...)`) and CSS state transitions (`transition: all 0.15s ease`) can cause disorientation and motion sickness for users with vestibular disorders. Adding `@media (prefers-reduced-motion: reduce)` rules that disable transitions and active scale transforms across interactive tabs, buttons, code blocks, and keyboard badges ensures compliance with WCAG 2.1 SC 2.3.3 while preserving instant visual feedback.
+**Action:** Always include `@media (prefers-reduced-motion: reduce)` rules to suppress interactive scale transforms and transition durations on buttons, tabs, and transient visual badges.
