@@ -135,6 +135,16 @@ describe("WebhookService", () => {
     expect(isValidCallbackUrl("http://[::ffff:10.0.0.1]/status")).toBe(false);
     expect(isValidCallbackUrl("http://internal-service.local")).toBe(false);
 
+    // IPv4-compatible IPv6 SSRF bypass targets
+    expect(isValidCallbackUrl("http://[::127.0.0.1]/status")).toBe(false);
+    expect(isValidCallbackUrl("http://[::7f00:1]/status")).toBe(false);
+    expect(isValidCallbackUrl("http://[::169.254.169.254]/status")).toBe(false);
+    expect(isValidCallbackUrl("http://[::a9fe:a9fe]/status")).toBe(false);
+    expect(isValidCallbackUrl("http://[::10.0.0.1]/status")).toBe(false);
+    expect(isValidCallbackUrl("http://[::192.168.1.1]/status")).toBe(false);
+    expect(isValidCallbackUrl("http://[::172.16.0.1]/status")).toBe(false);
+    expect(isValidCallbackUrl("http://[::ac10:1]/status")).toBe(false);
+
     // Non-canonical IPv4 SSRF bypass targets (octal, hex, DWORD integer)
     expect(isValidCallbackUrl("http://0177.0.0.1/status")).toBe(false);
     expect(isValidCallbackUrl("http://0x7f.0.0.1/status")).toBe(false);
