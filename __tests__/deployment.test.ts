@@ -84,6 +84,7 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       expect(html).toContain("e.key==='1'");
       expect(html).toContain("e.key==='o'");
       expect(html).toContain("forced-colors: active");
+      expect(html).toContain("prefers-reduced-motion: reduce");
       expect(html).toContain("status.innerText=''");
       expect(html).toContain("status.innerText='Selected '+path+' endpoint'");
       expect(html).toContain(
@@ -167,6 +168,7 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       expect(html).toContain("e.key==='Escape'||e.key==='h'||e.key==='H'");
       expect(html).toContain("method-badge");
       expect(html).toContain("forced-colors: active");
+      expect(html).toContain("prefers-reduced-motion: reduce");
       expect(html).toContain('aria-label="Active discovery endpoints"');
       expect(html).toContain('href="/health"');
       expect(html).toContain('href="/.well-known/x402.json"');
