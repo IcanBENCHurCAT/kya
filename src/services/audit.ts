@@ -54,15 +54,38 @@ function decrementSummaryCounters(entry: AuditEntry): void {
   else if (entry.result === 'ERROR') summaryErrors--;
 }
 
+function insertAuditEntryChronological(entry: AuditEntry): void {
+  const len = auditLog.length;
+  // Fast path (production common case): entries arrive in ascending chronological order
+  if (len === 0 || entry.timestamp >= auditLog[len - 1].timestamp) {
+    auditLog.push(entry);
+    return;
+  }
+
+  // Fallback path: out-of-order entry (e.g. test setups or clock-skewed caller timestamps).
+  // Perform binary search to find insertion position and maintain ascending chronological order.
+  let low = 0;
+  let high = len - 1;
+  while (low <= high) {
+    const mid = (low + high) >>> 1;
+    if (auditLog[mid].timestamp <= entry.timestamp) {
+      low = mid + 1;
+    } else {
+      high = mid - 1;
+    }
+  }
+  auditLog.splice(low, 0, entry);
+}
+
 function pushAuditEntry(entry: AuditEntry): void {
-  if (auditLog.length >= MAX_AUDIT_LOG_CAP) {
-    const evictedCount = auditLog.length - MAX_AUDIT_LOG_CAP + 1;
+  insertAuditEntryChronological(entry);
+  if (auditLog.length > MAX_AUDIT_LOG_CAP) {
+    const evictedCount = auditLog.length - MAX_AUDIT_LOG_CAP;
     for (let i = 0; i < evictedCount; i++) {
       decrementSummaryCounters(auditLog[i]);
     }
     auditLog.splice(0, evictedCount);
   }
-  auditLog.push(entry);
   incrementSummaryCounters(entry);
   persistAuditLog();
 }
@@ -209,9 +232,16 @@ export function getAuditSummary(): {
   const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   let recentScreenings = 0;
 
-  for (let i = 0; i < auditLog.length; i++) {
+  // Performance optimization:
+  // Because auditLog maintains strict ascending chronological order via sorted insertion,
+  // iterating backwards from the newest entry (auditLog.length - 1 down to 0) allows
+  // breaking early as soon as entry.timestamp < cutoff. Avoids scanning up to 100,000 entries.
+  for (let i = auditLog.length - 1; i >= 0; i--) {
     const entry = auditLog[i];
-    if (entry.timestamp >= cutoff && entry.eventType === 'screening') {
+    if (entry.timestamp < cutoff) {
+      break;
+    }
+    if (entry.eventType === 'screening') {
       recentScreenings++;
     }
   }

@@ -1125,6 +1125,43 @@ describe("Audit Logging", () => {
       expect(summary.errors).toBe(1);
       expect(summary.recentScreenings).toBe(1); // Only RECENT-SCREENING is eventType 'screening' within 24h
     });
+
+    it("should accurately count recentScreenings with early-exit when older entries precede recent entries", () => {
+      clearAuditLog();
+      const now = Date.now();
+      const oldBase = now - 48 * 60 * 60 * 1000; // 48 hours ago
+      const recentBase = now - 2 * 60 * 60 * 1000; // 2 hours ago
+
+      // Append 10 older screenings at the start of the log
+      for (let i = 0; i < 10; i++) {
+        logScreening({
+          screened: `OLD-WALLET-${i}`,
+          status: "NO_MATCH_FOUND",
+          confidence: 0,
+          matchedEntries: [],
+          matchedListNames: [],
+          details: "",
+          timestamp: new Date(oldBase + i * 1000).toISOString(),
+        });
+      }
+
+      // Append 5 recent screenings within 24h at the end
+      for (let i = 0; i < 5; i++) {
+        logScreening({
+          screened: `RECENT-WALLET-${i}`,
+          status: "NO_MATCH_FOUND",
+          confidence: 0,
+          matchedEntries: [],
+          matchedListNames: [],
+          details: "",
+          timestamp: new Date(recentBase + i * 1000).toISOString(),
+        });
+      }
+
+      const summary = getAuditSummary();
+      expect(summary.total).toBe(15);
+      expect(summary.recentScreenings).toBe(5);
+    });
   });
 
   it("should persist to disk", () => {
