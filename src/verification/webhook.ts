@@ -67,11 +67,12 @@ export function isValidCallbackUrl(urlStr: unknown): boolean {
     const normalizedIPv4 = normalizeIPv4Host(clean);
     if (normalizedIPv4) {
       target = normalizedIPv4;
-    } else if (!/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(clean)) {
-      const parts = clean.split(":");
-      if (parts.length === 2) {
-        const high = parseInt(parts[0], 16);
-        const low = parseInt(parts[1], 16);
+    } else {
+      // Security: Unwrap IPv4-mapped and IPv4-compatible IPv6 addresses (e.g. `[::7f00:1]` or `[::ffff:7f00:1]`)
+      const ipv6Parts = (clean.startsWith("::") ? clean.slice(2) : clean.startsWith("0:0:0:0:0:0:") ? clean.slice(12) : clean).split(":");
+      if (ipv6Parts.length === 2 && /^[0-9a-f]{1,4}$/i.test(ipv6Parts[0]) && /^[0-9a-f]{1,4}$/i.test(ipv6Parts[1])) {
+        const high = parseInt(ipv6Parts[0], 16);
+        const low = parseInt(ipv6Parts[1], 16);
         if (!isNaN(high) && !isNaN(low)) {
           target = `${(high >> 8) & 0xff}.${high & 0xff}.${(low >> 8) & 0xff}.${low & 0xff}`;
         }
