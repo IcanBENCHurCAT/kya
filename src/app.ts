@@ -58,8 +58,23 @@ app.onError((err, c) => {
   return c.text("Internal Server Error", 500);
 });
 
-// Apply secure headers middleware globally
-app.use("*", secureHeaders());
+// Apply secure headers middleware globally with Content-Security-Policy (CSP)
+// Security: Enforces strict Content-Security-Policy to protect against XSS, unauthorized resource loading, and frame injection (clickjacking)
+app.use(
+  "*",
+  secureHeaders({
+    contentSecurityPolicy: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "https://raw.githubusercontent.com", "data:"],
+      connectSrc: ["'self'"],
+      frameAncestors: ["'none'"],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"],
+    },
+  })
+);
 
 // Apply CORS middleware globally with restricted allowed origins
 const defaultAllowedOrigins = [

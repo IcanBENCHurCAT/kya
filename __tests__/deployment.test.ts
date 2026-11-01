@@ -8,10 +8,20 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
   });
 
   describe("Developer Landing Page Endpoint Status", () => {
-    it("should return HTML landing page for GET / with default headers", async () => {
+    it("should return HTML landing page for GET / with default headers and Content-Security-Policy", async () => {
       const res = await app.request("/");
       expect(res.status).toBe(200);
       expect(res.headers.get("content-type")).toContain("text/html");
+      const csp = res.headers.get("content-security-policy");
+      expect(csp).toBeDefined();
+      expect(csp).toContain("default-src 'self'");
+      expect(csp).toContain("script-src 'self' 'unsafe-inline'");
+      expect(csp).toContain("style-src 'self' 'unsafe-inline'");
+      expect(csp).toContain("img-src 'self' https://raw.githubusercontent.com data:");
+      expect(csp).toContain("connect-src 'self'");
+      expect(csp).toContain("frame-ancestors 'none'");
+      expect(csp).toContain("object-src 'none'");
+      expect(csp).toContain("base-uri 'self'");
       const html = await res.text();
       expect(html).toContain("<main");
       expect(html).toContain(
