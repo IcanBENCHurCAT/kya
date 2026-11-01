@@ -147,3 +147,8 @@
 
 **Learning:** Interactive button click compressions (`transform: scale(...)`) and CSS state transitions (`transition: all 0.15s ease`) can cause disorientation and motion sickness for users with vestibular disorders. Adding `@media (prefers-reduced-motion: reduce)` rules that disable transitions and active scale transforms across interactive tabs, buttons, code blocks, and keyboard badges ensures compliance with WCAG 2.1 SC 2.3.3 while preserving instant visual feedback.
 **Action:** Always include `@media (prefers-reduced-motion: reduce)` rules to suppress interactive scale transforms and transition durations on buttons, tabs, and transient visual badges.
+
+## 2026-11-08 - Keyboard Shortcut Legend Contrast & WCAG AA Compliance
+
+**Learning:** Microservice developer landing and error pages frequently style secondary guidance elements (like keyboard shortcut legends and icons) using subdued slate tints (e.g. `#64748b`). On dark backgrounds (`#1e293b`), this yields an insufficient 3.07:1 contrast ratio that fails WCAG 2.1 SC 1.4.3 (4.5:1 minimum). Upgrading secondary shortcut hints to `#94a3b8` elevates contrast to 5.71:1, guaranteeing crisp readability for developers and low-vision users across dark theme viewports.
+**Action:** Use `#94a3b8` rather than `#64748b` for secondary legends and metadata text on `#1e293b` surfaces to satisfy WCAG AA contrast standards.

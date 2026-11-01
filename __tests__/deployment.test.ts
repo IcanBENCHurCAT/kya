@@ -122,6 +122,8 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       expect(html).toContain("code.failed");
       expect(html).toContain("code.copied,code.failed{outline:2px solid Highlight}");
       expect(html).toContain('aria-label="Available keyboard shortcuts"');
+      expect(html).toContain('style="font-size:.7rem;color:#94a3b8;margin-top:.375rem;display:flex;align-items:center;gap:.25rem"');
+      expect(html).not.toContain("#64748b");
       expect(html).toContain("tabs[num].focus()");
       expect(html).toContain("openLink.focus()");
       expect(html).toContain("copyBtn.focus()");
@@ -195,6 +197,8 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       expect(html).toContain('onclick="announce(\'Navigating to KYA Service landing page\',this)"');
       expect(html).toContain("link.focus()");
       expect(html).toContain('Press 2 to open x402 metadata in new tab" aria-label="Keyboard shortcut: press 2"');
+      expect(html).toContain('style="font-size:.7rem;color:#94a3b8;margin-top:.75rem;display:flex;align-items:center;gap:.25rem"');
+      expect(html).not.toContain("#64748b");
       expect(html).toContain('viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-left:.25rem;vertical-align:middle"');
     });
 
