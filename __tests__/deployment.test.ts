@@ -141,6 +141,9 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       expect(html).toContain('function announceOpen(path){var targetPath=path||currentPath;var openLink=document.getElementById(\'endpoint-link\');');
       expect(html).toContain('kbd.classList.add(\'active\')');
       expect(html).toContain('viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-left:.25rem;vertical-align:middle"');
+      expect(html).toContain('.method-badge{background:#0369a1');
+      expect(html).toContain('.method-badge{outline:1px solid Highlight}');
+      expect(html).toContain('<span class="method-badge" title="HTTP GET method" aria-label="HTTP GET method">GET</span>');
     });
 
     it("should return JSON service info for GET / when Accept: application/json", async () => {
@@ -200,6 +203,9 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       expect(html).toContain('style="font-size:.7rem;color:#94a3b8;margin-top:.75rem;display:flex;align-items:center;gap:.25rem"');
       expect(html).not.toContain("#64748b");
       expect(html).toContain('viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-left:.25rem;vertical-align:middle"');
+      expect(html).toContain('.method-badge{background:#0369a1');
+      expect(html).toContain('.method-badge{outline:1px solid Highlight}');
+      expect(html).toContain('<span class="method-badge" title="HTTP GET method" aria-label="HTTP GET method">GET</span>');
     });
 
     it("should return JSON error response for unknown routes when Accept: application/json", async () => {
