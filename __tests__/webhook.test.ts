@@ -135,7 +135,7 @@ describe("WebhookService", () => {
     expect(isValidCallbackUrl("http://[::ffff:10.0.0.1]/status")).toBe(false);
     expect(isValidCallbackUrl("http://internal-service.local")).toBe(false);
 
-    // IPv4-compatible IPv6 SSRF bypass targets
+    // IPv4-compatible and IPv4-translated (NAT64 / SIIT) IPv6 SSRF bypass targets
     expect(isValidCallbackUrl("http://[::127.0.0.1]/status")).toBe(false);
     expect(isValidCallbackUrl("http://[::7f00:1]/status")).toBe(false);
     expect(isValidCallbackUrl("http://[::169.254.169.254]/status")).toBe(false);
@@ -144,6 +144,25 @@ describe("WebhookService", () => {
     expect(isValidCallbackUrl("http://[::192.168.1.1]/status")).toBe(false);
     expect(isValidCallbackUrl("http://[::172.16.0.1]/status")).toBe(false);
     expect(isValidCallbackUrl("http://[::ac10:1]/status")).toBe(false);
+    expect(isValidCallbackUrl("http://[64:ff9b::127.0.0.1]/status")).toBe(false);
+    expect(isValidCallbackUrl("http://[64:ff9b::7f00:1]/status")).toBe(false);
+    expect(isValidCallbackUrl("http://[64:ff9b::169.254.169.254]/status")).toBe(false);
+    expect(isValidCallbackUrl("http://[64:ff9b::10.0.0.1]/status")).toBe(false);
+    expect(isValidCallbackUrl("http://[::ffff:0:127.0.0.1]/status")).toBe(false);
+    expect(isValidCallbackUrl("http://[::ffff:0:7f00:1]/status")).toBe(false);
+
+    // Carrier-grade NAT (RFC 6598), cloud metadata, benchmarking, multicast & reserved ranges
+    expect(isValidCallbackUrl("http://100.64.0.1/status")).toBe(false);
+    expect(isValidCallbackUrl("http://100.127.255.254/status")).toBe(false);
+    expect(isValidCallbackUrl("http://100.100.100.200/latest/meta-data/")).toBe(false);
+    expect(isValidCallbackUrl("http://198.18.0.1/benchmark")).toBe(false);
+    expect(isValidCallbackUrl("http://198.19.255.254/benchmark")).toBe(false);
+    expect(isValidCallbackUrl("http://192.0.2.1/doc")).toBe(false);
+    expect(isValidCallbackUrl("http://198.51.100.1/doc")).toBe(false);
+    expect(isValidCallbackUrl("http://203.0.113.1/doc")).toBe(false);
+    expect(isValidCallbackUrl("http://224.0.0.1/multicast")).toBe(false);
+    expect(isValidCallbackUrl("http://240.0.0.1/reserved")).toBe(false);
+    expect(isValidCallbackUrl("http://255.255.255.255/broadcast")).toBe(false);
 
     // Non-canonical IPv4 SSRF bypass targets (octal, hex, DWORD integer)
     expect(isValidCallbackUrl("http://0177.0.0.1/status")).toBe(false);

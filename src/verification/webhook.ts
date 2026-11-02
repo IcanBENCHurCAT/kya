@@ -56,28 +56,51 @@ export function isValidCallbackUrl(urlStr: unknown): boolean {
       return false;
     }
     const rawHost = parsed.hostname.toLowerCase();
-    let clean = rawHost.startsWith("[") && rawHost.endsWith("]") ? rawHost.slice(1, -1) : rawHost;
-    if (clean.startsWith("::ffff:")) {
-      clean = clean.slice(7);
-    } else if (clean.startsWith("0:0:0:0:0:ffff:")) {
-      clean = clean.slice(15);
-    }
+    const clean = rawHost.startsWith("[") && rawHost.endsWith("]") ? rawHost.slice(1, -1) : rawHost;
 
     let target = clean;
     const normalizedIPv4 = normalizeIPv4Host(clean);
     if (normalizedIPv4) {
       target = normalizedIPv4;
     } else {
-      // Security: Unwrap IPv4-mapped and IPv4-compatible IPv6 addresses (e.g. `[::7f00:1]` or `[::ffff:7f00:1]`)
-      const ipv6Parts = (clean.startsWith("::") ? clean.slice(2) : clean.startsWith("0:0:0:0:0:0:") ? clean.slice(12) : clean).split(":");
-      if (ipv6Parts.length === 2 && /^[0-9a-f]{1,4}$/i.test(ipv6Parts[0]) && /^[0-9a-f]{1,4}$/i.test(ipv6Parts[1])) {
-        const high = parseInt(ipv6Parts[0], 16);
-        const low = parseInt(ipv6Parts[1], 16);
-        if (!isNaN(high) && !isNaN(low)) {
-          target = `${(high >> 8) & 0xff}.${high & 0xff}.${(low >> 8) & 0xff}.${low & 0xff}`;
+      // Security: Unwrap IPv4-mapped, IPv4-compatible, NAT64 (64:ff9b::/96), and SIIT (::ffff:0:0/96) IPv6 addresses
+      let candidate = clean;
+      if (candidate.startsWith("::ffff:")) {
+        candidate = candidate.slice(7);
+      } else if (candidate.startsWith("0:0:0:0:0:ffff:")) {
+        candidate = candidate.slice(15);
+      }
+
+      const normalizedCandidateIPv4 = normalizeIPv4Host(candidate);
+      if (normalizedCandidateIPv4) {
+        target = normalizedCandidateIPv4;
+      } else {
+        const isEmbeddedIPv6 =
+          clean.startsWith("::") ||
+          clean.startsWith("0:0:0:0:0:0:") ||
+          clean.startsWith("64:ff9b::") ||
+          clean.startsWith("64:ff9b:1::") ||
+          clean.startsWith("::ffff:0:");
+        const ipv6Parts = clean.split(":");
+        if (isEmbeddedIPv6 && ipv6Parts.length >= 3) {
+          const p1 = ipv6Parts[ipv6Parts.length - 2];
+          const p2 = ipv6Parts[ipv6Parts.length - 1];
+          if (/^[0-9a-f]{1,4}$/i.test(p1) && /^[0-9a-f]{1,4}$/i.test(p2)) {
+            const high = parseInt(p1, 16);
+            const low = parseInt(p2, 16);
+            if (!isNaN(high) && !isNaN(low)) {
+              target = `${(high >> 8) & 0xff}.${high & 0xff}.${(low >> 8) & 0xff}.${low & 0xff}`;
+            }
+          }
         }
       }
     }
+
+    // Security: Block private, loopback, link-local, carrier-grade NAT (100.64.0.0/10),
+    // cloud metadata (169.254.169.254, 100.100.100.200), benchmarking (198.18.0.0/15),
+    // multicast (224.0.0.0/4), and reserved/broadcast (240.0.0.0/4) ranges to prevent SSRF bypasses.
+    const isForbiddenIPv4 =
+      /^0\.|^127\.|^10\.|^172\.(1[6-9]|2[0-9]|3[01])\.|^192\.168\.|^169\.254\.|^100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.|^100\.100\.100\.200$|^198\.(1[89])\.|^192\.0\.2\.|^198\.51\.100\.|^203\.0\.113\.|^(22[4-9]|23[0-9]|24[0-9]|25[0-5])\./;
 
     if (
       target === "localhost" ||
@@ -89,7 +112,7 @@ export function isValidCallbackUrl(urlStr: unknown): boolean {
       target.endsWith(".lvh.me") ||
       target.endsWith(".localtest.me") ||
       target.endsWith(".traefik.me") ||
-      /^0\.|^127\.|^10\.|^172\.(1[6-9]|2[0-9]|3[01])\.|^192\.168\.|^169\.254\./.test(target) ||
+      isForbiddenIPv4.test(target) ||
       target === "::" ||
       target === "::1" ||
       target === "0:0:0:0:0:0:0:0" ||
@@ -106,10 +129,7 @@ export function isValidCallbackUrl(urlStr: unknown): boolean {
     if (ipMatches) {
       for (const candidate of ipMatches) {
         const norm = normalizeIPv4Host(candidate);
-        if (
-          norm &&
-          /^0\.|^127\.|^10\.|^172\.(1[6-9]|2[0-9]|3[01])\.|^192\.168\.|^169\.254\./.test(norm)
-        ) {
+        if (norm && isForbiddenIPv4.test(norm)) {
           return false;
         }
       }
