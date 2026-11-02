@@ -152,3 +152,8 @@
 
 **Learning:** Microservice developer landing and error pages frequently style secondary guidance elements (like keyboard shortcut legends and icons) using subdued slate tints (e.g. `#64748b`). On dark backgrounds (`#1e293b`), this yields an insufficient 3.07:1 contrast ratio that fails WCAG 2.1 SC 1.4.3 (4.5:1 minimum). Upgrading secondary shortcut hints to `#94a3b8` elevates contrast to 5.71:1, guaranteeing crisp readability for developers and low-vision users across dark theme viewports.
 **Action:** Use `#94a3b8` rather than `#64748b` for secondary legends and metadata text on `#1e293b` surfaces to satisfy WCAG AA contrast standards.
+
+## 2026-11-01 - HTTP Method Badge Contrast, High-Contrast Outlines & ARIA Semantics
+
+**Learning:** HTTP method indicator badges (`.method-badge`) styled with `#0284c7` against white text `#ffffff` achieve only a 4.10:1 contrast ratio, failing WCAG 2.1 SC 1.4.3 (4.5:1 minimum for small text). Elevating badge backgrounds to `#0369a1` (Sky 700) achieves a 5.93:1 contrast ratio. Furthermore, because Windows High Contrast Mode suppresses CSS background colors, method badges without forced-colors outline rules lose their visual boundary entirely; adding `.method-badge{outline:1px solid Highlight}` in `@media (forced-colors: active)` preserves badge boundaries, while `aria-label="HTTP GET method"` and `title="HTTP GET method"` provide vital semantic context to screen readers and mouse hover users.
+**Action:** Use `#0369a1` with white text for method badges to meet WCAG AA contrast, pair with `@media (forced-colors: active)` outline rules, and annotate acronym badges with explicit `aria-label` and `title` attributes.
