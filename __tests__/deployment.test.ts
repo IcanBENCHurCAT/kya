@@ -142,8 +142,12 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       expect(html).toContain('kbd.classList.add(\'active\')');
       expect(html).toContain('viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-left:.25rem;vertical-align:middle"');
       expect(html).toContain('.method-badge{background:#0369a1');
-      expect(html).toContain('.method-badge{outline:1px solid Highlight}');
+      expect(html).toContain('.method-badge,.badge{outline:1px solid Highlight}');
       expect(html).toContain('<span class="method-badge" title="HTTP GET method" aria-label="HTTP GET method">GET</span>');
+      expect(html).toContain('.badge{background:#14532d;color:#86efac');
+      expect(html).toContain('.copy-btn.copied{background:#14532d;color:#86efac}');
+      expect(html).toContain('.copy-btn.failed{background:#7f1d1d;color:#fecaca}');
+      expect(html).toContain('title="System status: Operational"');
     });
 
     it("should return JSON service info for GET / when Accept: application/json", async () => {
