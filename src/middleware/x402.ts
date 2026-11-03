@@ -34,9 +34,13 @@ export async function verifyPaymentTransaction(
       return { valid: false, error: "Invalid transaction payload from indexer" };
     }
 
-    const confirmedRound =
+    const rawRound =
       tx["confirmed-round"] ?? tx.confirmedRound ?? tx["confirmedRound"] ?? 0;
-    if (!confirmedRound || Number(confirmedRound) <= 0) {
+    const confirmedRound = Number(rawRound);
+    // Security: Validate that confirmedRound is a finite, positive integer.
+    // In JavaScript, Number("unconfirmed") produces NaN, and `NaN <= 0` evaluates to false,
+    // which previously allowed unconfirmed transactions to pass validation.
+    if (!Number.isInteger(confirmedRound) || confirmedRound <= 0) {
       return { valid: false, error: "Transaction is not confirmed on-chain" };
     }
 
@@ -49,7 +53,7 @@ export async function verifyPaymentTransaction(
     const paymentFields =
       tx["payment-transaction"] ?? tx.paymentTransaction ?? tx.paymentTxnFields ?? tx;
     const receiver = paymentFields?.receiver ?? paymentFields?.rcv;
-    const amount = paymentFields?.amount ?? paymentFields?.amt ?? 0;
+    const amount = paymentFields?.amount ?? paymentFields?.amt;
 
     if (!receiver || receiver !== expectedReceiver) {
       return {
@@ -58,7 +62,10 @@ export async function verifyPaymentTransaction(
       };
     }
 
-    if (typeof amount !== "number" || amount < minPriceMicroAlgo) {
+    // Security: Validate amount with Number.isInteger to prevent NaN and float comparison bypasses.
+    // In JavaScript, `typeof NaN === "number"` is true and `NaN < minPrice` evaluates to false,
+    // which previously allowed transactions with NaN amounts to bypass x402 payment requirements.
+    if (typeof amount !== "number" || !Number.isInteger(amount) || amount < minPriceMicroAlgo) {
       return {
         valid: false,
         error: `Transaction amount ${amount} microALGO is less than required ${minPriceMicroAlgo} microALGO`,

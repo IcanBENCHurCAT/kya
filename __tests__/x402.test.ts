@@ -195,6 +195,85 @@ describe("x402 Payment Gate Middleware", () => {
       expect(res.error).toContain("less than required");
     });
 
+    it("should return invalid when confirmed-round is non-numeric, NaN, negative, or not an integer", async () => {
+      const mockClientNaN = {
+        getTransactionByID: vi.fn().mockResolvedValue({
+          transaction: {
+            "confirmed-round": "unconfirmed",
+            "tx-type": "pay",
+            sender: "KBWP7FHVYOKPNQOH7X3MLL6BHRK33WUNPHP3ZLY4JWPEGNXLNB3SNPBY6E",
+            "payment-transaction": { receiver, amount: 1000 },
+          },
+        }),
+      } as unknown as AlgorandClient;
+
+      const resNaN = await verifyPaymentTransaction("tx_nan_round", receiver, price, mockClientNaN);
+      expect(resNaN.valid).toBe(false);
+      expect(resNaN.error).toContain("not confirmed");
+
+      const mockClientNegative = {
+        getTransactionByID: vi.fn().mockResolvedValue({
+          transaction: {
+            "confirmed-round": -5,
+            "tx-type": "pay",
+            sender: "KBWP7FHVYOKPNQOH7X3MLL6BHRK33WUNPHP3ZLY4JWPEGNXLNB3SNPBY6E",
+            "payment-transaction": { receiver, amount: 1000 },
+          },
+        }),
+      } as unknown as AlgorandClient;
+
+      const resNeg = await verifyPaymentTransaction("tx_neg_round", receiver, price, mockClientNegative);
+      expect(resNeg.valid).toBe(false);
+      expect(resNeg.error).toContain("not confirmed");
+    });
+
+    it("should return invalid when payment amount is NaN, non-integer, negative, or undefined", async () => {
+      const mockClientNaN = {
+        getTransactionByID: vi.fn().mockResolvedValue({
+          transaction: {
+            "confirmed-round": 123,
+            "tx-type": "pay",
+            sender: "KBWP7FHVYOKPNQOH7X3MLL6BHRK33WUNPHP3ZLY4JWPEGNXLNB3SNPBY6E",
+            "payment-transaction": { receiver, amount: NaN },
+          },
+        }),
+      } as unknown as AlgorandClient;
+
+      const resNaN = await verifyPaymentTransaction("tx_nan_amt", receiver, price, mockClientNaN);
+      expect(resNaN.valid).toBe(false);
+      expect(resNaN.error).toContain("less than required");
+
+      const mockClientFloat = {
+        getTransactionByID: vi.fn().mockResolvedValue({
+          transaction: {
+            "confirmed-round": 123,
+            "tx-type": "pay",
+            sender: "KBWP7FHVYOKPNQOH7X3MLL6BHRK33WUNPHP3ZLY4JWPEGNXLNB3SNPBY6E",
+            "payment-transaction": { receiver, amount: 1000.5 },
+          },
+        }),
+      } as unknown as AlgorandClient;
+
+      const resFloat = await verifyPaymentTransaction("tx_float_amt", receiver, price, mockClientFloat);
+      expect(resFloat.valid).toBe(false);
+      expect(resFloat.error).toContain("less than required");
+
+      const mockClientMissing = {
+        getTransactionByID: vi.fn().mockResolvedValue({
+          transaction: {
+            "confirmed-round": 123,
+            "tx-type": "pay",
+            sender: "KBWP7FHVYOKPNQOH7X3MLL6BHRK33WUNPHP3ZLY4JWPEGNXLNB3SNPBY6E",
+            "payment-transaction": { receiver },
+          },
+        }),
+      } as unknown as AlgorandClient;
+
+      const resMissing = await verifyPaymentTransaction("tx_missing_amt", receiver, price, mockClientMissing);
+      expect(resMissing.valid).toBe(false);
+      expect(resMissing.error).toContain("less than required");
+    });
+
     it("should handle indexer exception gracefully", async () => {
       const mockClient = {
         getTransactionByID: vi.fn().mockRejectedValue(new Error("Indexer timeout")),
