@@ -26,7 +26,7 @@ export async function generateSigningKey(): Promise<{
   privateKey: string;
   publicKey: string;
 }> {
-  const { privateKey, publicKey } = await generateKeyPair("EdDSA");
+  const { privateKey, publicKey } = await generateKeyPair("EdDSA", { extractable: true });
 
   // jose v5 exportPKCS8/exportSPKI return PEM strings directly
   const pkcs8 = await exportPKCS8(privateKey);
