@@ -116,6 +116,8 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       expect(html).toContain('click or press Enter to copy');
       expect(html).toContain('code:focus-visible');
       expect(html).toContain('code[role="button"]:hover');
+      expect(html).toContain('code[role="button"]:focus-visible{background:#1e293b}');
+      expect(html).toContain('code[role="button"]:active{background:#334155}');
       expect(html).toContain('.code-box code:focus-visible');
       expect(html).toContain('code[role="button"]:active,.cmd-tab:active');
       expect(html).toContain("code.copied");
