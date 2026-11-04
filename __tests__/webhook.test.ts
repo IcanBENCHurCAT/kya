@@ -82,6 +82,36 @@ describe("WebhookService", () => {
     expect(JSON.parse(init.body)).toEqual({ redirectTest: true });
   });
 
+  it("should enforce request timeout signal on fetch to mitigate slowloris and socket starvation", async () => {
+    (global.fetch as any).mockResolvedValue({ ok: true, status: 200 });
+
+    webhookService.dispatch("https://example.com/webhook-timeout-test", { timeoutTest: true }, 0);
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    const [url, init] = (global.fetch as any).mock.calls[0];
+    expect(url).toBe("https://example.com/webhook-timeout-test");
+    expect(init.signal).toBeDefined();
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it("should retry when request aborts due to timeout", async () => {
+    const timeoutError = new Error("The operation was aborted due to timeout");
+    timeoutError.name = "TimeoutError";
+
+    (global.fetch as any)
+      .mockRejectedValueOnce(timeoutError)
+      .mockResolvedValueOnce({ ok: true, status: 200 });
+
+    const shortTimeoutService = new WebhookService(privateKey, keyId, 50);
+    shortTimeoutService.dispatch("https://example.com/timeout-retry", { retryOnTimeout: true }, 1);
+
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+  });
+
   it("should retry on failure up to maxRetries", async () => {
     // Fail first two times, succeed on the third
     (global.fetch as any)
