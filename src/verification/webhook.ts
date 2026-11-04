@@ -140,10 +140,16 @@ export function isValidCallbackUrl(urlStr: unknown): boolean {
   }
 }
 
+export const DEFAULT_WEBHOOK_TIMEOUT_MS = 10_000;
+
 export class WebhookService {
   private pkcs8KeyPromise: Promise<any>;
 
-  constructor(private privateKey: string, private keyId: string) {
+  constructor(
+    private privateKey: string,
+    private keyId: string,
+    private timeoutMs: number = DEFAULT_WEBHOOK_TIMEOUT_MS
+  ) {
     this.pkcs8KeyPromise = importPKCS8(this.privateKey, "EdDSA");
   }
 
@@ -181,8 +187,10 @@ export class WebhookService {
       // Extract signature (third part of JWS) as hex
       const signatureHex = Buffer.from(jws.split(".")[2], "base64url").toString("hex");
 
-      // Security: Disable automatic HTTP redirect following (`redirect: "error"`)
-      // to prevent SSRF bypasses via external endpoints redirecting (301/302) to internal/loopback targets.
+      // Security:
+      // 1. Disable automatic HTTP redirect following (`redirect: "error"`)
+      //    to prevent SSRF bypasses via external endpoints redirecting (301/302) to internal/loopback targets.
+      // 2. Enforce request timeout via AbortSignal to prevent slowloris attacks and socket/memory starvation DoS.
       const res = await fetch(url, {
         method: "POST",
         headers: {
@@ -192,6 +200,7 @@ export class WebhookService {
         },
         body: payloadString,
         redirect: "error",
+        signal: AbortSignal.timeout(this.timeoutMs),
       });
 
       if (!res.ok) {
