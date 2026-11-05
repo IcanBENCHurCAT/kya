@@ -167,3 +167,8 @@
 
 **Learning:** When interactive code blocks (`<code role="button">`) rely solely on text color shifts and scale transforms, they lack clear tactile boundaries and focused background separation against parent dark surfaces (`#0f172a` within `#1e293b`). Adding focused background highlight (`background: #1e293b`), active press contrast (`background: #334155`), and subtle padding/border-radius creates clear tactile responsiveness for both keyboard tab navigation and pointer clicks, while including `code[role="button"]` in `@media (prefers-reduced-motion: reduce)` ensures transitions stay disabled for users with vestibular sensitivities.
 **Action:** Always complement interactive `code[role="button"]` elements with focused background highlights, active click states, and reduced-motion transition guards.
+
+## 2026-11-04 - 404 Discovery Links Keyboard Arrow Navigation & Focus Traversal
+
+**Learning:** When users land on custom 404 error pages, recovery discovery links grouped under navigation landmarks are often navigated via standard arrow keys (ArrowDown/ArrowUp/ArrowRight/ArrowLeft/Home/End) by keyboard and screen reader power users. Without roving arrow navigation, keyboard users must repeatedly press Tab/Shift-Tab through nested inline link elements. Implementing roving arrow key navigation across discovery recovery links with cyclic index wrapping and programmatic focus synchronization creates an intuitive, accessible recovery experience matching tablist navigation mental models.
+**Action:** Bind ArrowDown/ArrowRight, ArrowUp/ArrowLeft, Home, and End keydown listeners with index wrapping and focus() synchronization across error page discovery recovery link groups.

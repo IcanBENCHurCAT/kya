@@ -212,6 +212,10 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       expect(html).toContain('.method-badge{background:#0369a1');
       expect(html).toContain('.method-badge{outline:1px solid Highlight}');
       expect(html).toContain('<span class="method-badge" title="HTTP GET method" aria-label="HTTP GET method">GET</span>');
+      expect(html).toContain("document.querySelectorAll('.discovery-nav a')");
+      expect(html).toContain("e.key==='ArrowDown'||e.key==='ArrowRight'");
+      expect(html).toContain("e.key==='ArrowUp'||e.key==='ArrowLeft'");
+      expect(html).toContain("links[nextIdx].focus()");
     });
 
     it("should return JSON error response for unknown routes when Accept: application/json", async () => {
