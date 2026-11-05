@@ -38,14 +38,32 @@ export async function generateSigningKey(): Promise<{
   };
 }
 
+// Security: Bound in-memory key cache capacity to prevent memory exhaustion and DoS attacks
+// when handling high volumes of rotated or caller-supplied public/private keys.
+export const MAX_KEY_CACHE_CAP = 1000;
+
 // Optimization: Key promises cache for importPKCS8 and importSPKI to avoid repeated PEM parsing
 // and Web Crypto key generation on every signature and verification operation.
 const pkcs8KeyCache = new Map<string, Promise<any>>();
 const spkiKeyCache = new Map<string, Promise<any>>();
 
+// Exported for testing cache bounding and eviction
+export function getKeyCacheStats(): { pkcs8Size: number; spkiSize: number } {
+  return { pkcs8Size: pkcs8KeyCache.size, spkiSize: spkiKeyCache.size };
+}
+
+export function clearKeyCache(): void {
+  pkcs8KeyCache.clear();
+  spkiKeyCache.clear();
+}
+
 async function getPrivateKey(pem: string) {
   let cached = pkcs8KeyCache.get(pem);
   if (!cached) {
+    if (pkcs8KeyCache.size >= MAX_KEY_CACHE_CAP) {
+      const oldestKey = pkcs8KeyCache.keys().next().value;
+      if (oldestKey !== undefined) pkcs8KeyCache.delete(oldestKey);
+    }
     cached = importPKCS8(pem, "EdDSA").catch((err) => {
       pkcs8KeyCache.delete(pem);
       throw err;
@@ -58,6 +76,10 @@ async function getPrivateKey(pem: string) {
 async function getPublicKey(pem: string) {
   let cached = spkiKeyCache.get(pem);
   if (!cached) {
+    if (spkiKeyCache.size >= MAX_KEY_CACHE_CAP) {
+      const oldestKey = spkiKeyCache.keys().next().value;
+      if (oldestKey !== undefined) spkiKeyCache.delete(oldestKey);
+    }
     cached = importSPKI(pem, "EdDSA").catch((err) => {
       spkiKeyCache.delete(pem);
       throw err;

@@ -147,3 +147,8 @@
 **Vulnerability:** `WebhookService.sendWithRetry` in `src/verification/webhook.ts` executed outbound `fetch` calls to user-supplied callback endpoints without configuring a request timeout or abort signal, allowing slowloris or unresponsive target servers to hold open TCP connections and retain pending promises/buffers indefinitely.
 **Learning:** In modern Node.js runtimes, `fetch` calls lack default connection and response timeouts. When external callers provide arbitrary valid callback URLs, a malicious server that delays responding can exhaust available socket handles and heap memory across asynchronous webhook retry workers.
 **Prevention:** Always attach an explicit timeout signal (`signal: AbortSignal.timeout(timeoutMs)`) to outbound `fetch` requests and ensure timeout errors trigger structured retry and backoff handling.
+
+## 2026-11-04 - Unbounded In-Memory Cryptographic Key Caches Memory Exhaustion DoS
+**Vulnerability:** `pkcs8KeyCache` and `spkiKeyCache` in `src/utils/crypto.ts` stored WebCrypto key promises in unbounded module-level `Map` instances without capacity limits. Callers supplying distinct or rotated public keys during claim verification could cause indefinite memory growth and process crash via heap exhaustion.
+**Learning:** Memoizing parsed cryptographic keys (e.g. via `importSPKI`) drastically reduces parsing CPU overhead, but caching without bounding allows attackers or high-churn key rotations to trigger Denial of Service (DoS) through memory leak exhaustion.
+**Prevention:** Always bound cryptographic key caches with capacity caps (`MAX_KEY_CACHE_CAP = 1000`) and enforce FIFO or LRU eviction before inserting new key promises.

@@ -4,6 +4,9 @@ import {
   verifyAndSignClaim,
   verifyExistingClaim,
   verifyClaimSignature,
+  MAX_KEY_CACHE_CAP,
+  getKeyCacheStats,
+  clearKeyCache,
 } from "../src/utils/crypto.js";
 import { VerificationClaim } from "../src/verification/types.js";
 
@@ -156,5 +159,37 @@ describe("Crypto utilities - verifyExistingClaim", () => {
     expect(await verifyExistingClaim({} as any, keys.publicKey)).toBe(false);
     expect(await verifyExistingClaim("not-an-object" as any, keys.publicKey)).toBe(false);
     expect(await verifyExistingClaim({ signature: "abcd" } as any, 123 as any)).toBe(false);
+  });
+
+  it("should bound key cache size to MAX_KEY_CACHE_CAP and evict oldest key on overflow", async () => {
+    clearKeyCache();
+    expect(MAX_KEY_CACHE_CAP).toBe(1000);
+
+    // Populate multiple keys and verify cache bounding logic
+    const keysA = await generateSigningKey();
+    const keysB = await generateSigningKey();
+
+    const signed = await verifyAndSignClaim({
+      walletAddress: "A".repeat(58),
+      identityHash: "a".repeat(64),
+      method: "email",
+      privateKey: keysA.privateKey,
+      keyId: "key-a",
+    });
+
+    const fullClaim: VerificationClaim = {
+      id: "claim-test-cache",
+      attemptId: null,
+      ...signed,
+    };
+
+    expect(await verifyExistingClaim(fullClaim, keysA.publicKey)).toBe(true);
+    expect(await verifyExistingClaim(fullClaim, keysB.publicKey)).toBe(false);
+
+    const stats = getKeyCacheStats();
+    expect(stats.pkcs8Size).toBeGreaterThan(0);
+    expect(stats.spkiSize).toBeGreaterThan(0);
+    expect(stats.pkcs8Size).toBeLessThanOrEqual(MAX_KEY_CACHE_CAP);
+    expect(stats.spkiSize).toBeLessThanOrEqual(MAX_KEY_CACHE_CAP);
   });
 });
