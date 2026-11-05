@@ -13,7 +13,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "algosdk": "^2.7.0"
+    "algosdk": "^3.9.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
