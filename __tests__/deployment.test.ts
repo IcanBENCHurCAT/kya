@@ -116,6 +116,8 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       expect(html).toContain('click or press Enter to copy');
       expect(html).toContain('code:focus-visible');
       expect(html).toContain('code[role="button"]:hover');
+      expect(html).toContain('code[role="button"]:focus-visible{background:#1e293b}');
+      expect(html).toContain('code[role="button"]:active{background:#334155}');
       expect(html).toContain('.code-box code:focus-visible');
       expect(html).toContain('code[role="button"]:active,.cmd-tab:active');
       expect(html).toContain("code.copied");
@@ -142,8 +144,12 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       expect(html).toContain('kbd.classList.add(\'active\')');
       expect(html).toContain('viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-left:.25rem;vertical-align:middle"');
       expect(html).toContain('.method-badge{background:#0369a1');
-      expect(html).toContain('.method-badge{outline:1px solid Highlight}');
+      expect(html).toContain('.method-badge,.badge{outline:1px solid Highlight}');
       expect(html).toContain('<span class="method-badge" title="HTTP GET method" aria-label="HTTP GET method">GET</span>');
+      expect(html).toContain('.badge{background:#14532d;color:#86efac');
+      expect(html).toContain('.copy-btn.copied{background:#14532d;color:#86efac}');
+      expect(html).toContain('.copy-btn.failed{background:#7f1d1d;color:#fecaca}');
+      expect(html).toContain('title="System status: Operational"');
     });
 
     it("should return JSON service info for GET / when Accept: application/json", async () => {
@@ -206,6 +212,10 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       expect(html).toContain('.method-badge{background:#0369a1');
       expect(html).toContain('.method-badge{outline:1px solid Highlight}');
       expect(html).toContain('<span class="method-badge" title="HTTP GET method" aria-label="HTTP GET method">GET</span>');
+      expect(html).toContain("document.querySelectorAll('.discovery-nav a')");
+      expect(html).toContain("e.key==='ArrowDown'||e.key==='ArrowRight'");
+      expect(html).toContain("e.key==='ArrowUp'||e.key==='ArrowLeft'");
+      expect(html).toContain("links[nextIdx].focus()");
     });
 
     it("should return JSON error response for unknown routes when Accept: application/json", async () => {
