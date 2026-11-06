@@ -172,3 +172,8 @@
 
 **Learning:** When users land on custom 404 error pages, recovery discovery links grouped under navigation landmarks are often navigated via standard arrow keys (ArrowDown/ArrowUp/ArrowRight/ArrowLeft/Home/End) by keyboard and screen reader power users. Without roving arrow navigation, keyboard users must repeatedly press Tab/Shift-Tab through nested inline link elements. Implementing roving arrow key navigation across discovery recovery links with cyclic index wrapping and programmatic focus synchronization creates an intuitive, accessible recovery experience matching tablist navigation mental models.
 **Action:** Bind ArrowDown/ArrowRight, ArrowUp/ArrowLeft, Home, and End keydown listeners with index wrapping and focus() synchronization across error page discovery recovery link groups.
+
+## 2026-11-06 - Landing Page Discovery Links Roving Arrow Navigation & Landmark Semantics
+
+**Learning:** Microservice root developer landing pages often organize core metadata and discovery endpoints under generic `<section>` tags without keyboard arrow navigation. Upgrading Discovery Links to semantic `<nav>` landmarks and enabling roving keyboard arrow navigation (`ArrowDown`/`ArrowRight`/`ArrowUp`/`ArrowLeft`/`Home`/`End`) with cyclic index wrapping, programmatic `focus()` synchronization, and `@media (forced-colors: active)` focus-visible outline rules provides complete keyboard navigation parity with tablists and error recovery navigation.
+**Action:** Use semantic `<nav>` landmarks for service discovery link collections, bind cyclic roving arrow key navigation with `focus()` synchronization, and declare high-contrast focus outline rules.
