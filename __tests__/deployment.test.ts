@@ -150,6 +150,10 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       expect(html).toContain('.copy-btn.copied{background:#14532d;color:#86efac}');
       expect(html).toContain('.copy-btn.failed{background:#7f1d1d;color:#fecaca}');
       expect(html).toContain('title="System status: Operational"');
+      expect(html).toContain('<nav aria-label="Discovery & System Links" class="discovery-nav">');
+      expect(html).toContain('.discovery-nav a:focus-visible{outline:2px solid Highlight}');
+      expect(html).toContain("var discLinks=Array.from(document.querySelectorAll('.discovery-nav a'))");
+      expect(html).toContain("discLinks[nextIdx].focus()");
     });
 
     it("should return JSON service info for GET / when Accept: application/json", async () => {
