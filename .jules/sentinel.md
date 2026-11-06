@@ -152,3 +152,8 @@
 **Vulnerability:** `pkcs8KeyCache` and `spkiKeyCache` in `src/utils/crypto.ts` stored WebCrypto key promises in unbounded module-level `Map` instances without capacity limits. Callers supplying distinct or rotated public keys during claim verification could cause indefinite memory growth and process crash via heap exhaustion.
 **Learning:** Memoizing parsed cryptographic keys (e.g. via `importSPKI`) drastically reduces parsing CPU overhead, but caching without bounding allows attackers or high-churn key rotations to trigger Denial of Service (DoS) through memory leak exhaustion.
 **Prevention:** Always bound cryptographic key caches with capacity caps (`MAX_KEY_CACHE_CAP = 1000`) and enforce FIFO or LRU eviction before inserting new key promises.
+
+## 2026-11-05 - Socket Starvation DoS via Indefinite Outbound Email Provider HTTP Stalls
+**Vulnerability:** `sendEmail` in `src/utils/email.ts` invoked outbound `fetch("https://api.resend.com/emails", ...)` without an `AbortSignal` timeout, allowing slow or unresponsive external API connections to hold open TCP sockets, retain promises, and cause resource starvation during email OTP verification flows.
+**Learning:** Outbound HTTP requests to external third-party service providers (like Resend) in Node.js do not time out by default. If the provider hangs or network degradation occurs, pending asynchronous operations accumulate and exhaust process resources.
+**Prevention:** Always configure an explicit request timeout (`signal: AbortSignal.timeout(timeoutMs)`) on outbound external API calls and provide configurable timeout defaults (`DEFAULT_EMAIL_TIMEOUT_MS = 10_000`).
