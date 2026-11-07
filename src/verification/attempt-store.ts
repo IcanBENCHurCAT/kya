@@ -160,11 +160,12 @@ export class AttemptStore {
    * Returns number of attempts made in the last hour.
    */
   async getRecentAttemptCount(identifier: string): Promise<number> {
+    const normalized = typeof identifier === "string" ? identifier.toLowerCase().trim() : identifier;
     const oneHourAgo = Date.now() - 3600000;
     const { count, error } = await this.supabase
       .from("verification_attempts")
       .select("count", { count: "exact" })
-      .eq("identifier", identifier)
+      .eq("identifier", normalized)
       .gte("created_at", oneHourAgo);
 
     if (error) {
