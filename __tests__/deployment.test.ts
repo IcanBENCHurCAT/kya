@@ -154,6 +154,8 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       expect(html).toContain('.discovery-nav a:focus-visible{outline:2px solid Highlight}');
       expect(html).toContain("var discLinks=Array.from(document.querySelectorAll('.discovery-nav a'))");
       expect(html).toContain("discLinks[nextIdx].focus()");
+      expect(html).toContain('id="copy-status" class="sr-only" aria-live="polite" aria-atomic="true"');
+      expect(html).toContain('onkeydown="if(event.key===\' \'){event.preventDefault();this.click();}"');
     });
 
     it("should return JSON service info for GET / when Accept: application/json", async () => {
@@ -220,6 +222,7 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       expect(html).toContain("e.key==='ArrowDown'||e.key==='ArrowRight'");
       expect(html).toContain("e.key==='ArrowUp'||e.key==='ArrowLeft'");
       expect(html).toContain("links[nextIdx].focus()");
+      expect(html).toContain('id="status-announcer" class="sr-only" aria-live="polite" aria-atomic="true"');
     });
 
     it("should return JSON error response for unknown routes when Accept: application/json", async () => {
