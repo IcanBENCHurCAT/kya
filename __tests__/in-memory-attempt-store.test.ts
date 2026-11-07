@@ -167,6 +167,23 @@ describe('InMemoryAttemptStore', () => {
     expect(await store.getRecentAttemptCount('nonexistent@example.com')).toBe(0);
   });
 
+  it('should query recent attempts case-insensitively and ignore leading/trailing whitespace', async () => {
+    const now = Date.now();
+    await store.createAttempt({
+      identifier: 'caseuser@example.com',
+      method: 'email',
+      codeHash: 'h1',
+      codeSalt: 's1',
+      expiresAt: now + 60000,
+      attemptCount: 0,
+      maxAttempts: 3,
+      createdAt: now - 10000,
+    });
+
+    expect(await store.getRecentAttemptCount('CaseUser@Example.COM')).toBe(1);
+    expect(await store.getRecentAttemptCount('  caseuser@example.com  ')).toBe(1);
+  });
+
   it('should evict oldest attempt and update index when exceeding MAX_ATTEMPTS_CAP', async () => {
     const firstAttempt = await store.createAttempt({
       identifier: 'oldest@example.com',
