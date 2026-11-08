@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { sendEmail } from "../src/utils/email.js";
+import { sendEmail, DEFAULT_EMAIL_TIMEOUT_MS } from "../src/utils/email.js";
 
 describe("Email Delivery via Resend", () => {
   let originalEnv: NodeJS.ProcessEnv;
@@ -95,8 +95,49 @@ describe("Email Delivery via Resend", () => {
         to: "test@example.com",
         subject: "Test Subject",
         text: "Test Body"
-      })
+      }),
+      signal: expect.any(AbortSignal),
     });
+  });
+
+  it("should configure custom timeoutMs and pass AbortSignal to fetch in production", async () => {
+    process.env.NODE_ENV = "production";
+    process.env.EMAIL_PROVIDER_API_KEY = "test_key";
+    process.env.EMAIL_FROM_ADDRESS = "noreply@example.com";
+
+    fetchMock.mockResolvedValue({
+      ok: true,
+      text: async () => "",
+    });
+
+    await sendEmail("test@example.com", "Test Subject", "Test Body", 5000);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const callArgs = fetchMock.mock.calls[0];
+    expect(callArgs[0]).toBe("https://api.resend.com/emails");
+    expect(callArgs[1].signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it("should abort and reject when external email provider request times out", async () => {
+    process.env.NODE_ENV = "production";
+    process.env.EMAIL_PROVIDER_API_KEY = "test_key";
+    process.env.EMAIL_FROM_ADDRESS = "noreply@example.com";
+
+    // Simulate fetch hanging and triggering AbortSignal timeout
+    fetchMock.mockImplementation((_url: string, init?: RequestInit) => {
+      return new Promise((_, reject) => {
+        if (init?.signal) {
+          init.signal.addEventListener("abort", () => {
+            const abortErr = new Error("The operation was aborted");
+            abortErr.name = "TimeoutError";
+            reject(abortErr);
+          });
+        }
+      });
+    });
+
+    await expect(sendEmail("test@example.com", "Test Subject", "Test Body", 10))
+      .rejects.toThrow();
   });
 
   it("should throw error if fetch response is not ok", async () => {
