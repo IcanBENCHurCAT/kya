@@ -1016,6 +1016,69 @@ describe("Audit Logging", () => {
     assert(passOnly[0].result === "NO_MATCH_FOUND");
   });
 
+  it("should maintain strict descending order and early exit on after filter with out-of-order insertions", () => {
+    // Insert out of order to verify binary search insertion preserves chronological order
+    // and reverse-iteration in getAuditLog yields descending order with exact after-filtering
+    logScreening({
+      screened: "WALLET-1",
+      status: "NO_MATCH_FOUND",
+      confidence: 0,
+      matchedEntries: [],
+      matchedListNames: [],
+      details: "T1",
+      timestamp: "2026-11-01T10:00:00.000Z",
+    });
+
+    logScreening({
+      screened: "WALLET-3",
+      status: "NO_MATCH_FOUND",
+      confidence: 0,
+      matchedEntries: [],
+      matchedListNames: [],
+      details: "T3",
+      timestamp: "2026-11-03T10:00:00.000Z",
+    });
+
+    logScreening({
+      screened: "WALLET-2",
+      status: "NO_MATCH_FOUND",
+      confidence: 0,
+      matchedEntries: [],
+      matchedListNames: [],
+      details: "T2",
+      timestamp: "2026-11-02T10:00:00.000Z", // inserted out of order
+    });
+
+    logScreening({
+      screened: "WALLET-0",
+      status: "NO_MATCH_FOUND",
+      confidence: 0,
+      matchedEntries: [],
+      matchedListNames: [],
+      details: "T0",
+      timestamp: "2026-10-31T10:00:00.000Z", // inserted out of order before all
+    });
+
+    const all = getAuditLog();
+    expect(all.map((e) => e.timestamp)).toEqual([
+      "2026-11-03T10:00:00.000Z",
+      "2026-11-02T10:00:00.000Z",
+      "2026-11-01T10:00:00.000Z",
+      "2026-10-31T10:00:00.000Z",
+    ]);
+
+    // Test after filter early break
+    const filteredAfter = getAuditLog({ after: "2026-11-02T00:00:00.000Z" });
+    expect(filteredAfter.map((e) => e.timestamp)).toEqual([
+      "2026-11-03T10:00:00.000Z",
+      "2026-11-02T10:00:00.000Z",
+    ]);
+
+    // Test after filter matching nothing
+    const futureAfter = getAuditLog({ after: "2026-11-05T00:00:00.000Z" });
+    expect(futureAfter).toHaveLength(0);
+  });
+
   describe("getAuditSummary", () => {
     it("should return zero counts when audit log is empty", () => {
       const summary = getAuditSummary();
