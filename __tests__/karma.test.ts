@@ -35,9 +35,56 @@ describe('Karma Ledger & KarmaService', () => {
       expect(karmaService.calculateTier(850)).toBe('Tier 3 (Seasoned)');
       expect(karmaService.calculateTier(1000)).toBe('Tier 3 (Seasoned)');
     });
+
+    it('should assign Tier 0 for NaN, undefined, non-finite, or non-numeric inputs without defaulting to Tier 3', () => {
+      expect(karmaService.calculateTier(NaN)).toBe('Tier 0 (Unscored)');
+      expect(karmaService.calculateTier(undefined as any)).toBe('Tier 0 (Unscored)');
+      expect(karmaService.calculateTier(null as any)).toBe('Tier 0 (Unscored)');
+      expect(karmaService.calculateTier(Infinity)).toBe('Tier 0 (Unscored)');
+      expect(karmaService.calculateTier(-Infinity)).toBe('Tier 0 (Unscored)');
+      expect(karmaService.calculateTier('850' as any)).toBe('Tier 0 (Unscored)');
+      expect(karmaService.calculateTier({} as any)).toBe('Tier 0 (Unscored)');
+    });
   });
 
   describe('Profile & Score Management', () => {
+    it('should reject invalid parameters in recordEvent to prevent NaN score corruption', async () => {
+      await expect(
+        karmaService.recordEvent({
+          agentAddress: 'TEST_AGENT',
+          eventType: 'credit',
+          amount: NaN,
+          reason: 'Corrupted amount',
+        })
+      ).rejects.toThrow('Invalid karma event parameters');
+
+      await expect(
+        karmaService.recordEvent({
+          agentAddress: 'TEST_AGENT',
+          eventType: 'credit',
+          amount: -50,
+          reason: 'Negative amount',
+        })
+      ).rejects.toThrow('Invalid karma event parameters');
+
+      await expect(
+        karmaService.recordEvent({
+          agentAddress: 'TEST_AGENT',
+          eventType: 'credit',
+          amount: 1.5,
+          reason: 'Float amount',
+        })
+      ).rejects.toThrow('Invalid karma event parameters');
+
+      await expect(
+        karmaService.recordEvent({
+          agentAddress: '',
+          eventType: 'credit',
+          amount: 100,
+          reason: 'Empty address',
+        })
+      ).rejects.toThrow('Invalid karma event parameters');
+    });
     it('should return initial profile for new agent address', async () => {
       const profile = await karmaService.getProfile('TEST_AGENT_ADDRESS_1');
       expect(profile.agentAddress).toBe('TEST_AGENT_ADDRESS_1');
