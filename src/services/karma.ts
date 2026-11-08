@@ -120,7 +120,10 @@ export class KarmaService {
   }
 
   public calculateTier(score: number): string {
-    if (score < 300) return 'Tier 0 (Unscored)';
+    // Security: Validate that score is a finite number.
+    // In JavaScript, relational comparisons with NaN (e.g. NaN < 300) evaluate to false,
+    // which previously allowed NaN/undefined scores to fall through and receive 'Tier 3 (Seasoned)'.
+    if (typeof score !== 'number' || !Number.isFinite(score) || score < 300) return 'Tier 0 (Unscored)';
     if (score < 600) return 'Tier 1 (Emerging)';
     if (score < 850) return 'Tier 2 (Established)';
     return 'Tier 3 (Seasoned)';
@@ -162,7 +165,8 @@ export class KarmaService {
             txid: e.txid,
           }));
 
-          const score = profile.karma_score ?? 100;
+          const rawScore = Number(profile.karma_score);
+          const score = Number.isFinite(rawScore) ? rawScore : 100;
           return {
             agentAddress: address,
             score,
@@ -214,6 +218,21 @@ export class KarmaService {
     txid?: string;
   }): Promise<KarmaRecord> {
     const { agentAddress, eventType, amount, reason, txid } = params;
+
+    // Security: Validate required parameters to prevent NaN score corruption and type confusion attacks
+    if (
+      !agentAddress ||
+      typeof agentAddress !== 'string' ||
+      !eventType ||
+      typeof eventType !== 'string' ||
+      typeof amount !== 'number' ||
+      !Number.isFinite(amount) ||
+      !Number.isInteger(amount) ||
+      amount <= 0
+    ) {
+      throw new Error('Invalid karma event parameters');
+    }
+
     const normalizedType = eventType.toLowerCase() as 'credit' | 'debit' | 'emit';
 
     let delta = 0;
