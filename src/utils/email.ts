@@ -1,4 +1,11 @@
-export async function sendEmail(to: string, subject: string, body: string): Promise<void> {
+export const DEFAULT_EMAIL_TIMEOUT_MS = 10_000;
+
+export async function sendEmail(
+  to: string,
+  subject: string,
+  body: string,
+  timeoutMs: number = DEFAULT_EMAIL_TIMEOUT_MS
+): Promise<void> {
   if (process.env.NODE_ENV === "production") {
     const apiKey = process.env.EMAIL_PROVIDER_API_KEY;
     const fromAddress = process.env.EMAIL_FROM_ADDRESS || process.env.EMAIL_FROM;
@@ -8,6 +15,8 @@ export async function sendEmail(to: string, subject: string, body: string): Prom
     }
 
     console.log(`📧 Sending email to ${to}: ${subject} via Resend`);
+    // Security: Enforce request timeout via AbortSignal to prevent slowloris attacks and socket/memory starvation DoS
+    // when communicating with external email delivery endpoints.
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -20,6 +29,7 @@ export async function sendEmail(to: string, subject: string, body: string): Prom
         subject,
         text: body,
       }),
+      signal: AbortSignal.timeout(timeoutMs),
     });
 
     if (!response.ok) {

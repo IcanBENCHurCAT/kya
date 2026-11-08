@@ -36,11 +36,12 @@ export class InMemoryAttemptStore {
 
     this.attempts.set(id, fullAttempt);
 
-    // Maintain secondary index by identifier
-    let idSet = this.byIdentifier.get(fullAttempt.identifier);
+    // Maintain secondary index by identifier (normalized)
+    const normalizedIdentifier = typeof fullAttempt.identifier === "string" ? fullAttempt.identifier.toLowerCase().trim() : fullAttempt.identifier;
+    let idSet = this.byIdentifier.get(normalizedIdentifier);
     if (!idSet) {
       idSet = new Set();
-      this.byIdentifier.set(fullAttempt.identifier, idSet);
+      this.byIdentifier.set(normalizedIdentifier, idSet);
     }
     idSet.add(fullAttempt);
 
@@ -103,7 +104,8 @@ export class InMemoryAttemptStore {
    * replacing the previous O(N) linear scan across all stored verification attempts.
    */
   async getRecentAttemptCount(identifier: string): Promise<number> {
-    const idSet = this.byIdentifier.get(identifier);
+    const normalized = typeof identifier === "string" ? identifier.toLowerCase().trim() : identifier;
+    const idSet = this.byIdentifier.get(normalized);
     if (!idSet || idSet.size === 0) return 0;
 
     const oneHourAgo = Date.now() - 3600000;
@@ -117,11 +119,12 @@ export class InMemoryAttemptStore {
   }
 
   private removeFromIndex(attempt: VerificationAttempt): void {
-    const idSet = this.byIdentifier.get(attempt.identifier);
+    const normalizedIdentifier = typeof attempt.identifier === "string" ? attempt.identifier.toLowerCase().trim() : attempt.identifier;
+    const idSet = this.byIdentifier.get(normalizedIdentifier);
     if (idSet) {
       idSet.delete(attempt);
       if (idSet.size === 0) {
-        this.byIdentifier.delete(attempt.identifier);
+        this.byIdentifier.delete(normalizedIdentifier);
       }
     }
   }
