@@ -193,11 +193,16 @@ export function getAuditLog(
 
   const { after, before, result } = options;
 
-  // Reverse loop: newest entries are appended at the end of auditLog
+  // Performance optimization:
+  // 1. Because auditLog is maintained in strict ascending chronological order (via insertAuditEntryChronological),
+  //    reverse iteration from newest (end) to oldest (0) naturally visits entries in descending chronological order.
+  // 2. Early-exit on `after`: As soon as entry.timestamp < after, all remaining preceding entries (0 to i) also have
+  //    timestamp < after due to chronological ordering. Breaking early eliminates scanning up to 100,000 entries.
+  // 3. Eliminates redundant `entries.sort(...)` post-pass, saving O(K log K) CPU overhead on every query.
   for (let i = auditLog.length - 1; i >= 0; i--) {
     const entry = auditLog[i];
 
-    if (after && entry.timestamp < after) continue;
+    if (after && entry.timestamp < after) break;
     if (before && entry.timestamp > before) continue;
     if (result && entry.result !== result) continue;
 
@@ -207,9 +212,6 @@ export function getAuditLog(
       break;
     }
   }
-
-  // Ensure entries are strictly sorted descending by ISO timestamp using fast relational operators
-  entries.sort((a, b) => (b.timestamp > a.timestamp ? 1 : b.timestamp < a.timestamp ? -1 : 0));
 
   return entries;
 }

@@ -61,6 +61,7 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       expect(html).toContain("Failed to copy command to clipboard");
       expect(html).toContain("Command copied to clipboard");
       expect(html).toContain('role="tablist"');
+      expect(html).toContain('aria-orientation="horizontal"');
       expect(html).toContain('role="tabpanel"');
       expect(html).toContain('id="curl-tabpanel"');
       expect(html).toContain('aria-labelledby="tab-health"');
@@ -100,6 +101,15 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       expect(html).toContain(
         'title="Query service health status and timestamp (GET /health)"',
       );
+      expect(html).toContain(
+        'aria-label="Query service health status and timestamp (GET /health)"',
+      );
+      expect(html).toContain(
+        'aria-label="Query x402 merchant discovery metadata &amp; pricing (GET /.well-known/x402.json)"',
+      );
+      expect(html).toContain(
+        'aria-label="Query A2A Agent Card capabilities manifest (GET /.well-known/agent-card.json)"',
+      );
       expect(html).toContain("e.key==='c'");
       expect(html).toContain("e.key==='Escape'");
       expect(html).toContain("resetCopyBtn(true)");
@@ -123,6 +133,7 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       expect(html).toContain("code.copied");
       expect(html).toContain("code.failed");
       expect(html).toContain("code.copied,code.failed{outline:2px solid Highlight}");
+      expect(html).toContain('role="note"');
       expect(html).toContain('aria-label="Available keyboard shortcuts"');
       expect(html).toContain('style="font-size:.7rem;color:#94a3b8;margin-top:.375rem;display:flex;align-items:center;gap:.25rem"');
       expect(html).not.toContain("#64748b");
@@ -150,6 +161,12 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       expect(html).toContain('.copy-btn.copied{background:#14532d;color:#86efac}');
       expect(html).toContain('.copy-btn.failed{background:#7f1d1d;color:#fecaca}');
       expect(html).toContain('title="System status: Operational"');
+      expect(html).toContain('<nav aria-label="Discovery & System Links" class="discovery-nav">');
+      expect(html).toContain('.discovery-nav a:focus-visible{outline:2px solid Highlight}');
+      expect(html).toContain("var discLinks=Array.from(document.querySelectorAll('.discovery-nav a'))");
+      expect(html).toContain("discLinks[nextIdx].focus()");
+      expect(html).toContain('id="copy-status" class="sr-only" aria-live="polite" aria-atomic="true"');
+      expect(html).toContain('onkeydown="if(event.key===\' \'){event.preventDefault();this.click();}"');
     });
 
     it("should return JSON service info for GET / when Accept: application/json", async () => {
@@ -206,7 +223,7 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       expect(html).toContain('onclick="announce(\'Navigating to KYA Service landing page\',this)"');
       expect(html).toContain("link.focus()");
       expect(html).toContain('Press 2 to open x402 metadata in new tab" aria-label="Keyboard shortcut: press 2"');
-      expect(html).toContain('style="font-size:.7rem;color:#94a3b8;margin-top:.75rem;display:flex;align-items:center;gap:.25rem"');
+      expect(html).toContain('<div role="note" style="font-size:.7rem;color:#94a3b8;margin-top:.75rem;display:flex;align-items:center;gap:.25rem" aria-label="Available keyboard shortcuts">');
       expect(html).not.toContain("#64748b");
       expect(html).toContain('viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-left:.25rem;vertical-align:middle"');
       expect(html).toContain('.method-badge{background:#0369a1');
@@ -216,6 +233,7 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       expect(html).toContain("e.key==='ArrowDown'||e.key==='ArrowRight'");
       expect(html).toContain("e.key==='ArrowUp'||e.key==='ArrowLeft'");
       expect(html).toContain("links[nextIdx].focus()");
+      expect(html).toContain('id="status-announcer" class="sr-only" aria-live="polite" aria-atomic="true"');
     });
 
     it("should return JSON error response for unknown routes when Accept: application/json", async () => {
