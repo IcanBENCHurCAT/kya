@@ -750,4 +750,46 @@ describe('ClaimStore', () => {
       consoleSpy.mockRestore();
     });
   });
+
+  describe('Case-Insensitive Rate Limiting on Verification Initiation', () => {
+    it('should normalize mixed-case emails and prevent rate limit bypass in VerificationService', async () => {
+      const keys = await generateSigningKey();
+      const mockAttemptStore = {
+        getRecentAttemptCount: vi.fn(),
+      };
+      const mockProvider = {
+        method: 'email' as const,
+        validateIdentifier: vi.fn(),
+        initiateVerification: vi.fn().mockResolvedValue({ attemptId: 'att-mock-1' }),
+        completeVerification: vi.fn(),
+      };
+
+      const service = new VerificationService({
+        privateKey: keys.privateKey,
+        keyId: 'test-key-id',
+        rateLimitPerHour: 2,
+        attemptStore: mockAttemptStore as any,
+        defaultProvider: mockProvider as any,
+      });
+
+      // Simulate 2 existing attempts for user@example.com
+      mockAttemptStore.getRecentAttemptCount.mockResolvedValue(2);
+
+      // Attempt initiation with uppercase/mixed-case variations
+      await expect(
+        service.initiateVerification({
+          email: 'User@Example.COM',
+          walletAddress: 'W5IRXJWPSXNUJVSN2MOEJGTDGKUGFKUDVPTR5ZQVMDG5O4KYD5M3QPG3TE',
+        })
+      ).rejects.toMatchObject({
+        message: 'Rate limit exceeded. Maximum 2 requests per hour.',
+        code: 'RATE_LIMITED',
+        status: 429,
+      });
+
+      // Verify that rate limit store was queried with normalized lowercase email
+      expect(mockAttemptStore.getRecentAttemptCount).toHaveBeenCalledWith('user@example.com');
+      expect(mockProvider.initiateVerification).not.toHaveBeenCalled();
+    });
+  });
 });
