@@ -32,6 +32,17 @@ describe("InMemoryCache", () => {
       expect(cache.has("b")).toBe(true);
       expect(cache.has("c")).toBe(true);
     });
+
+    it("should safely sanitize invalid, non-finite or non-positive constructor parameters", () => {
+      // Invalid maxSize should safely fallback to default (10,000)
+      const cacheInvalidSize = new InMemoryCache(NaN as any, -5 as any);
+      cacheInvalidSize.set("a", 1);
+      expect(cacheInvalidSize.get("a")).toBe(1);
+
+      // Oversized maxSize should be bounded by MAX_CAP (100,000)
+      const cacheOversized = new InMemoryCache(1000, 500_000);
+      expect(cacheOversized).toBeDefined();
+    });
   });
 
   describe("get & set", () => {
@@ -88,6 +99,21 @@ describe("InMemoryCache", () => {
       vi.advanceTimersByTime(600);
       expect(cache.get("short")).toBeNull();
       expect(cache.get("long")).toBe("v2");
+    });
+
+    it("should sanitize invalid or NaN TTL overrides and fallback to defaultTTL without corrupting stats", () => {
+      const cache = new InMemoryCache<string, string>(2000); // 2s default
+      // Setting with NaN TTL should fallback to 2000ms default rather than being unexpirable
+      cache.set("nanKey", "val", NaN as any);
+      expect(cache.get("nanKey")).toBe("val");
+
+      const stats = cache.getStats();
+      expect(Number.isNaN(stats.entries["nanKey"])).toBe(false);
+      expect(stats.entries["nanKey"]).toBeGreaterThan(0);
+
+      // Advance past default TTL
+      vi.advanceTimersByTime(2500);
+      expect(cache.get("nanKey")).toBeNull();
     });
   });
 
