@@ -14,8 +14,16 @@ export class InMemoryCache<K extends string, V> {
 
   constructor(defaultTTL: number = 300_000, maxSize: number = 10_000) {
     this.store = new Map();
-    this.defaultTTL = defaultTTL;
-    this.maxSize = maxSize;
+    // Security: Validate and bound defaultTTL and maxSize to prevent invalid negative/zero
+    // limits from bypassing capacity eviction or causing indefinite memory growth.
+    this.defaultTTL =
+      typeof defaultTTL === "number" && Number.isFinite(defaultTTL) && defaultTTL > 0
+        ? Math.floor(defaultTTL)
+        : 300_000;
+    this.maxSize =
+      typeof maxSize === "number" && Number.isFinite(maxSize) && maxSize > 0
+        ? Math.min(Math.floor(maxSize), 100_000)
+        : 10_000;
   }
 
   /**
@@ -51,10 +59,18 @@ export class InMemoryCache<K extends string, V> {
       this.evictOldest();
     }
 
+    // Security: Validate that ttl is a finite, non-negative number to prevent NaN from
+    // bypassing TTL expiration checks (`Date.now() - entry.timestamp > NaN` always false)
+    // or corrupting stats calculations.
+    const resolvedTTL =
+      typeof ttl === "number" && Number.isFinite(ttl) && ttl >= 0
+        ? Math.floor(ttl)
+        : this.defaultTTL;
+
     this.store.set(key, {
       value,
       timestamp: Date.now(),
-      ttl: ttl ?? this.defaultTTL,
+      ttl: resolvedTTL,
       hitCount: 0,
     });
   }
