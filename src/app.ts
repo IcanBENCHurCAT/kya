@@ -174,6 +174,7 @@ ul{padding-left:1.25rem}li{margin-bottom:.5rem}
 .cmd-tab:focus-visible{outline:2px solid #38bdf8;outline-offset:2px}
 .kbd-hint{font-family:inherit;font-size:.65rem;background:#0f172a;border:1px solid #475569;padding:0 .25rem;border-radius:.2rem;color:#94a3b8;margin-left:.25rem;transition:all 0.15s ease}
 .kbd-hint.active{background:#38bdf8;color:#0f172a;border-color:#38bdf8}
+@media (max-width: 480px){.code-box{flex-direction:column;align-items:stretch}.code-box>div{justify-content:flex-end}}
 @media (forced-colors: active){.cmd-tab.active,.kbd-hint.active{outline:2px solid Highlight;border-color:Highlight}.copy-btn.copied,.copy-btn.failed,code.copied,code.failed{outline:2px solid Highlight}.code-box code:focus-visible{outline:2px solid Highlight}.discovery-nav a:focus-visible{outline:2px solid Highlight}.method-badge,.badge{outline:1px solid Highlight}}
 @media (prefers-reduced-motion: reduce){.copy-btn,.cmd-tab,.kbd-hint,code[role="button"]{transition:none!important}code[role="button"]:active,.cmd-tab:active,.copy-btn:active{transform:none!important}}
 footer{margin-top:1.5rem;border-top:1px solid #334155;padding-top:1rem;color:#94a3b8;font-size:.875rem}
