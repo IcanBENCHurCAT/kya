@@ -194,6 +194,15 @@ describe("WebhookService", () => {
     expect(isValidCallbackUrl("http://240.0.0.1/reserved")).toBe(false);
     expect(isValidCallbackUrl("http://255.255.255.255/broadcast")).toBe(false);
 
+    // Reserved and forbidden IPv6 ranges (multicast, site-local, documentation, discard, benchmark, orchidv2)
+    expect(isValidCallbackUrl("http://[ff01::1]/multicast")).toBe(false);
+    expect(isValidCallbackUrl("http://[ff02::1]/multicast")).toBe(false);
+    expect(isValidCallbackUrl("http://[fec0::1]/site-local")).toBe(false);
+    expect(isValidCallbackUrl("http://[2001:db8::1]/doc")).toBe(false);
+    expect(isValidCallbackUrl("http://[100::1]/discard")).toBe(false);
+    expect(isValidCallbackUrl("http://[2001:2::1]/benchmark")).toBe(false);
+    expect(isValidCallbackUrl("http://[2001:20::1]/orchid")).toBe(false);
+
     // Non-canonical IPv4 SSRF bypass targets (octal, hex, DWORD integer)
     expect(isValidCallbackUrl("http://0177.0.0.1/status")).toBe(false);
     expect(isValidCallbackUrl("http://0x7f.0.0.1/status")).toBe(false);

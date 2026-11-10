@@ -102,6 +102,30 @@ export function isValidCallbackUrl(urlStr: unknown): boolean {
     const isForbiddenIPv4 =
       /^0\.|^127\.|^10\.|^172\.(1[6-9]|2[0-9]|3[01])\.|^192\.168\.|^169\.254\.|^100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.|^100\.100\.100\.200$|^198\.(1[89])\.|^192\.0\.2\.|^198\.51\.100\.|^203\.0\.113\.|^(22[4-9]|23[0-9]|24[0-9]|25[0-5])\./;
 
+    // Security: Block forbidden and reserved IPv6 ranges:
+    // - unspecified (::), loopback (::1)
+    // - Link-local (fe80::/10 -> fe8, fe9, fea, feb)
+    // - Unique Local / ULA (fc00::/7 -> fc, fd)
+    // - Site-local (deprecated RFC 3879 fec0::/10 -> fec, fed, fee, fef)
+    // - Multicast (ff00::/8 -> ff)
+    // - Documentation (2001:db8::/32)
+    // - Discard-only prefix (RFC 6666 100::/64)
+    // - Benchmarking (RFC 5180 2001:2::/48)
+    // - ORCHIDv2 (RFC 7343 2001:20::/28)
+    const isForbiddenIPv6 =
+      target === "::" ||
+      target === "::1" ||
+      target === "0:0:0:0:0:0:0:0" ||
+      target === "0:0:0:0:0:0:0:1" ||
+      /^fe[89ab]/i.test(target) ||
+      /^fe[c-f]/i.test(target) ||
+      /^f[cd]/i.test(target) ||
+      /^ff/i.test(target) ||
+      /^2001:db8/i.test(target) ||
+      /^100::/i.test(target) ||
+      /^2001:2::/i.test(target) ||
+      /^2001:20::/i.test(target);
+
     if (
       target === "localhost" ||
       target.endsWith(".local") ||
@@ -113,12 +137,7 @@ export function isValidCallbackUrl(urlStr: unknown): boolean {
       target.endsWith(".localtest.me") ||
       target.endsWith(".traefik.me") ||
       isForbiddenIPv4.test(target) ||
-      target === "::" ||
-      target === "::1" ||
-      target === "0:0:0:0:0:0:0:0" ||
-      target === "0:0:0:0:0:0:0:1" ||
-      /^fe[89ab]/i.test(target) ||
-      /^f[cd]/i.test(target)
+      isForbiddenIPv6
     ) {
       return false;
     }

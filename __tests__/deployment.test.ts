@@ -94,6 +94,9 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       expect(html).toContain('Press O to open in new tab');
       expect(html).toContain("e.key==='1'");
       expect(html).toContain("e.key==='o'");
+      expect(html).toContain("max-width: 480px");
+      expect(html).toContain(".code-box{flex-direction:column;align-items:stretch}");
+      expect(html).toContain(".code-box>div{justify-content:flex-end}");
       expect(html).toContain("forced-colors: active");
       expect(html).toContain("prefers-reduced-motion: reduce");
       expect(html).toContain("status.innerText=''");
