@@ -29,6 +29,9 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       );
       expect(html).toContain("aria-label=");
       expect(html).toContain('role="status"');
+      expect(html).toContain('<meta name="theme-color" content="#0f172a">');
+      expect(html).toContain("color-scheme:dark");
+      expect(html).toContain("::selection{background:#0369a1;color:#ffffff}");
     });
 
     it("should include accessibility features (skip link, focus styles, aria-live status) and Quick Start copy button", async () => {
@@ -237,6 +240,9 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       expect(html).toContain("e.key==='ArrowUp'||e.key==='ArrowLeft'");
       expect(html).toContain("links[nextIdx].focus()");
       expect(html).toContain('id="status-announcer" class="sr-only" aria-live="polite" aria-atomic="true"');
+      expect(html).toContain('<meta name="theme-color" content="#0f172a">');
+      expect(html).toContain("color-scheme:dark");
+      expect(html).toContain("::selection{background:#0369a1;color:#ffffff}");
     });
 
     it("should return JSON error response for unknown routes when Accept: application/json", async () => {

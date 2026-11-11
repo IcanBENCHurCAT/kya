@@ -192,3 +192,8 @@
 
 **Learning:** Horizontal code snippet boxes that pair copyable terminal commands with inline action button groups cause extreme horizontal text compression and awkward word-breaks on narrow mobile screens (<= 480px) when maintained in single-row flex layouts. Applying `@media (max-width: 480px)` with `flex-direction: column; align-items: stretch` and aligning action button containers (`.code-box > div { justify-content: flex-end }`) lets the code snippet expand comfortably across full container width while presenting action buttons on a dedicated row with touch-friendly spacing.
 **Action:** Use vertical stacking media queries (`flex-direction: column; align-items: stretch`) on mobile viewports for composite code boxes with trailing action button groups.
+
+## 2026-11-11 - Dark Color-Scheme, Theme-Color Immersion & High-Contrast Text Selection
+
+**Learning:** Dark-themed web applications (`#0f172a` / `#1e293b`) without explicit `color-scheme: dark` and `<meta name="theme-color">` declarations cause browsers to render stark white system scrollbars and light-mode mobile browser chrome (address bar and notch area), creating a jarring visual contrast and blinding flashes during mobile overscroll. Specifying `color-scheme: dark` in root/body styles and adding `<meta name="theme-color" content="#0f172a">` instructs browsers to natively render dark-mode scrollbars and seamless mobile browser headers, while `::selection` styling ensures text selection maintains WCAG AA contrast (5.93:1) with the Sky brand palette (`#0369a1`).
+**Action:** Always include `color-scheme: dark`, `<meta name="theme-color">`, and brand-tinted `::selection` styles on dark-themed interfaces to ensure cohesive scrollbar and browser chrome rendering across mobile and desktop.
