@@ -145,8 +145,9 @@ app.get("/", (c) => {
       },
     });
   }
-  return c.html(`<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>KYA Service — Trust Infrastructure for AI Agents</title><style>
-body{font-family:system-ui,-apple-system,sans-serif;background:#0f172a;color:#f8fafc;margin:0;padding:2rem 1rem;line-height:1.5}
+  return c.html(`<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="theme-color" content="#0f172a"><title>KYA Service — Trust Infrastructure for AI Agents</title><style>
+body{color-scheme:dark;font-family:system-ui,-apple-system,sans-serif;background:#0f172a;color:#f8fafc;margin:0;padding:2rem 1rem;line-height:1.5}
+::selection{background:#0369a1;color:#ffffff}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border-width:0}
 .sr-only:focus{position:static;width:auto;height:auto;padding:.5rem;background:#38bdf8;color:#0f172a;font-weight:600;border-radius:.25rem;display:inline-block;margin-bottom:1rem}
 main{max-width:680px;margin:0 auto;background:#1e293b;padding:2rem;border-radius:.75rem;border:1px solid #334155}
@@ -197,8 +198,9 @@ app.notFound((c) => {
     );
   }
   return c.html(
-    `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>404 — Page Not Found | KYA Service</title><style>
-body{font-family:system-ui,-apple-system,sans-serif;background:#0f172a;color:#f8fafc;margin:0;padding:2rem 1rem;line-height:1.5}
+    `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="theme-color" content="#0f172a"><title>404 — Page Not Found | KYA Service</title><style>
+body{color-scheme:dark;font-family:system-ui,-apple-system,sans-serif;background:#0f172a;color:#f8fafc;margin:0;padding:2rem 1rem;line-height:1.5}
+::selection{background:#0369a1;color:#ffffff}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border-width:0}
 .sr-only:focus{position:static;width:auto;height:auto;padding:.5rem;background:#38bdf8;color:#0f172a;font-weight:600;border-radius:.25rem;display:inline-block;margin-bottom:1rem}
 main{max-width:540px;margin:4rem auto 0;background:#1e293b;padding:2rem;border-radius:.75rem;border:1px solid #334155;text-align:center}
