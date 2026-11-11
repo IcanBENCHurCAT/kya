@@ -155,6 +155,9 @@ describe("WebhookService", () => {
     expect(isValidCallbackUrl("http://127.0.0.1:3000/internal")).toBe(false);
     expect(isValidCallbackUrl("http://127.0.0.2:3000/internal")).toBe(false);
     expect(isValidCallbackUrl("http://localhost:8080")).toBe(false);
+    expect(isValidCallbackUrl("http://localhost.:8080")).toBe(false);
+    expect(isValidCallbackUrl("http://sub.localhost:8080")).toBe(false);
+    expect(isValidCallbackUrl("http://sub.localhost.:8080")).toBe(false);
     expect(isValidCallbackUrl("http://169.254.169.254/latest/meta-data/")).toBe(false);
     expect(isValidCallbackUrl("http://10.0.0.1/admin")).toBe(false);
     expect(isValidCallbackUrl("http://192.168.1.1/router")).toBe(false);
@@ -164,6 +167,11 @@ describe("WebhookService", () => {
     expect(isValidCallbackUrl("http://[::ffff:169.254.169.254]/status")).toBe(false);
     expect(isValidCallbackUrl("http://[::ffff:10.0.0.1]/status")).toBe(false);
     expect(isValidCallbackUrl("http://internal-service.local")).toBe(false);
+    expect(isValidCallbackUrl("http://internal-service.local.")).toBe(false);
+    expect(isValidCallbackUrl("http://metadata.google.internal")).toBe(false);
+    expect(isValidCallbackUrl("http://metadata.google.internal.")).toBe(false);
+    expect(isValidCallbackUrl("http://host.localdomain")).toBe(false);
+    expect(isValidCallbackUrl("http://host.localdomain.")).toBe(false);
 
     // IPv4-compatible and IPv4-translated (NAT64 / SIIT) IPv6 SSRF bypass targets
     expect(isValidCallbackUrl("http://[::127.0.0.1]/status")).toBe(false);
@@ -211,11 +219,14 @@ describe("WebhookService", () => {
     expect(isValidCallbackUrl("http://012.0.0.1/status")).toBe(false);
     expect(isValidCallbackUrl("http://0251.0372.0169.0254/status")).toBe(false);
 
-    // Wildcard DNS resolution services and embedded private/loopback IP subdomains
+    // Wildcard DNS resolution services and embedded private/loopback IP subdomains (including trailing dot FQDNs)
     expect(isValidCallbackUrl("http://test.127.0.0.1.nip.io/webhook")).toBe(false);
+    expect(isValidCallbackUrl("http://test.127.0.0.1.nip.io./webhook")).toBe(false);
     expect(isValidCallbackUrl("http://app.169.254.169.254.nip.io/metadata")).toBe(false);
     expect(isValidCallbackUrl("http://foo.10.0.0.1.sslip.io/callback")).toBe(false);
+    expect(isValidCallbackUrl("http://foo.10.0.0.1.sslip.io./callback")).toBe(false);
     expect(isValidCallbackUrl("http://app.localtest.me/status")).toBe(false);
+    expect(isValidCallbackUrl("http://app.localtest.me./status")).toBe(false);
     expect(isValidCallbackUrl("http://sub.127.0.0.1.customdomain.com/webhook")).toBe(false);
     expect(isValidCallbackUrl("http://api.192.168.1.1.internal.org/webhook")).toBe(false);
 

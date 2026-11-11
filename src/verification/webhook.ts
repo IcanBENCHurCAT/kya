@@ -56,7 +56,10 @@ export function isValidCallbackUrl(urlStr: unknown): boolean {
       return false;
     }
     const rawHost = parsed.hostname.toLowerCase();
-    const clean = rawHost.startsWith("[") && rawHost.endsWith("]") ? rawHost.slice(1, -1) : rawHost;
+    // Security: Strip trailing dots from FQDN representations (e.g. "localhost.", "metadata.google.internal.")
+    // to prevent SSRF bypasses against exact hostname and suffix checks.
+    const unbracketed = rawHost.startsWith("[") && rawHost.endsWith("]") ? rawHost.slice(1, -1) : rawHost;
+    const clean = unbracketed.replace(/\.+$/, "");
 
     let target = clean;
     const normalizedIPv4 = normalizeIPv4Host(clean);
@@ -128,7 +131,9 @@ export function isValidCallbackUrl(urlStr: unknown): boolean {
 
     if (
       target === "localhost" ||
+      target.endsWith(".localhost") ||
       target.endsWith(".local") ||
+      target.endsWith(".localdomain") ||
       target.endsWith(".internal") ||
       target.endsWith(".nip.io") ||
       target.endsWith(".sslip.io") ||
