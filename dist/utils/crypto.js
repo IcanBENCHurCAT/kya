@@ -12,7 +12,7 @@ import { generateKeyPair, importPKCS8, exportPKCS8, exportSPKI, importSPKI, Comp
  * Returns PEM-encoded private and public keys.
  */
 export async function generateSigningKey() {
-    const { privateKey, publicKey } = await generateKeyPair("EdDSA");
+    const { privateKey, publicKey } = await generateKeyPair("EdDSA", { extractable: true });
     // jose v5 exportPKCS8/exportSPKI return PEM strings directly
     const pkcs8 = await exportPKCS8(privateKey);
     const spki = await exportSPKI(publicKey);
@@ -21,13 +21,29 @@ export async function generateSigningKey() {
         publicKey: spki,
     };
 }
+// Security: Bound in-memory key cache capacity to prevent memory exhaustion and DoS attacks
+// when handling high volumes of rotated or caller-supplied public/private keys.
+export const MAX_KEY_CACHE_CAP = 1000;
 // Optimization: Key promises cache for importPKCS8 and importSPKI to avoid repeated PEM parsing
 // and Web Crypto key generation on every signature and verification operation.
 const pkcs8KeyCache = new Map();
 const spkiKeyCache = new Map();
+// Exported for testing cache bounding and eviction
+export function getKeyCacheStats() {
+    return { pkcs8Size: pkcs8KeyCache.size, spkiSize: spkiKeyCache.size };
+}
+export function clearKeyCache() {
+    pkcs8KeyCache.clear();
+    spkiKeyCache.clear();
+}
 async function getPrivateKey(pem) {
     let cached = pkcs8KeyCache.get(pem);
     if (!cached) {
+        if (pkcs8KeyCache.size >= MAX_KEY_CACHE_CAP) {
+            const oldestKey = pkcs8KeyCache.keys().next().value;
+            if (oldestKey !== undefined)
+                pkcs8KeyCache.delete(oldestKey);
+        }
         cached = importPKCS8(pem, "EdDSA").catch((err) => {
             pkcs8KeyCache.delete(pem);
             throw err;
@@ -39,6 +55,11 @@ async function getPrivateKey(pem) {
 async function getPublicKey(pem) {
     let cached = spkiKeyCache.get(pem);
     if (!cached) {
+        if (spkiKeyCache.size >= MAX_KEY_CACHE_CAP) {
+            const oldestKey = spkiKeyCache.keys().next().value;
+            if (oldestKey !== undefined)
+                spkiKeyCache.delete(oldestKey);
+        }
         cached = importSPKI(pem, "EdDSA").catch((err) => {
             spkiKeyCache.delete(pem);
             throw err;

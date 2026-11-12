@@ -2,7 +2,7 @@
  * Algorand Client — connects to Algorand nodes and indexers
  * Provides methods to query transactions, accounts, and asset data
  *
- * Compatible with algosdk v2.7.x (uses the builder-pattern indexer/algod API)
+ * Compatible with algosdk v3.x (and backward compatible with v2 indexer payloads)
  */
 
 import * as algosdk from 'algosdk';
@@ -66,11 +66,11 @@ export class AlgorandClient {
     caughtUp: boolean;
   }> {
     const status = await this.algod.status().do();
-    return status as {
-      lastRound: number;
-      version: string;
-      timeSinceRound: number;
-      caughtUp: boolean;
+    return {
+      lastRound: Number(status.lastRound),
+      version: status.lastVersion ?? '',
+      timeSinceRound: Number(status.timeSinceLastRound ?? 0n),
+      caughtUp: (status.catchupTime ?? 0n) === 0n,
     };
   }
 
@@ -88,9 +88,10 @@ export class AlgorandClient {
    * Get transaction by ID
    */
   async getTransactionByID(txID: string): Promise<Record<string, unknown>> {
-    return this.indexer
+    const response = await this.indexer
       .lookupTransactionByID(txID)
       .do();
+    return response as unknown as Record<string, unknown>;
   }
 
   /**
@@ -197,7 +198,7 @@ export class AlgorandClient {
    */
   async getCurrentRound(): Promise<number> {
     const status = await this.algod.status().do();
-    return status.lastRound || 0;
+    return Number(status.lastRound || 0n);
   }
 
   /**
@@ -236,16 +237,18 @@ export class AlgorandClient {
    * Look up block by round
    */
   async getBlockByRound(round: number): Promise<Record<string, unknown>> {
-    return this.indexer
+    const response = await this.indexer
       .lookupBlock(round)
       .do();
+    return response as unknown as Record<string, unknown>;
   }
 
   /**
    * Internal: Parse raw transaction results into our structured format
    *
-   * The algosdk v2.x indexer returns transactions in a nested structure:
-   * { transactions: [ { tx: { ... }, ...confirmedRound, ...block-time }, ... ] }
+   * Handles both algosdk v3 typed indexer Transaction models and legacy v2 nested structures:
+   * v2: { transactions: [ { tx: { ... }, ...confirmedRound, ...block-time }, ... ] }
+   * v3: { transactions: [ Transaction, ... ] }
    *
    * Performance optimization:
    * Single-pass parsing over rawTransactions via `for` loop pushing non-null results directly.
@@ -253,7 +256,7 @@ export class AlgorandClient {
    * achieving ~60% faster parsing on large transaction sets (~5,000 txs).
    */
   private parseTransactions(
-    rawTransactions: Record<string, unknown>[]
+    rawTransactions: Array<Record<string, unknown> | any>
   ): AlgorandTransaction[] {
     if (!rawTransactions || rawTransactions.length === 0) {
       return [];
@@ -267,7 +270,7 @@ export class AlgorandClient {
         continue;
       }
 
-      const txn = (tx as any).tx;
+      const txn = (tx as any).tx || tx;
       if (!txn) {
         continue;
       }
@@ -277,58 +280,108 @@ export class AlgorandClient {
       let appCall: AlgorandTransaction['applicationCall'] = undefined;
       let assetTransfer: AlgorandTransaction['assetTransfer'] = undefined;
 
-      if ((txn as any).appCallTxnFields) {
+      const appCallFields =
+        (txn as any).applicationTransaction || (txn as any).appCallTxnFields;
+      const assetTransferFields =
+        (txn as any).assetTransferTransaction || (txn as any).assetTransferTxnFields;
+      const paymentFields =
+        (txn as any).paymentTransaction || (txn as any).paymentTxnFields;
+      const sender =
+        (txn as any).sender?.toString?.() ||
+        (txn as any).sender ||
+        (txn as any).snd?.toString?.() ||
+        (txn as any).snd ||
+        '';
+
+      if (appCallFields) {
         txType = 'application';
         appCall = {
-          type: this.mapOnCompletion(
-            (txn as any).appCallTxnFields.onCompletion
+          type: this.mapOnCompletion(appCallFields.onCompletion),
+          applicationId: Number(
+            appCallFields.applicationId ?? appCallFields.applicationID ?? 0
           ),
-          applicationId: (txn as any).appCallTxnFields.applicationID,
-          onCompletion: (txn as any).appCallTxnFields.onCompletion,
+          onCompletion: appCallFields.onCompletion,
         };
-      } else if ((txn as any).assetTransferTxnFields) {
+      } else if (assetTransferFields) {
+        const receiver =
+          assetTransferFields.receiver?.toString?.() ||
+          assetTransferFields.receiver ||
+          assetTransferFields.assetReceiver?.toString?.() ||
+          assetTransferFields.assetReceiver ||
+          '';
+        const senderAddr =
+          assetTransferFields.sender?.toString?.() ||
+          assetTransferFields.sender ||
+          assetTransferFields.assetSender?.toString?.() ||
+          assetTransferFields.assetSender ||
+          sender;
+        const closeTo =
+          assetTransferFields.closeTo?.toString?.() ||
+          assetTransferFields.closeTo ||
+          assetTransferFields.assetCloseTo?.toString?.() ||
+          assetTransferFields.assetCloseTo;
+
         assetTransfer = {
-          assetId: (txn as any).assetTransferTxnFields.assetIndex,
-          amount: (txn as any).assetTransferTxnFields.amount,
-          receiver: (txn as any).assetTransferTxnFields.assetReceiver,
-          sender: (txn as any).assetTransferTxnFields.assetSender,
-          closeTo: (txn as any).assetTransferTxnFields.assetCloseTo,
+          assetId: Number(
+            assetTransferFields.assetId ?? assetTransferFields.assetIndex ?? 0
+          ),
+          amount: Number(assetTransferFields.amount ?? 0),
+          receiver,
+          sender: senderAddr,
+          closeTo,
         };
 
-        if (assetTransfer.receiver === txn.snd) {
+        if (assetTransfer.receiver === sender) {
           txType = 'received';
         } else {
           txType = 'sent';
         }
-      } else {
-        const paymentTxnFields = (txn as any).paymentTxnFields;
-        if (paymentTxnFields) {
-          if (paymentTxnFields.receiver === txn.snd) {
-            // Payment to self (close remainder)
-            txType = 'sent';
-          } else {
-            txType =
-              txn.snd === paymentTxnFields.sender
-                ? 'sent'
-                : 'received';
-          }
+      } else if (paymentFields) {
+        const receiver =
+          paymentFields.receiver?.toString?.() || paymentFields.receiver || '';
+        const senderAddr =
+          paymentFields.sender?.toString?.() || paymentFields.sender || sender;
+        if (receiver === sender) {
+          // Payment to self (close remainder)
+          txType = 'sent';
+        } else {
+          txType = sender === senderAddr ? 'sent' : 'received';
         }
       }
 
-      const amount = txn.amount || 0;
-      const fee = txn.fee || 0;
-      const round = (tx as any).confirmedRound || 0;
-      const timestamp = (tx as any)['block-time'] || 0;
+      const amount = Number(paymentFields?.amount ?? txn.amount ?? 0);
+      const fee = Number(txn.fee ?? 0);
+      const round = Number((tx as any).confirmedRound ?? (txn as any).confirmedRound ?? 0);
+      const timestamp = Number(
+        (tx as any).roundTime ??
+        (tx as any)['block-time'] ??
+        (txn as any).roundTime ??
+        (txn as any)['block-time'] ??
+        0
+      );
 
-      // Get the primary sender and receiver
-      const sender = txn.snd || '';
       let receiver = '';
-      if ((txn as any).paymentTxnFields) {
-        receiver = (txn as any).paymentTxnFields.receiver;
+      if (paymentFields) {
+        receiver =
+          paymentFields.receiver?.toString?.() || paymentFields.receiver || '';
+      }
+
+      let noteStr: string | undefined = undefined;
+      if (txn.note) {
+        if (typeof txn.note === 'string') {
+          noteStr = txn.note;
+        } else if (txn.note instanceof Uint8Array || Buffer.isBuffer(txn.note)) {
+          noteStr = Buffer.from(txn.note).toString('base64');
+        }
       }
 
       result.push({
-        txid: (tx as any).txid || '',
+        txid:
+          (tx as any).id ||
+          (tx as any).txid ||
+          (txn as any).id ||
+          (txn as any).txid ||
+          '',
         round,
         timestamp,
         sender,
@@ -336,13 +389,13 @@ export class AlgorandClient {
         amount,
         fee,
         type: txType,
-        note: txn.note
-          ? Buffer.from(txn.note).toString('base64')
-          : undefined,
-        closeRemainderTo: (txn as any).paymentTxnFields?.closeRemainderTo,
+        note: noteStr,
+        closeRemainderTo:
+          paymentFields?.closeRemainderTo?.toString?.() ||
+          paymentFields?.closeRemainderTo,
         assetTransfer,
         applicationCall: appCall,
-        blockHash: (tx as any).blockHash,
+        blockHash: (tx as any).blockHash || (txn as any).blockHash,
         confirmations: 0,
       });
     }

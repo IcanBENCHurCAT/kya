@@ -317,6 +317,7 @@ function partialNameMatch(aNorm, bRaw, entry) {
  * @param config — Optional screening config overrides
  */
 export function screenSanctions(target, beneficialOwner, lists = {}, config = {}) {
+    const safeLists = lists && typeof lists === 'object' ? lists : {};
     const settings = { ...DEFAULT_CONFIG, ...config };
     const results = [];
     // Performance optimization: Pre-lowercase target string and beneficialOwner string once,
@@ -339,12 +340,19 @@ export function screenSanctions(target, beneficialOwner, lists = {}, config = {}
     const targetTrimmedFreq = buildCharFreq(targetTrimmedLower);
     const boFreq = hasBo ? buildCharFreq(boLower) : histBuf;
     // Single pass through all entries across lists
-    for (const listName in lists) {
-        const entries = lists[listName];
+    for (const listName in safeLists) {
+        const entries = safeLists[listName];
+        if (!Array.isArray(entries))
+            continue;
         for (let eIdx = 0; eIdx < entries.length; eIdx++) {
             const entry = entries[eIdx];
+            if (!entry || typeof entry !== 'object' || typeof entry.name !== 'string')
+                continue;
+            const hasNatIds = Array.isArray(entry.nationalIds) && entry.nationalIds.length > 0;
+            const hasAliases = Array.isArray(entry.aliases) && entry.aliases.length > 0;
+            const hasAddresses = Array.isArray(entry.addresses) && entry.addresses.length > 0;
             // 1. Screen wallet address against national IDs
-            if (settings.matchNationalIds && entry.nationalIds.length > 0) {
+            if (settings.matchNationalIds && hasNatIds) {
                 const nationalIdsLower = (entry.nationalIdsLower ??= entry.nationalIds.map(id => id.toLowerCase().trim()));
                 for (let i = 0; i < nationalIdsLower.length; i++) {
                     const natIdTrimmedLower = nationalIdsLower[i];
@@ -380,7 +388,7 @@ export function screenSanctions(target, beneficialOwner, lists = {}, config = {}
                 const entryNameLower = (entry.nameLower ??= entry.name.toLowerCase());
                 let bestScore = combinedSimilarityLower(targetLower, entryNameLower, settings.fuzzyTolerance, targetLen, targetFirstChar, targetFreq);
                 let bestField = 'name';
-                if (settings.matchAliases && entry.aliases.length > 0) {
+                if (settings.matchAliases && hasAliases) {
                     const aliasesLower = (entry.aliasesLower ??= entry.aliases.map(a => a.toLowerCase()));
                     for (let i = 0; i < aliasesLower.length; i++) {
                         const thresh = bestScore > settings.fuzzyTolerance ? bestScore : settings.fuzzyTolerance;
@@ -391,7 +399,7 @@ export function screenSanctions(target, beneficialOwner, lists = {}, config = {}
                         }
                     }
                 }
-                if (settings.matchAddresses && entry.addresses.length > 0) {
+                if (settings.matchAddresses && hasAddresses) {
                     const addressesLower = (entry.addressesLower ??= entry.addresses.map(a => a.toLowerCase()));
                     for (let i = 0; i < addressesLower.length; i++) {
                         const thresh = bestScore > settings.fuzzyTolerance ? bestScore : settings.fuzzyTolerance;
@@ -441,7 +449,7 @@ export function screenSanctions(target, beneficialOwner, lists = {}, config = {}
                             matchField = 'name';
                         }
                     }
-                    if (settings.matchAliases && !score && entry.aliases.length > 0) {
+                    if (settings.matchAliases && !score && hasAliases) {
                         const aliasesLower = (entry.aliasesLower ??= entry.aliases.map(a => a.toLowerCase()));
                         for (let i = 0; i < aliasesLower.length; i++) {
                             const aliasLower = aliasesLower[i];
@@ -545,11 +553,15 @@ export function screenSanctions(target, beneficialOwner, lists = {}, config = {}
  * intermediate iterator and dynamic array allocation overhead during high-volume batch screening.
  */
 export function screenBulk(targets, lists = {}, config) {
+    if (!Array.isArray(targets))
+        return [];
     const len = targets.length;
-    const results = new Array(len);
+    const results = [];
     for (let i = 0; i < len; i++) {
         const t = targets[i];
-        results[i] = screenSanctions(t.address, t.beneficialOwner, lists, config);
+        if (!t || typeof t !== 'object' || typeof t.address !== 'string')
+            continue;
+        results.push(screenSanctions(t.address, t.beneficialOwner, lists, config));
     }
     return results;
 }

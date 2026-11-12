@@ -16,11 +16,63 @@ import { randomUUID } from 'node:crypto';
  */
 export const MAX_AUDIT_LOG_CAP = 100000;
 const auditLog = [];
-function pushAuditEntry(entry) {
-    if (auditLog.length >= MAX_AUDIT_LOG_CAP) {
-        auditLog.splice(0, auditLog.length - MAX_AUDIT_LOG_CAP + 1);
+// Performance optimization: Incremental scalar counters for O(1) status breakdown lookups.
+let summaryNoMatchFound = 0;
+let summaryPotentialMatch = 0;
+let summaryRequiresReview = 0;
+let summaryErrors = 0;
+function incrementSummaryCounters(entry) {
+    if (entry.result === 'NO_MATCH_FOUND')
+        summaryNoMatchFound++;
+    else if (entry.result === 'POTENTIAL_MATCH')
+        summaryPotentialMatch++;
+    else if (entry.result === 'MATCH_REQUIRES_REVIEW')
+        summaryRequiresReview++;
+    else if (entry.result === 'ERROR')
+        summaryErrors++;
+}
+function decrementSummaryCounters(entry) {
+    if (entry.result === 'NO_MATCH_FOUND')
+        summaryNoMatchFound--;
+    else if (entry.result === 'POTENTIAL_MATCH')
+        summaryPotentialMatch--;
+    else if (entry.result === 'MATCH_REQUIRES_REVIEW')
+        summaryRequiresReview--;
+    else if (entry.result === 'ERROR')
+        summaryErrors--;
+}
+function insertAuditEntryChronological(entry) {
+    const len = auditLog.length;
+    // Fast path (production common case): entries arrive in ascending chronological order
+    if (len === 0 || entry.timestamp >= auditLog[len - 1].timestamp) {
+        auditLog.push(entry);
+        return;
     }
-    auditLog.push(entry);
+    // Fallback path: out-of-order entry (e.g. test setups or clock-skewed caller timestamps).
+    // Perform binary search to find insertion position and maintain ascending chronological order.
+    let low = 0;
+    let high = len - 1;
+    while (low <= high) {
+        const mid = (low + high) >>> 1;
+        if (auditLog[mid].timestamp <= entry.timestamp) {
+            low = mid + 1;
+        }
+        else {
+            high = mid - 1;
+        }
+    }
+    auditLog.splice(low, 0, entry);
+}
+function pushAuditEntry(entry) {
+    insertAuditEntryChronological(entry);
+    if (auditLog.length > MAX_AUDIT_LOG_CAP) {
+        const evictedCount = auditLog.length - MAX_AUDIT_LOG_CAP;
+        for (let i = 0; i < evictedCount; i++) {
+            decrementSummaryCounters(auditLog[i]);
+        }
+        auditLog.splice(0, evictedCount);
+    }
+    incrementSummaryCounters(entry);
     persistAuditLog();
 }
 const AUDIT_LOG_PATH = path.join(process.env.KYA_DATA_DIR || process.cwd(), 'data', 'audit-log.json');
@@ -92,11 +144,16 @@ export function getAuditLog(options = {}) {
     const limit = options.limit || 100;
     const entries = [];
     const { after, before, result } = options;
-    // Reverse loop: newest entries are appended at the end of auditLog
+    // Performance optimization:
+    // 1. Because auditLog is maintained in strict ascending chronological order (via insertAuditEntryChronological),
+    //    reverse iteration from newest (end) to oldest (0) naturally visits entries in descending chronological order.
+    // 2. Early-exit on `after`: As soon as entry.timestamp < after, all remaining preceding entries (0 to i) also have
+    //    timestamp < after due to chronological ordering. Breaking early eliminates scanning up to 100,000 entries.
+    // 3. Eliminates redundant `entries.sort(...)` post-pass, saving O(K log K) CPU overhead on every query.
     for (let i = auditLog.length - 1; i >= 0; i--) {
         const entry = auditLog[i];
         if (after && entry.timestamp < after)
-            continue;
+            break;
         if (before && entry.timestamp > before)
             continue;
         if (result && entry.result !== result)
@@ -106,51 +163,37 @@ export function getAuditLog(options = {}) {
             break;
         }
     }
-    // Ensure entries are strictly sorted descending by ISO timestamp using fast relational operators
-    entries.sort((a, b) => (b.timestamp > a.timestamp ? 1 : b.timestamp < a.timestamp ? -1 : 0));
     return entries;
 }
 /**
  * Get audit summary stats.
  *
  * Performance optimization:
- * Single $O(N)$ pass directly over auditLog using ISO string comparison for the 24h cutoff.
- * Eliminates $O(N \log N)$ localeCompare sorting, repeated .filter() array allocations,
- * and Date object instantiations per log entry.
+ * Uses scalar counters for overall status counts ($O(1)$) and a single linear pass over auditLog
+ * to count recent 24h screenings without intermediate array allocations or string sorting.
  */
 export function getAuditSummary() {
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    let total = 0;
-    let noMatchFound = 0;
-    let potentialMatch = 0;
-    let requiresReview = 0;
-    let errors = 0;
     let recentScreenings = 0;
-    for (let i = 0; i < auditLog.length; i++) {
+    // Performance optimization:
+    // Because auditLog maintains strict ascending chronological order via sorted insertion,
+    // iterating backwards from the newest entry (auditLog.length - 1 down to 0) allows
+    // breaking early as soon as entry.timestamp < cutoff. Avoids scanning up to 100,000 entries.
+    for (let i = auditLog.length - 1; i >= 0; i--) {
         const entry = auditLog[i];
-        total++;
-        if (entry.result === 'NO_MATCH_FOUND') {
-            noMatchFound++;
+        if (entry.timestamp < cutoff) {
+            break;
         }
-        else if (entry.result === 'POTENTIAL_MATCH') {
-            potentialMatch++;
-        }
-        else if (entry.result === 'MATCH_REQUIRES_REVIEW') {
-            requiresReview++;
-        }
-        else if (entry.result === 'ERROR') {
-            errors++;
-        }
-        if (entry.timestamp >= cutoff && entry.eventType === 'screening') {
+        if (entry.eventType === 'screening') {
             recentScreenings++;
         }
     }
     return {
-        total,
-        noMatchFound,
-        potentialMatch,
-        requiresReview,
-        errors,
+        total: auditLog.length,
+        noMatchFound: summaryNoMatchFound,
+        potentialMatch: summaryPotentialMatch,
+        requiresReview: summaryRequiresReview,
+        errors: summaryErrors,
         recentScreenings,
     };
 }
@@ -203,13 +246,14 @@ export function loadAuditLog() {
     try {
         const data = JSON.parse(fs.readFileSync(AUDIT_LOG_PATH, 'utf-8'));
         if (Array.isArray(data)) {
-            for (let i = 0; i < data.length; i++) {
-                auditLog.push(data[i]);
+            clearAuditLog();
+            const startIdx = Math.max(0, data.length - MAX_AUDIT_LOG_CAP);
+            for (let i = startIdx; i < data.length; i++) {
+                const entry = data[i];
+                auditLog.push(entry);
+                incrementSummaryCounters(entry);
             }
-            if (auditLog.length > MAX_AUDIT_LOG_CAP) {
-                auditLog.splice(0, auditLog.length - MAX_AUDIT_LOG_CAP);
-            }
-            console.log(`[Audit] Loaded ${data.length} audit entries from disk.`);
+            console.log(`[Audit] Loaded ${auditLog.length} audit entries from disk.`);
         }
     }
     catch (err) {
@@ -225,6 +269,10 @@ export function clearAuditLog() {
         persistTimer = null;
     }
     auditLog.length = 0;
+    summaryNoMatchFound = 0;
+    summaryPotentialMatch = 0;
+    summaryRequiresReview = 0;
+    summaryErrors = 0;
     try {
         fs.unlinkSync(AUDIT_LOG_PATH);
     }

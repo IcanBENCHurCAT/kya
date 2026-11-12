@@ -15,6 +15,12 @@ export declare function generateSigningKey(): Promise<{
     privateKey: string;
     publicKey: string;
 }>;
+export declare const MAX_KEY_CACHE_CAP = 1000;
+export declare function getKeyCacheStats(): {
+    pkcs8Size: number;
+    spkiSize: number;
+};
+export declare function clearKeyCache(): void;
 /**
  * Sign a verification claim.
  *

@@ -65,8 +65,10 @@ export class EmailVerificationProvider {
      * Returns attemptId for later verification.
      */
     async initiateVerification({ identifier: email, walletAddress, callbackUrl, }) {
+        // Security: Normalize email casing and whitespace to canonical format
+        const normalizedEmail = typeof email === "string" ? email.toLowerCase().trim() : email;
         // 1. Validate email format
-        this.validateIdentifier(email);
+        this.validateIdentifier(normalizedEmail);
         // 2. Security: Validate wallet address parameter type, bounds, and Algorand base32 checksum
         if (!walletAddress ||
             typeof walletAddress !== "string" ||
@@ -93,7 +95,7 @@ export class EmailVerificationProvider {
         const codeHash = bcrypt.hashSync(otp, salt);
         // 4. Store attempt
         const attempt = await this.attemptStore.createAttempt({
-            identifier: email,
+            identifier: normalizedEmail,
             method: "email",
             codeHash,
             codeSalt: salt,
@@ -106,7 +108,7 @@ export class EmailVerificationProvider {
         // 5. "Send" email
         const subject = "Verify your AlgoBounty identity";
         const body = `Your verification code is: ${otp}\n\nThis code expires in 10 minutes. Do not share this code with anyone.`;
-        await this.sendEmail(email, subject, body);
+        await this.sendEmail(normalizedEmail, subject, body);
         return { attemptId: attempt.id };
     }
     /**

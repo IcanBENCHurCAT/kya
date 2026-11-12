@@ -2,7 +2,7 @@
  * Algorand Client — connects to Algorand nodes and indexers
  * Provides methods to query transactions, accounts, and asset data
  *
- * Compatible with algosdk v2.7.x (uses the builder-pattern indexer/algod API)
+ * Compatible with algosdk v3.x (and backward compatible with v2 indexer payloads)
  */
 import type { AlgorandConfig, AlgorandTransaction } from '../types/index.js';
 export declare class AlgorandClient {
@@ -84,8 +84,9 @@ export declare class AlgorandClient {
     /**
      * Internal: Parse raw transaction results into our structured format
      *
-     * The algosdk v2.x indexer returns transactions in a nested structure:
-     * { transactions: [ { tx: { ... }, ...confirmedRound, ...block-time }, ... ] }
+     * Handles both algosdk v3 typed indexer Transaction models and legacy v2 nested structures:
+     * v2: { transactions: [ { tx: { ... }, ...confirmedRound, ...block-time }, ... ] }
+     * v3: { transactions: [ Transaction, ... ] }
      *
      * Performance optimization:
      * Single-pass parsing over rawTransactions via `for` loop pushing non-null results directly.
