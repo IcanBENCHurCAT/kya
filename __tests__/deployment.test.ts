@@ -101,7 +101,9 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       expect(html).toContain(".code-box{flex-direction:column;align-items:stretch}");
       expect(html).toContain(".code-box>div{justify-content:flex-end}");
       expect(html).toContain("forced-colors: active");
+      expect(html).toContain(".discovery-nav a{transition:color 0.15s ease}");
       expect(html).toContain("prefers-reduced-motion: reduce");
+      expect(html).toContain(".copy-btn,.cmd-tab,.kbd-hint,code[role=\"button\"],.discovery-nav a{transition:none!important}");
       expect(html).toContain("status.innerText=''");
       expect(html).toContain("status.innerText='Selected '+path+' endpoint'");
       expect(html).toContain(
@@ -213,6 +215,8 @@ describe("Phase 4 Deployment & Gateway Ingress Tests", () => {
       expect(html).toContain("method-badge");
       expect(html).toContain("forced-colors: active");
       expect(html).toContain("prefers-reduced-motion: reduce");
+      expect(html).toContain(".btn-primary,.kbd-hint,.discovery-nav a{transition:none!important}");
+      expect(html).toContain(".discovery-nav a{color:#38bdf8;text-decoration:none;font-weight:500;transition:color 0.15s ease}");
       expect(html).toContain('aria-label="Active discovery endpoints"');
       expect(html).toContain('href="/health"');
       expect(html).toContain('href="/.well-known/x402.json"');
