@@ -56,7 +56,11 @@ export function isValidCallbackUrl(urlStr: unknown): boolean {
       return false;
     }
     const rawHost = parsed.hostname.toLowerCase();
-    const clean = rawHost.startsWith("[") && rawHost.endsWith("]") ? rawHost.slice(1, -1) : rawHost;
+    let clean = rawHost.startsWith("[") && rawHost.endsWith("]") ? rawHost.slice(1, -1) : rawHost;
+    // Security: Strip trailing dots from FQDN hostnames to prevent bypassing exact & suffix domain checks
+    while (clean.endsWith(".")) {
+      clean = clean.slice(0, -1);
+    }
 
     let target = clean;
     const normalizedIPv4 = normalizeIPv4Host(clean);
@@ -128,13 +132,24 @@ export function isValidCallbackUrl(urlStr: unknown): boolean {
 
     if (
       target === "localhost" ||
+      target.endsWith(".localhost") ||
+      target === "localdomain" ||
+      target.endsWith(".localdomain") ||
+      target === "local" ||
       target.endsWith(".local") ||
+      target === "internal" ||
       target.endsWith(".internal") ||
+      target === "nip.io" ||
       target.endsWith(".nip.io") ||
+      target === "sslip.io" ||
       target.endsWith(".sslip.io") ||
+      target === "xip.io" ||
       target.endsWith(".xip.io") ||
+      target === "lvh.me" ||
       target.endsWith(".lvh.me") ||
+      target === "localtest.me" ||
       target.endsWith(".localtest.me") ||
+      target === "traefik.me" ||
       target.endsWith(".traefik.me") ||
       isForbiddenIPv4.test(target) ||
       isForbiddenIPv6

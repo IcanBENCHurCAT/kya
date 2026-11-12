@@ -219,6 +219,34 @@ describe("WebhookService", () => {
     expect(isValidCallbackUrl("http://sub.127.0.0.1.customdomain.com/webhook")).toBe(false);
     expect(isValidCallbackUrl("http://api.192.168.1.1.internal.org/webhook")).toBe(false);
 
+    // Trailing dot FQDNs, local/internal subdomains, and apex wildcard DNS loopback services
+    expect(isValidCallbackUrl("http://localhost./webhook")).toBe(false);
+    expect(isValidCallbackUrl("http://foo.localhost/webhook")).toBe(false);
+    expect(isValidCallbackUrl("http://foo.localhost./webhook")).toBe(false);
+    expect(isValidCallbackUrl("http://localdomain/webhook")).toBe(false);
+    expect(isValidCallbackUrl("http://localdomain./webhook")).toBe(false);
+    expect(isValidCallbackUrl("http://foo.localdomain/webhook")).toBe(false);
+    expect(isValidCallbackUrl("http://foo.localdomain./webhook")).toBe(false);
+    expect(isValidCallbackUrl("http://local/webhook")).toBe(false);
+    expect(isValidCallbackUrl("http://foo.local./webhook")).toBe(false);
+    expect(isValidCallbackUrl("http://internal/webhook")).toBe(false);
+    expect(isValidCallbackUrl("http://foo.internal./webhook")).toBe(false);
+    expect(isValidCallbackUrl("http://localtest.me/webhook")).toBe(false);
+    expect(isValidCallbackUrl("http://localtest.me./webhook")).toBe(false);
+    expect(isValidCallbackUrl("http://sub.localtest.me./webhook")).toBe(false);
+    expect(isValidCallbackUrl("http://lvh.me/webhook")).toBe(false);
+    expect(isValidCallbackUrl("http://lvh.me./webhook")).toBe(false);
+    expect(isValidCallbackUrl("http://sub.lvh.me./webhook")).toBe(false);
+    expect(isValidCallbackUrl("http://nip.io/webhook")).toBe(false);
+    expect(isValidCallbackUrl("http://nip.io./webhook")).toBe(false);
+    expect(isValidCallbackUrl("http://sub.nip.io./webhook")).toBe(false);
+    expect(isValidCallbackUrl("http://sslip.io/webhook")).toBe(false);
+    expect(isValidCallbackUrl("http://sslip.io./webhook")).toBe(false);
+    expect(isValidCallbackUrl("http://sub.sslip.io./webhook")).toBe(false);
+    expect(isValidCallbackUrl("http://traefik.me/webhook")).toBe(false);
+    expect(isValidCallbackUrl("http://traefik.me./webhook")).toBe(false);
+    expect(isValidCallbackUrl("http://sub.traefik.me./webhook")).toBe(false);
+
     expect(isValidCallbackUrl("ftp://example.com/upload")).toBe(false);
     expect(isValidCallbackUrl("not-a-url")).toBe(false);
     expect(isValidCallbackUrl("")).toBe(false);
