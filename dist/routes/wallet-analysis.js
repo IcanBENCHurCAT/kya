@@ -108,15 +108,16 @@ const handleWalletInfo = async (c) => {
     try {
         const client = getClient();
         const info = await client.getAccountInfo(address);
+        const accountData = (info?.account || info || {});
         return c.json({
             address,
-            balance: info.amount,
-            minBalance: info.minBalance,
-            totalApps: info.totalAppsCreated,
-            totalAssets: info.totalAssetsCreated,
-            totalTxn: info.totalTxn,
-            assets: (info.assets || []).map((a) => ({
-                assetId: (a.assetIndex ?? 0),
+            balance: (accountData.amount ?? accountData["amount"] ?? 0),
+            minBalance: (accountData.minBalance ?? accountData["min-balance"] ?? accountData["minBalance"] ?? 0),
+            totalApps: (accountData.totalAppsCreated ?? accountData["total-apps-created"] ?? accountData["totalApps"] ?? 0),
+            totalAssets: (accountData.totalAssetsCreated ?? accountData["total-assets-created"] ?? accountData["totalAssets"] ?? 0),
+            totalTxn: (accountData.totalTxn ?? accountData["total-txn"] ?? 0),
+            assets: ((accountData.assets || accountData["assets"]) || []).map((a) => ({
+                assetId: (a.assetIndex ?? a["asset-id"] ?? a["assetIndex"] ?? 0),
                 amount: (a.amount ?? 0),
             })),
         });

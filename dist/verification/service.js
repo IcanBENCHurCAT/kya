@@ -29,9 +29,9 @@ export class VerificationService {
             this.attemptStore = new AttemptStore(config.databaseUrl, config.serviceRoleKey);
             this.claimStore = new ClaimStore(config.databaseUrl, config.serviceRoleKey);
         }
-        else if (config.claimStore) {
+        else if (config.claimStore || config.attemptStore) {
             // Test injection: use provided in-memory stores
-            this.claimStore = config.claimStore;
+            this.claimStore = config.claimStore ?? new InMemoryClaimStore();
             this.attemptStore = config.attemptStore ?? new InMemoryAttemptStore();
         }
         else {
@@ -58,12 +58,14 @@ export class VerificationService {
      * Returns an attempt ID needed for completion.
      */
     async initiateVerification({ email, walletAddress, callbackUrl, }) {
+        // Security: Normalize email casing and whitespace to prevent rate-limit bypass via case variations
+        const normalizedEmail = typeof email === "string" ? email.toLowerCase().trim() : email;
         // Resolve provider
         const provider = this.registry.resolve("email");
         // Validate identifier
-        provider.validateIdentifier(email);
+        provider.validateIdentifier(normalizedEmail);
         // Check rate limit
-        const recentCount = await this.attemptStore.getRecentAttemptCount(email);
+        const recentCount = await this.attemptStore.getRecentAttemptCount(normalizedEmail);
         if (recentCount >= this.rateLimitPerHour) {
             throw Object.assign(new Error(`Rate limit exceeded. Maximum ${this.rateLimitPerHour} requests per hour.`), {
                 code: "RATE_LIMITED",
@@ -71,7 +73,7 @@ export class VerificationService {
             });
         }
         // Delegate to provider (which handles OTP generation and email sending)
-        return provider.initiateVerification({ identifier: email, walletAddress, callbackUrl });
+        return provider.initiateVerification({ identifier: normalizedEmail, walletAddress, callbackUrl });
     }
     /**
      * Complete a verification flow.

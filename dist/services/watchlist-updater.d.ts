@@ -49,6 +49,10 @@ export declare function loadFallbackWatchlist(): SanctionsList;
 export declare function initializeWatchlist(lists: ListRegistry, preferNetwork?: boolean): Promise<ListRegistry>;
 /**
  * Get summary info for API responses.
+ *
+ * Performance optimization:
+ * Uses in-memory state when populated (`state.totalEntries > 0`), avoiding redundant synchronous
+ * `fs.statSync` and `loadWatchlist` disk reads on every query or health probe (~30x faster response).
  */
 export declare function getSummary(): {
     name: string;

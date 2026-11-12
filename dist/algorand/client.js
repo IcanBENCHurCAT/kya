@@ -2,7 +2,7 @@
  * Algorand Client — connects to Algorand nodes and indexers
  * Provides methods to query transactions, accounts, and asset data
  *
- * Compatible with algosdk v2.7.x (uses the builder-pattern indexer/algod API)
+ * Compatible with algosdk v3.x (and backward compatible with v2 indexer payloads)
  */
 import * as algosdk from 'algosdk';
 import { DEFAULT_CONFIG } from '../types/index.js';
@@ -40,7 +40,12 @@ export class AlgorandClient {
      */
     async getNetworkParams() {
         const status = await this.algod.status().do();
-        return status;
+        return {
+            lastRound: Number(status.lastRound),
+            version: status.lastVersion ?? '',
+            timeSinceRound: Number(status.timeSinceLastRound ?? 0n),
+            caughtUp: (status.catchupTime ?? 0n) === 0n,
+        };
     }
     /**
      * Get account information including balance and assets
@@ -55,9 +60,10 @@ export class AlgorandClient {
      * Get transaction by ID
      */
     async getTransactionByID(txID) {
-        return this.indexer
+        const response = await this.indexer
             .lookupTransactionByID(txID)
             .do();
+        return response;
     }
     /**
      * Query all transactions for an address (incoming and outgoing)
@@ -134,7 +140,7 @@ export class AlgorandClient {
      */
     async getCurrentRound() {
         const status = await this.algod.status().do();
-        return status.lastRound || 0;
+        return Number(status.lastRound || 0n);
     }
     /**
      * Search for accounts by asset balance
@@ -169,15 +175,17 @@ export class AlgorandClient {
      * Look up block by round
      */
     async getBlockByRound(round) {
-        return this.indexer
+        const response = await this.indexer
             .lookupBlock(round)
             .do();
+        return response;
     }
     /**
      * Internal: Parse raw transaction results into our structured format
      *
-     * The algosdk v2.x indexer returns transactions in a nested structure:
-     * { transactions: [ { tx: { ... }, ...confirmedRound, ...block-time }, ... ] }
+     * Handles both algosdk v3 typed indexer Transaction models and legacy v2 nested structures:
+     * v2: { transactions: [ { tx: { ... }, ...confirmedRound, ...block-time }, ... ] }
+     * v3: { transactions: [ Transaction, ... ] }
      *
      * Performance optimization:
      * Single-pass parsing over rawTransactions via `for` loop pushing non-null results directly.
@@ -194,7 +202,7 @@ export class AlgorandClient {
             if (!tx) {
                 continue;
             }
-            const txn = tx.tx;
+            const txn = tx.tx || tx;
             if (!txn) {
                 continue;
             }
@@ -202,56 +210,90 @@ export class AlgorandClient {
             let txType = 'sent';
             let appCall = undefined;
             let assetTransfer = undefined;
-            if (txn.appCallTxnFields) {
+            const appCallFields = txn.applicationTransaction || txn.appCallTxnFields;
+            const assetTransferFields = txn.assetTransferTransaction || txn.assetTransferTxnFields;
+            const paymentFields = txn.paymentTransaction || txn.paymentTxnFields;
+            const sender = txn.sender?.toString?.() ||
+                txn.sender ||
+                txn.snd?.toString?.() ||
+                txn.snd ||
+                '';
+            if (appCallFields) {
                 txType = 'application';
                 appCall = {
-                    type: this.mapOnCompletion(txn.appCallTxnFields.onCompletion),
-                    applicationId: txn.appCallTxnFields.applicationID,
-                    onCompletion: txn.appCallTxnFields.onCompletion,
+                    type: this.mapOnCompletion(appCallFields.onCompletion),
+                    applicationId: Number(appCallFields.applicationId ?? appCallFields.applicationID ?? 0),
+                    onCompletion: appCallFields.onCompletion,
                 };
             }
-            else if (txn.assetTransferTxnFields) {
+            else if (assetTransferFields) {
+                const receiver = assetTransferFields.receiver?.toString?.() ||
+                    assetTransferFields.receiver ||
+                    assetTransferFields.assetReceiver?.toString?.() ||
+                    assetTransferFields.assetReceiver ||
+                    '';
+                const senderAddr = assetTransferFields.sender?.toString?.() ||
+                    assetTransferFields.sender ||
+                    assetTransferFields.assetSender?.toString?.() ||
+                    assetTransferFields.assetSender ||
+                    sender;
+                const closeTo = assetTransferFields.closeTo?.toString?.() ||
+                    assetTransferFields.closeTo ||
+                    assetTransferFields.assetCloseTo?.toString?.() ||
+                    assetTransferFields.assetCloseTo;
                 assetTransfer = {
-                    assetId: txn.assetTransferTxnFields.assetIndex,
-                    amount: txn.assetTransferTxnFields.amount,
-                    receiver: txn.assetTransferTxnFields.assetReceiver,
-                    sender: txn.assetTransferTxnFields.assetSender,
-                    closeTo: txn.assetTransferTxnFields.assetCloseTo,
+                    assetId: Number(assetTransferFields.assetId ?? assetTransferFields.assetIndex ?? 0),
+                    amount: Number(assetTransferFields.amount ?? 0),
+                    receiver,
+                    sender: senderAddr,
+                    closeTo,
                 };
-                if (assetTransfer.receiver === txn.snd) {
+                if (assetTransfer.receiver === sender) {
                     txType = 'received';
                 }
                 else {
                     txType = 'sent';
                 }
             }
-            else {
-                const paymentTxnFields = txn.paymentTxnFields;
-                if (paymentTxnFields) {
-                    if (paymentTxnFields.receiver === txn.snd) {
-                        // Payment to self (close remainder)
-                        txType = 'sent';
-                    }
-                    else {
-                        txType =
-                            txn.snd === paymentTxnFields.sender
-                                ? 'sent'
-                                : 'received';
-                    }
+            else if (paymentFields) {
+                const receiver = paymentFields.receiver?.toString?.() || paymentFields.receiver || '';
+                const senderAddr = paymentFields.sender?.toString?.() || paymentFields.sender || sender;
+                if (receiver === sender) {
+                    // Payment to self (close remainder)
+                    txType = 'sent';
+                }
+                else {
+                    txType = sender === senderAddr ? 'sent' : 'received';
                 }
             }
-            const amount = txn.amount || 0;
-            const fee = txn.fee || 0;
-            const round = tx.confirmedRound || 0;
-            const timestamp = tx['block-time'] || 0;
-            // Get the primary sender and receiver
-            const sender = txn.snd || '';
+            const amount = Number(paymentFields?.amount ?? txn.amount ?? 0);
+            const fee = Number(txn.fee ?? 0);
+            const round = Number(tx.confirmedRound ?? txn.confirmedRound ?? 0);
+            const timestamp = Number(tx.roundTime ??
+                tx['block-time'] ??
+                txn.roundTime ??
+                txn['block-time'] ??
+                0);
             let receiver = '';
-            if (txn.paymentTxnFields) {
-                receiver = txn.paymentTxnFields.receiver;
+            if (paymentFields) {
+                receiver =
+                    paymentFields.receiver?.toString?.() || paymentFields.receiver || '';
+            }
+            let noteStr = undefined;
+            if (txn.note) {
+                if (typeof txn.note === 'string') {
+                    noteStr = txn.note;
+                }
+                else if (txn.note instanceof Uint8Array || Buffer.isBuffer(txn.note)) {
+                    noteStr = Buffer.from(txn.note).toString('base64');
+                }
             }
             result.push({
-                txid: tx.txid || '',
+                txid: tx.id ||
+                    tx.txid ||
+                    txn.id ||
+                    txn.txid ||
+                    '',
                 round,
                 timestamp,
                 sender,
@@ -259,13 +301,12 @@ export class AlgorandClient {
                 amount,
                 fee,
                 type: txType,
-                note: txn.note
-                    ? Buffer.from(txn.note).toString('base64')
-                    : undefined,
-                closeRemainderTo: txn.paymentTxnFields?.closeRemainderTo,
+                note: noteStr,
+                closeRemainderTo: paymentFields?.closeRemainderTo?.toString?.() ||
+                    paymentFields?.closeRemainderTo,
                 assetTransfer,
                 applicationCall: appCall,
-                blockHash: tx.blockHash,
+                blockHash: tx.blockHash || txn.blockHash,
                 confirmations: 0,
             });
         }

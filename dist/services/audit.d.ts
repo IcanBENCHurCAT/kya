@@ -73,9 +73,8 @@ export declare function getAuditLog(options?: {
  * Get audit summary stats.
  *
  * Performance optimization:
- * Single $O(N)$ pass directly over auditLog using ISO string comparison for the 24h cutoff.
- * Eliminates $O(N \log N)$ localeCompare sorting, repeated .filter() array allocations,
- * and Date object instantiations per log entry.
+ * Uses scalar counters for overall status counts ($O(1)$) and a single linear pass over auditLog
+ * to count recent 24h screenings without intermediate array allocations or string sorting.
  */
 export declare function getAuditSummary(): {
     total: number;
