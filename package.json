@@ -18,13 +18,13 @@
     "@hono/node-server": "^2.1.6",
     "@supabase/supabase-js": "^2.119.0",
     "algosdk": "^3.9.0",
-    "bcryptjs": "^2.4.3",
+    "bcryptjs": "^3.0.3",
     "hono": "^4.13.17",
     "jose": "^6.2.14",
     "supabase": "^3.1.0"
   },
   "devDependencies": {
-    "@types/bcryptjs": "^2.4.6",
+    "@types/bcryptjs": "^3.0.0",
     "@types/node": "^26.6.6",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
