@@ -19,7 +19,7 @@
     "@supabase/supabase-js": "^2.39.0",
     "algosdk": "^3.9.0",
     "bcryptjs": "^2.4.3",
-    "hono": "^4.13.16",
+    "hono": "^4.13.17",
     "jose": "^6.2.14",
     "supabase": "^3.1.0"
   },
