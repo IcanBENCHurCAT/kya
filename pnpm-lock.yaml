@@ -24,7 +24,7 @@ importers:
         specifier: ^4.13.17
         version: 4.13.17
       jose:
-        specifier: ^6.2.14
+        specifier: ^6.2.17
         version: 6.2.17
       supabase:
         specifier: ^3.1.0
