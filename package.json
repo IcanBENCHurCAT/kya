@@ -15,7 +15,7 @@
     "start": "node dist/app.js"
   },
   "dependencies": {
-    "@hono/node-server": "^2.1.6",
+    "@hono/node-server": "^2.1.8",
     "@supabase/supabase-js": "^2.119.0",
     "algosdk": "^3.9.0",
     "bcryptjs": "^3.0.3",
