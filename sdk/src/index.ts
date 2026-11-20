@@ -41,10 +41,10 @@ export interface A2AHandshakeResponse {
   success: boolean;
   decision: 'PROCEED' | 'REJECT' | 'REVIEW';
   targetProfile: {
-    address: string;
+    agentAddress: string;
     karmaScore: number;
     tier: string;
-    sanctionsStatus: 'NO_MATCH_FOUND' | 'POTENTIAL_MATCH' | 'MATCH_REQUIRES_REVIEW';
+    sanctionsStatus?: 'NO_MATCH_FOUND' | 'POTENTIAL_MATCH' | 'MATCH_REQUIRES_REVIEW';
   };
   verifiableCredential?: Record<string, any>;
   signature?: string;
@@ -73,12 +73,38 @@ export interface ScreeningResponse {
   };
 }
 
+export class KyaApiError extends Error {
+  public readonly status: number;
+  public readonly body?: unknown;
+  public readonly paymentDetails?: unknown;
+
+  constructor(
+    message: string,
+    status: number,
+    body?: unknown,
+    paymentDetails?: unknown
+  ) {
+    super(message);
+    this.name = 'KyaApiError';
+    this.status = status;
+    this.body = body;
+    this.paymentDetails = paymentDetails;
+    Object.setPrototypeOf(this, KyaApiError.prototype);
+  }
+}
+
+const PAYMENT_REQUIRED_HEADERS = [
+  'PAYMENT-REQUIRED',
+  'X-Payment-Required',
+  'WWW-Authenticate',
+] as const;
+
 export class KyaClient {
   private baseUrl: string;
   private paymentTxId?: string;
 
   constructor(config: KyaClientConfig) {
-    this.baseUrl = config.baseUrl.replace(/\/$/, '');
+    this.baseUrl = config.baseUrl.replace(/\/+$/, '');
     this.paymentTxId = config.paymentTxId;
   }
 
@@ -96,6 +122,144 @@ export class KyaClient {
     return headers;
   }
 
+  private async parseResponseBody(res: Response): Promise<unknown> {
+    if (typeof res.text === 'function') {
+      const rawText = await res.text();
+      if (rawText.length === 0) {
+        return undefined;
+      }
+      try {
+        return JSON.parse(rawText);
+      } catch {
+        return rawText;
+      }
+    }
+
+    if (typeof res.json === 'function') {
+      try {
+        return await res.json();
+      } catch {
+        return undefined;
+      }
+    }
+
+    return undefined;
+  }
+
+  private parseHeaderValue(value: string): unknown {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return undefined;
+    }
+
+    try {
+      return JSON.parse(trimmed);
+    } catch {
+      if (
+        typeof atob === 'function' &&
+        /^[A-Za-z0-9+/=]+$/.test(trimmed) &&
+        trimmed.length % 4 === 0
+      ) {
+        try {
+          const decoded = atob(trimmed);
+          if (decoded.startsWith('{') || decoded.startsWith('[')) {
+            return JSON.parse(decoded);
+          }
+        } catch {
+          // Not valid base64-encoded JSON; preserve raw header string
+        }
+      }
+      return trimmed;
+    }
+  }
+
+  private extractPaymentDetails(res: Response, body: unknown): unknown {
+    if (body && typeof body === 'object' && !Array.isArray(body)) {
+      const record = body as Record<string, unknown>;
+      if (record.paymentOffer !== undefined) {
+        return record.paymentOffer;
+      }
+      if (record.paymentDetails !== undefined) {
+        return record.paymentDetails;
+      }
+      if (record.accepts !== undefined) {
+        return record.accepts;
+      }
+      if (record.payment !== undefined) {
+        return record.payment;
+      }
+      if (
+        record.priceMicroAlgo !== undefined ||
+        record.receiverAddress !== undefined ||
+        record.payTo !== undefined ||
+        record.amount !== undefined
+      ) {
+        return record;
+      }
+    }
+
+    if (res.headers && typeof res.headers.get === 'function') {
+      for (const headerName of PAYMENT_REQUIRED_HEADERS) {
+        const headerVal = res.headers.get(headerName);
+        if (headerVal) {
+          const parsed = this.parseHeaderValue(headerVal);
+          if (parsed !== undefined) {
+            return parsed;
+          }
+        }
+      }
+    }
+
+    return undefined;
+  }
+
+  private buildErrorMessage(res: Response, body: unknown): string {
+    let detail = '';
+
+    if (typeof body === 'string') {
+      detail = body.trim();
+    } else if (body && typeof body === 'object' && !Array.isArray(body)) {
+      const record = body as Record<string, unknown>;
+      const errorStr = typeof record.error === 'string' ? record.error.trim() : '';
+      const messageStr = typeof record.message === 'string' ? record.message.trim() : '';
+      const detailStr =
+        typeof record.detail === 'string'
+          ? record.detail.trim()
+          : typeof record.details === 'string'
+            ? record.details.trim()
+            : '';
+
+      if (errorStr && messageStr && errorStr !== messageStr) {
+        detail = `${errorStr}: ${messageStr}`;
+      } else {
+        detail = messageStr || errorStr || detailStr;
+      }
+    }
+
+    if (detail) {
+      return `KYA API request failed (${res.status}): ${detail}`;
+    }
+
+    if (res.status === 402) {
+      return 'KYA API request failed (402): Payment Required';
+    }
+
+    const statusSuffix = res.statusText ? ` ${res.statusText}` : '';
+    return `KYA API request failed (${res.status}${statusSuffix})`;
+  }
+
+  private async handleResponse<T>(res: Response): Promise<T> {
+    if (!res.ok) {
+      const body = await this.parseResponseBody(res);
+      const paymentDetails =
+        res.status === 402 ? this.extractPaymentDetails(res, body) : undefined;
+      const message = this.buildErrorMessage(res, body);
+      throw new KyaApiError(message, res.status, body, paymentDetails);
+    }
+
+    return res.json() as Promise<T>;
+  }
+
   /**
    * Query Agent Karma profile and event history
    */
@@ -103,7 +267,7 @@ export class KyaClient {
     const res = await fetch(`${this.baseUrl}/api/v1/karma/${address}`, {
       headers: this.getHeaders(),
     });
-    return res.json();
+    return this.handleResponse<KarmaProfileResponse>(res);
   }
 
   /**
@@ -121,7 +285,7 @@ export class KyaClient {
       headers: this.getHeaders(),
       body: JSON.stringify(event),
     });
-    return res.json();
+    return this.handleResponse<KarmaProfileResponse>(res);
   }
 
   /**
@@ -135,7 +299,7 @@ export class KyaClient {
       headers: this.getHeaders(),
       body: JSON.stringify(request),
     });
-    return res.json();
+    return this.handleResponse<A2AHandshakeResponse>(res);
   }
 
   /**
@@ -147,7 +311,7 @@ export class KyaClient {
       headers: this.getHeaders(),
       body: JSON.stringify(payload),
     });
-    return res.json();
+    return this.handleResponse<any>(res);
   }
 
   /**
@@ -162,6 +326,6 @@ export class KyaClient {
       headers: this.getHeaders(),
       body: JSON.stringify({ address, beneficialOwner }),
     });
-    return res.json();
+    return this.handleResponse<ScreeningResponse>(res);
   }
 }
