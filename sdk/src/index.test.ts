@@ -620,4 +620,69 @@ describe('KyaClient', () => {
       expect(apiErr.message).toBe('KYA API request failed (500 Internal Server Error)');
     });
   });
+
+  describe('getKarma URL path validation and encoding', () => {
+    it.each([
+      '../audit',
+      '../../health',
+      '..',
+      '.',
+      '',
+      '   ',
+      'ADDR?foo=bar',
+      'ADDR#frag',
+      'a\\b',
+      'ADDR\nX',
+    ])(
+      'rejects unsafe address %j without calling fetch or leaking X-Payment',
+      async (unsafeAddress) => {
+        const client = new KyaClient({
+          baseUrl: BASE_URL,
+          paymentTxId: 'sensitive-payment-tx',
+        });
+
+        await expect(client.getKarma(unsafeAddress)).rejects.toThrow(
+          'Invalid agent address'
+        );
+        expect(fetchMock).not.toHaveBeenCalled();
+      }
+    );
+
+    it('URL-encodes single-segment characters while preserving standard Algorand addresses', async () => {
+      const expected: KarmaProfileResponse = {
+        success: true,
+        karma: {
+          agentAddress: SAMPLE_ADDRESS,
+          score: 800,
+          tier: 'Tier 3',
+          totalEvents: 0,
+          lastUpdated: '2026-11-20T12:00:00.000Z',
+          events: [],
+        },
+      };
+
+      fetchMock.mockResolvedValueOnce(
+        new Response(JSON.stringify(expected), { status: 200 })
+      );
+      fetchMock.mockResolvedValueOnce(
+        new Response(JSON.stringify(expected), { status: 200 })
+      );
+
+      const client = new KyaClient({ baseUrl: BASE_URL });
+
+      await client.getKarma('ADDR%20TEST');
+      expect(fetchMock).toHaveBeenNthCalledWith(
+        1,
+        `${BASE_URL}/api/v1/karma/ADDR%2520TEST`,
+        { headers: { 'Content-Type': 'application/json' } }
+      );
+
+      await client.getKarma(SAMPLE_ADDRESS);
+      expect(fetchMock).toHaveBeenNthCalledWith(
+        2,
+        `${BASE_URL}/api/v1/karma/${SAMPLE_ADDRESS}`,
+        { headers: { 'Content-Type': 'application/json' } }
+      );
+    });
+  });
 });
