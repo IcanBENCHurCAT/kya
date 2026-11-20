@@ -264,9 +264,22 @@ export class KyaClient {
    * Query Agent Karma profile and event history
    */
   public async getKarma(address: string): Promise<KarmaProfileResponse> {
-    const res = await fetch(`${this.baseUrl}/api/v1/karma/${address}`, {
-      headers: this.getHeaders(),
-    });
+    const trimmed = address.trim();
+    if (
+      !trimmed ||
+      trimmed === '.' ||
+      trimmed === '..' ||
+      /[/\\?#\r\n]/.test(trimmed)
+    ) {
+      throw new Error('Invalid agent address: must be a single URL path segment');
+    }
+
+    const res = await fetch(
+      `${this.baseUrl}/api/v1/karma/${encodeURIComponent(trimmed)}`,
+      {
+        headers: this.getHeaders(),
+      }
+    );
     return this.handleResponse<KarmaProfileResponse>(res);
   }
 
