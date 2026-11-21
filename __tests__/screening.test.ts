@@ -324,7 +324,7 @@ describe("Bulk Screening", () => {
 
     // Test address exceeds max length (255)
     const res1 = await app.request(
-      "/api/v1/screen/bulk",
+      "/screen/bulk",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -340,7 +340,7 @@ describe("Bulk Screening", () => {
 
     // Test invalid Algorand address structure/checksum
     const res1b = await app.request(
-      "/api/v1/screen/bulk",
+      "/screen/bulk",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -356,7 +356,7 @@ describe("Bulk Screening", () => {
 
     // Test beneficialOwner exceeds max length (255)
     const res2 = await app.request(
-      "/api/v1/screen/bulk",
+      "/screen/bulk",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -372,7 +372,7 @@ describe("Bulk Screening", () => {
 
     // Test valid targets are accepted
     const res3 = await app.request(
-      "/api/v1/screen/bulk",
+      "/screen/bulk",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -386,7 +386,7 @@ describe("Bulk Screening", () => {
 
     // Test malformed JSON body returns HTTP 400 Bad Request
     const res4 = await app.request(
-      "/api/v1/screen/bulk",
+      "/screen/bulk",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -409,7 +409,7 @@ describe("Bulk Screening", () => {
 
     // Test missing address / non-string address
     const res1 = await app.request(
-      "/api/v1/screen",
+      "/screen",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -423,7 +423,7 @@ describe("Bulk Screening", () => {
 
     // Test empty address
     const res2 = await app.request(
-      "/api/v1/screen",
+      "/screen",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -435,7 +435,7 @@ describe("Bulk Screening", () => {
 
     // Test invalid Algorand address format
     const res2b = await app.request(
-      "/api/v1/screen",
+      "/screen",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -447,7 +447,7 @@ describe("Bulk Screening", () => {
 
     // Test address exceeding max length
     const res3 = await app.request(
-      "/api/v1/screen",
+      "/screen",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -459,7 +459,7 @@ describe("Bulk Screening", () => {
 
     // Test invalid beneficialOwner type or length
     const res4 = await app.request(
-      "/api/v1/screen",
+      "/screen",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -476,7 +476,7 @@ describe("Bulk Screening", () => {
 
     // Test valid input
     const res5 = await app.request(
-      "/api/v1/screen",
+      "/screen",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -497,7 +497,7 @@ describe("Bulk Screening", () => {
 
     // Non-object config
     const res1 = await app.request(
-      "/api/v1/screen",
+      "/screen",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -514,7 +514,7 @@ describe("Bulk Screening", () => {
 
     // Array config
     const res2 = await app.request(
-      "/api/v1/screen",
+      "/screen",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -526,7 +526,7 @@ describe("Bulk Screening", () => {
 
     // Invalid numeric threshold (string instead of finite number)
     const res3 = await app.request(
-      "/api/v1/screen",
+      "/screen",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -545,7 +545,7 @@ describe("Bulk Screening", () => {
 
     // Out of bounds failThreshold (> 1)
     const res4 = await app.request(
-      "/api/v1/screen",
+      "/screen",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -560,7 +560,7 @@ describe("Bulk Screening", () => {
 
     // Invalid maxResults (< 1)
     const res5 = await app.request(
-      "/api/v1/screen",
+      "/screen",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -579,7 +579,7 @@ describe("Bulk Screening", () => {
 
     // Invalid boolean field (string instead of boolean)
     const res6 = await app.request(
-      "/api/v1/screen",
+      "/screen",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -594,7 +594,7 @@ describe("Bulk Screening", () => {
 
     // Bulk screening with invalid config
     const res7 = await app.request(
-      "/api/v1/screen/bulk",
+      "/screen/bulk",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -609,7 +609,7 @@ describe("Bulk Screening", () => {
 
     // Valid config override accepted
     const res8 = await app.request(
-      "/api/v1/screen",
+      "/screen",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -633,7 +633,7 @@ describe("Bulk Screening", () => {
     const longOwner = "B".repeat(256);
 
     // Test invalid address length
-    const res1 = await app.request("/api/v1/register", {
+    const res1 = await app.request("/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ address: longAddress, ownerName: validOwner }),
@@ -643,7 +643,7 @@ describe("Bulk Screening", () => {
     expect(body1.error).toContain("Invalid address");
 
     // Test invalid address checksum/format
-    const res1b = await app.request("/api/v1/register", {
+    const res1b = await app.request("/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ address: invalidAddress, ownerName: validOwner }),
@@ -651,7 +651,7 @@ describe("Bulk Screening", () => {
     expect(res1b.status).toBe(400);
 
     // Test invalid ownerName
-    const res2 = await app.request("/api/v1/register", {
+    const res2 = await app.request("/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ address: validAddress, ownerName: longOwner }),
@@ -661,7 +661,7 @@ describe("Bulk Screening", () => {
     expect(body2.error).toContain("Invalid ownerName");
 
     // Test valid registration
-    const res3 = await app.request("/api/v1/register", {
+    const res3 = await app.request("/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ address: validAddress, ownerName: validOwner }),
@@ -669,7 +669,7 @@ describe("Bulk Screening", () => {
     expect(res3.status).toBe(200);
 
     // Test invalid optional field types/lengths (nationality, dateOfBirth, verificationMethod)
-    const res4 = await app.request("/api/v1/register", {
+    const res4 = await app.request("/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -681,7 +681,7 @@ describe("Bulk Screening", () => {
     expect(res4.status).toBe(400);
 
     // Test invalid altAddresses type (non-array)
-    const res5 = await app.request("/api/v1/register", {
+    const res5 = await app.request("/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -693,7 +693,7 @@ describe("Bulk Screening", () => {
     expect(res5.status).toBe(400);
 
     // Test invalid address format in altAddresses
-    const res6 = await app.request("/api/v1/register", {
+    const res6 = await app.request("/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -709,43 +709,49 @@ describe("Bulk Screening", () => {
     const app = (await import("../src/routes/screening.js")).default;
 
     // Test negative limit query param
-    const res1 = await app.request("/api/v1/audit?limit=-5");
+    const res1 = await app.request("/audit?limit=-5");
     expect(res1.status).toBe(400);
     const body1 = await res1.json();
     expect(body1.error).toContain("Invalid limit parameter");
 
     // Test non-numeric limit query param
-    const res2 = await app.request("/api/v1/audit?limit=invalid");
+    const res2 = await app.request("/audit?limit=invalid");
     expect(res2.status).toBe(400);
 
     // Test valid limit query param is accepted and capped
-    const res3 = await app.request("/api/v1/audit?limit=2000");
+    const res3 = await app.request("/audit?limit=2000");
     expect(res3.status).toBe(200);
 
     // Test oversized limit query parameter
     const longParam = "2".repeat(300);
-    const res3b = await app.request(`/api/v1/audit?limit=${longParam}`);
+    const res3b = await app.request(`/audit?limit=${longParam}`);
     expect(res3b.status).toBe(400);
     const body3b = await res3b.json();
     expect(body3b.error).toContain("Invalid limit parameter");
 
     // Test oversized after query parameter
-    const res4 = await app.request(`/api/v1/audit?after=${longParam}`);
+    const res4 = await app.request(`/audit?after=${longParam}`);
     expect(res4.status).toBe(400);
     const body4 = await res4.json();
     expect(body4.error).toContain("Invalid after parameter");
 
     // Test oversized before query parameter
-    const res5 = await app.request(`/api/v1/audit?before=${longParam}`);
+    const res5 = await app.request(`/audit?before=${longParam}`);
     expect(res5.status).toBe(400);
     const body5 = await res5.json();
     expect(body5.error).toContain("Invalid before parameter");
 
     // Test invalid result enum query parameter
-    const res6 = await app.request("/api/v1/audit?result=INVALID_STATUS");
+    const res6 = await app.request("/audit?result=INVALID_STATUS");
     expect(res6.status).toBe(400);
     const body6 = await res6.json();
     expect(body6.error).toContain("Invalid result parameter");
+
+    // Test GET /audit/summary standalone route
+    const res7 = await app.request("/audit/summary");
+    expect(res7.status).toBe(200);
+    const body7 = await res7.json();
+    expect(body7.success).toBe(true);
   });
 
   it("should safely handle requests when c.env or WATCHLIST is missing or undefined", async () => {
@@ -753,14 +759,20 @@ describe("Bulk Screening", () => {
     const validAddress =
       "EJV45NV63RXILAMNL4IRRLBJ2XDKDXJ4J4EH5TSGIUCKVDTMBVYQ53PYRU";
 
-    // Test GET /api/v1/watchlist without env
-    const res1 = await app.request("/api/v1/watchlist");
+    // Test GET /health standalone route
+    const res0 = await app.request("/health");
+    expect(res0.status).toBe(200);
+    const body0 = await res0.json();
+    expect(body0.status).toBe("ok");
+
+    // Test GET /watchlist without env
+    const res1 = await app.request("/watchlist");
     expect(res1.status).toBe(200);
     const body1 = await res1.json();
     expect(body1.totalLists).toBe(0);
 
-    // Test POST /api/v1/screen without env
-    const res2 = await app.request("/api/v1/screen", {
+    // Test POST /screen without env
+    const res2 = await app.request("/screen", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ address: validAddress }),
@@ -773,21 +785,21 @@ describe("Bulk Screening", () => {
   it("should safely handle JSON null request body with HTTP 400 Bad Request instead of throwing 500", async () => {
     const app = (await import("../src/routes/screening.js")).default;
 
-    const res1 = await app.request("/api/v1/screen", {
+    const res1 = await app.request("/screen", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: "null",
     });
     expect(res1.status).toBe(400);
 
-    const res2 = await app.request("/api/v1/screen/bulk", {
+    const res2 = await app.request("/screen/bulk", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: "null",
     });
     expect(res2.status).toBe(400);
 
-    const res3 = await app.request("/api/v1/register", {
+    const res3 = await app.request("/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: "null",
@@ -1493,5 +1505,182 @@ describe("Fuzzy Matching", () => {
     );
 
     assert(highMatch.matchedEntries.length >= 0, "High match should work");
+  });
+});
+
+// ─── Main App Mount & x402 Integration Tests ───────────────────────
+
+describe("Integration: Main App Screening Route Mounting & x402 Gate", () => {
+  const validAddress =
+    "EJV45NV63RXILAMNL4IRRLBJ2XDKDXJ4J4EH5TSGIUCKVDTMBVYQ53PYRU";
+
+  beforeEach(async () => {
+    clearAuditLog();
+    clearWalletIdentities();
+    const { resetX402Receipts } = await import("../src/middleware/x402.js");
+    resetX402Receipts();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("should enforce x402 payment gate (402) on all screening routes without X-Payment header", async () => {
+    const { app } = await import("../src/app.js");
+
+    const routes: Array<{ method: string; path: string; body?: string }> = [
+      { method: "POST", path: "/api/v1/screen", body: JSON.stringify({ address: validAddress }) },
+      { method: "POST", path: "/api/v1/screen/bulk", body: JSON.stringify({ targets: [{ address: validAddress }] }) },
+      { method: "POST", path: "/api/v1/register", body: JSON.stringify({ address: validAddress, ownerName: "Alice" }) },
+      { method: "GET", path: "/api/v1/watchlist" },
+      { method: "POST", path: "/api/v1/watchlist/refresh", body: JSON.stringify({}) },
+      { method: "GET", path: "/api/v1/audit" },
+      { method: "GET", path: "/api/v1/audit/summary" },
+    ];
+
+    for (const r of routes) {
+      const res = await app.request(r.path, {
+        method: r.method,
+        headers: r.body ? { "Content-Type": "application/json" } : undefined,
+        body: r.body,
+      });
+      expect(res.status, `${r.method} ${r.path} should return 402 without X-Payment`).toBe(402);
+    }
+  });
+
+  it("should resolve all screening routes cleanly at /api/v1/* (not 404) when X-Payment is provided", async () => {
+    const { app } = await import("../src/app.js");
+    const watchlistUpdater = await import("../src/services/watchlist-updater.js");
+    const refreshSpy = vi
+      .spyOn(watchlistUpdater, "refreshWatchlists")
+      .mockResolvedValueOnce({ "OFAC-SDN": buildDefaultData() });
+
+    // POST /api/v1/screen (valid -> 200, invalid -> 400)
+    const screenOk = await app.request("/api/v1/screen", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Payment": "tx_int_screen_ok",
+      },
+      body: JSON.stringify({ address: validAddress }),
+    });
+    expect(screenOk.status).toBe(200);
+
+    const screenBad = await app.request("/api/v1/screen", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Payment": "tx_int_screen_bad",
+      },
+      body: JSON.stringify({ address: "INVALID" }),
+    });
+    expect(screenBad.status).toBe(400);
+
+    // POST /api/v1/screen/bulk (valid -> 200, invalid -> 400)
+    const bulkOk = await app.request("/api/v1/screen/bulk", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Payment": "tx_int_bulk_ok",
+      },
+      body: JSON.stringify({ targets: [{ address: validAddress }] }),
+    });
+    expect(bulkOk.status).toBe(200);
+
+    const bulkBad = await app.request("/api/v1/screen/bulk", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Payment": "tx_int_bulk_bad",
+      },
+      body: JSON.stringify({ targets: [] }),
+    });
+    expect(bulkBad.status).toBe(400);
+
+    // POST /api/v1/register (valid -> 200, invalid -> 400)
+    const registerOk = await app.request("/api/v1/register", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Payment": "tx_int_register_ok",
+      },
+      body: JSON.stringify({ address: validAddress, ownerName: "Alice" }),
+    });
+    expect(registerOk.status).toBe(200);
+
+    const registerBad = await app.request("/api/v1/register", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Payment": "tx_int_register_bad",
+      },
+      body: JSON.stringify({ address: "INVALID", ownerName: "Alice" }),
+    });
+    expect(registerBad.status).toBe(400);
+
+    // GET /api/v1/watchlist
+    const watchlistRes = await app.request("/api/v1/watchlist", {
+      method: "GET",
+      headers: { "X-Payment": "tx_int_watchlist" },
+    });
+    expect(watchlistRes.status).toBe(200);
+
+    // POST /api/v1/watchlist/refresh
+    const refreshRes = await app.request("/api/v1/watchlist/refresh", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Payment": "tx_int_watchlist_refresh",
+      },
+      body: JSON.stringify({ force: false }),
+    });
+    expect(refreshRes.status).toBe(200);
+    expect(refreshSpy).toHaveBeenCalledTimes(1);
+
+    // GET /api/v1/audit
+    const auditRes = await app.request("/api/v1/audit", {
+      method: "GET",
+      headers: { "X-Payment": "tx_int_audit" },
+    });
+    expect(auditRes.status).toBe(200);
+
+    // GET /api/v1/audit/summary
+    const auditSummaryRes = await app.request("/api/v1/audit/summary", {
+      method: "GET",
+      headers: { "X-Payment": "tx_int_audit_summary" },
+    });
+    expect(auditSummaryRes.status).toBe(200);
+  });
+
+  it("should keep main app /api/v1/health handler taking precedence and exempt from x402", async () => {
+    const { app } = await import("../src/app.js");
+    const res = await app.request("/api/v1/health");
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.status).toBe("healthy");
+  });
+
+  it("should return 404 for double-prefixed /api/v1/api/v1/* screening routes", async () => {
+    const { app } = await import("../src/app.js");
+
+    const res1 = await app.request("/api/v1/api/v1/screen", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "X-Payment": "tx_int_double_prefix_1",
+      },
+      body: JSON.stringify({ address: validAddress }),
+    });
+    expect(res1.status).toBe(404);
+
+    const res2 = await app.request("/api/v1/api/v1/audit/summary", {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        "X-Payment": "tx_int_double_prefix_2",
+      },
+    });
+    expect(res2.status).toBe(404);
   });
 });

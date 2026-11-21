@@ -168,7 +168,7 @@ describe("Algorand Wallet Analysis REST API Security Tests", () => {
           throw new Error("FATAL_SECRET_LEAK_IN_DB: password=supersecret");
         });
 
-      const res = await app.request("/api/v1/api/v1/audit/summary", {
+      const res = await app.request("/api/v1/audit/summary", {
         method: "GET",
         headers: {
           Accept: "application/json",

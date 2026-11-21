@@ -64,13 +64,13 @@ function validateScreeningConfig(config) {
 /**
  * Health check endpoint.
  */
-app.get("/api/v1/health", (c) => {
+app.get("/health", (c) => {
     return c.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 /**
  * Get watchlist summary.
  */
-app.get("/api/v1/watchlist", (c) => {
+app.get("/watchlist", (c) => {
     const { WATCHLIST } = c.env || {};
     const watchlist = WATCHLIST || {};
     const summary = getWatchlistSummary();
@@ -91,7 +91,7 @@ app.get("/api/v1/watchlist", (c) => {
 /**
  * Refresh watchlists (manual trigger).
  */
-app.post("/api/v1/watchlist/refresh", async (c) => {
+app.post("/watchlist/refresh", async (c) => {
     const { WATCHLIST } = c.env || {};
     const watchlist = WATCHLIST || {};
     const body = (await c.req.json().catch(() => ({}))) || {};
@@ -128,7 +128,7 @@ app.post("/api/v1/watchlist/refresh", async (c) => {
  *   config?: Partial<ScreeningConfig> // Optional: per-request config
  * }
  */
-app.post("/api/v1/screen", async (c) => {
+app.post("/screen", async (c) => {
     const { WATCHLIST, SCREENING_CONFIG } = c.env || {};
     const watchlist = WATCHLIST || {};
     const body = (await c.req.json().catch(() => ({}))) || {};
@@ -197,7 +197,7 @@ app.post("/api/v1/screen", async (c) => {
  *   config?: Partial<ScreeningConfig>
  * }
  */
-app.post("/api/v1/screen/bulk", async (c) => {
+app.post("/screen/bulk", async (c) => {
     const { WATCHLIST, SCREENING_CONFIG } = c.env || {};
     const watchlist = WATCHLIST || {};
     const body = (await c.req.json().catch(() => ({}))) || {};
@@ -295,7 +295,7 @@ app.post("/api/v1/screen/bulk", async (c) => {
  *   before: ISO timestamp
  *   result: NO_MATCH_FOUND | POTENTIAL_MATCH | MATCH_REQUIRES_REVIEW | ERROR
  */
-app.get("/api/v1/audit", (c) => {
+app.get("/audit", (c) => {
     // Security: Sanitize and bound limit query parameter to prevent negative array slice offsets or DoS
     const limitParam = c.req.query("limit");
     let limit = 100;
@@ -333,7 +333,7 @@ app.get("/api/v1/audit", (c) => {
 /**
  * Get audit summary stats.
  */
-app.get("/api/v1/audit/summary", (c) => {
+app.get("/audit/summary", (c) => {
     const stats = getAuditSummary();
     return c.json({ success: true, ...stats });
 });
@@ -350,7 +350,7 @@ app.get("/api/v1/audit/summary", (c) => {
  *   altAddresses?: string[]
  * }
  */
-app.post("/api/v1/register", async (c) => {
+app.post("/register", async (c) => {
     const body = (await c.req.json().catch(() => ({}))) || {};
     const address = body.address;
     const ownerName = body.ownerName;
