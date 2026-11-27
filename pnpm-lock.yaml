@@ -24,8 +24,8 @@ importers:
         specifier: ^4.13.21
         version: 4.13.21
       jose:
-        specifier: ^6.2.17
-        version: 6.2.17
+        specifier: ^6.2.18
+        version: 6.2.18
       supabase:
         specifier: ^3.3.0
         version: 3.3.0
@@ -640,8 +640,8 @@ packages:
     resolution: {integrity: sha512-1dhVQZXhcHje7798IVM+xoo/1ZdVfzOMIc8/rgVSijRK38EDqOJoGula9N/8ZI5RD8QTxNQtK/Gozpr+qUqRRA==}
     engines: {node: '>=20.0.0'}
 
-  jose@6.2.17:
-    resolution: {integrity: sha512-wOuK9V1yujQFH5S0ZWmLcDZN7+IKh9bUCC2ZPCf2HDlol3WWHy+PPyNjEI75FXRLMp3vDKQcupP59xhVU95hcg==}
+  jose@6.2.18:
+    resolution: {integrity: sha512-doV4thUwgkrycJH4yLeqwTGIIZphHl+pk7CPReuMIhYhncmgzdko85MaCG4YQFTxqMFr1/oEH32tZuKKovcDEg==}
 
   js-sha256@0.9.0:
     resolution: {integrity: sha512-sga3MHh9sgQN2+pJ9VYZ+1LPwXOxuBJBA5nrR5/ofPfuiJBE2hnjsaN8se8JznOmGLN2p49Pe5U/ttafcs/apA==}
@@ -1271,7 +1271,7 @@ snapshots:
 
   iceberg-js@0.8.1: {}
 
-  jose@6.2.17: {}
+  jose@6.2.18: {}
 
   js-sha256@0.9.0: {}
 
@@ -1378,7 +1378,7 @@ snapshots:
   supabase@3.3.0:
     dependencies:
       eciesjs: 0.5.0
-      jose: 6.2.17
+      jose: 6.2.18
     optionalDependencies:
       '@supabase/cli-darwin-arm64': 3.3.0
       '@supabase/cli-darwin-x64': 3.3.0
