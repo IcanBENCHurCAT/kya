@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "@hono/node-server": "^2.1.8",
-    "@supabase/supabase-js": "^2.119.0",
+    "@supabase/supabase-js": "^2.119.2",
     "algosdk": "^3.9.0",
     "bcryptjs": "^3.0.3",
     "hono": "^4.13.21",
